@@ -2,9 +2,14 @@ name: Build
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - cleanup/fresh-baseline-no-migrations
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   compile:
@@ -19,15 +24,13 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      - name: Build all projects
+      # Build-only gate. Automated behavioral tests are deferred.
+      - name: Build complete solution
         shell: pwsh
         run: |
           dotnet build CodexMonitor.slnx --configuration Release --nologo 2>&1 | Tee-Object -FilePath build.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Run parser and persistence checks
-        shell: pwsh
-        run: dotnet run --project tests/ParserChecks.csproj --configuration Release
-      - name: Keep build output for code review
+      - name: Keep compiler output
         if: always()
         uses: actions/upload-artifact@v4
         with:

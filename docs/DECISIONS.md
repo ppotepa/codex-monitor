@@ -42,9 +42,7 @@ and different AI providers are the actual sources of variation.
 6. Single DI registrations for coordinator, database/history, settings,
    discovery and Codex via `CodexMonitor.Composition`. Each host supplies
    only its platform services and views.
-7. GitHub Actions builds on pushes and pull requests for Windows, Linux and
-   macOS, and runs the existing parser/persistence console checks. A unit-test
-   framework remains intentionally deferred.
+7. GitHub Actions compiles on Windows, Linux and macOS; automated tests are deferred.
 
 ## Remaining work
 
@@ -63,8 +61,7 @@ and different AI providers are the actual sources of variation.
    The old `history.json` import, default plugin IDs and pre-refactor
    alert-key lookup have been removed. Database reads accept only baseline
    schema `v1`, without any migration pipeline.
-6. Automated behavioral tests remain deliberately deferred for now; the
-   existing console checks are the CI smoke gate.
+6. Automated behavioral tests remain deferred. CI validates compilation only.
 
 ## Merge policy
 
@@ -72,3 +69,19 @@ The stable `main` should be fast-forwarded to the migration commit only
 after the Windows project and Unix-neutral projects compile and existing
 Windows UI behavior has been checked. Preserve a single parent and never
 force-push the default branch.
+
+## Reliability corrections after review
+
+- Every asynchronous provider refresh is tied to the active plugin generation.
+  Agent changes queue a new refresh behind older operations instead of
+  dropping it when a semaphore is occupied.
+- Failed token requests use bounded 1/2/4/5-minute backoff. A successful
+  read returns to the configured cadence.
+- Only an elapsed reset boundary and newer reported boundary start a new alert
+  cycle. Percentage decreases and timestamp corrections do not unsnooze.
+- Database write errors remain visible until a database write succeeds,
+  independently of settings reads/writes. Malformed settings are preserved
+  before defaults may be saved.
+- GitHub Actions is configured for three-OS compilation only; automated tests
+  remain deferred. Real platform builds, app startup and packaging checks
+  are release requirements, not assumed successes.

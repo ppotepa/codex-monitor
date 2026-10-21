@@ -111,5 +111,17 @@ single-use data record in an interface.
 `dotnet build CodexMonitor.slnx -c Release` must pass before merging. For
 0.5.1 it passes on Windows together with the parser checks and native
 screenshot checks. `scripts/build-installer.ps1` also produces the 0.5.1 Inno
-Setup package locally. GitHub Actions now runs the solution build and console
-checks on pushes and pull requests for all three target operating systems.
+Setup package locally. GitHub Actions is configured for build-only validation across the three target operating systems. New changes must compile and pass manual platform checks before release.
+
+## Refresh and persistence reliability
+
+`UsageCoordinator` ties asynchronous results and failures to the active
+plugin generation. An agent change queues a refresh behind in-flight work,
+without a polling loop. Successful token reads use the selected refresh
+interval; transient failures retry with bounded backoff. Alert cycles require
+an elapsed deadline followed by a later reported deadline.
+
+Database and settings persistence diagnostics are independent. Corrupt
+settings are preserved as timestamped files before defaults can be saved,
+and saving is blocked when preservation fails. Database recovery accepts
+only the single supported baseline schema, not prior application formats.
