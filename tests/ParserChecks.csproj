@@ -6,7 +6,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../UsageSnapshot.cs" Link="UsageSnapshot.cs" />
-    <Compile Include="../CliService.cs" Link="CliService.cs" />
+    <Compile Include="../Core/IUsagePlugin.cs" Link="Core/IUsagePlugin.cs" />
+    <Compile Include="../Core/AgentCatalog.cs" Link="Core/AgentCatalog.cs" />
+    <Compile Include="../Core/UsageSnapshot.cs" Link="Core/UsageSnapshot.cs" />
+    <Compile Include="../Core/TokenUsageSnapshot.cs" Link="Core/TokenUsageSnapshot.cs" />
+    <Compile Include="../Core/UsageHistory.cs" Link="Core/UsageHistory.cs" />
+    <Compile Include="../Core/MonitorSettings.cs" Link="Core/MonitorSettings.cs" />
+    <Compile Include="../Core/MonitorDatabase.cs" Link="Core/MonitorDatabase.cs" />
+    <Compile Include="../Core/AlertPolicy.cs" Link="Core/AlertPolicy.cs" />
+    <Compile Include="../Infrastructure/Windows/AgentDiscovery.cs" Link="Infrastructure/Windows/AgentDiscovery.cs" />
+    <Compile Include="../Plugins/**/*.cs" Link="Plugins/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

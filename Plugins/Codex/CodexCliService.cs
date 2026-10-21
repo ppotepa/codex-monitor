@@ -1,31 +1,15 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using CodexMonitor.Infrastructure.Windows;
 
-namespace CodexMonitor;
+namespace CodexMonitor.Plugins.Codex;
 
-internal enum CliProblem { None, Missing, Broken }
-
-internal sealed class CliUnavailableException(CliProblem problem, string message) : Exception(message)
-{
-    public CliProblem Problem { get; } = problem;
-}
-
-internal static class CliService
+internal static class CodexCliService
 {
     private const string GitSource = "git+https://github.com/wakamex/clanker-usage.git@v0.4.1";
 
     public static string? FindExecutable(string name)
-    {
-        var candidates = new List<string>();
-        var localBin = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "bin");
-        candidates.Add(Path.Combine(localBin, name));
-        foreach (var directory in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-        {
-            try { candidates.Add(Path.Combine(directory.Trim('"'), name)); }
-            catch (ArgumentException) { }
-        }
-        return candidates.FirstOrDefault(File.Exists);
-    }
+        => WindowsExecutableLocator.Find([name]);
 
     public static async Task<UsageSnapshot> ReadAsync(CancellationToken cancellationToken)
     {
@@ -35,14 +19,14 @@ internal static class CliService
         if (wrapper is not null)
         {
             try { return await ReadFromAsync(wrapper, ["json", "--max-age", "300"], cancellationToken); }
-            catch (CliUnavailableException) when (core is not null)
+            catch (PluginDependencyException) when (core is not null)
             {
                 return await ReadFromAsync(core, ["codex", "json", "--max-age", "300"], cancellationToken);
             }
         }
         if (core is not null)
             return await ReadFromAsync(core, ["codex", "json", "--max-age", "300"], cancellationToken);
-        throw new CliUnavailableException(CliProblem.Missing, "Codex usage CLI is not installed.");
+        throw new PluginDependencyException(DependencyProblem.Missing, "Codex usage CLI is not installed.");
     }
 
     private static async Task<UsageSnapshot> ReadFromAsync(string executable, string[] arguments, CancellationToken cancellationToken)
@@ -52,10 +36,10 @@ internal static class CliService
         {
             var error = ShortError(result.StandardError, result.StandardOutput);
             if (IsBrokenLauncherError(error))
-                throw new CliUnavailableException(CliProblem.Broken, "The usage CLI cannot start because its Python interpreter is missing.");
+                throw new PluginDependencyException(DependencyProblem.Broken, "The usage CLI cannot start because its Python interpreter is missing.");
             throw new InvalidOperationException(error);
         }
-        return UsageSnapshot.Parse(result.StandardOutput);
+        return CodexUsageParser.ParseLimits(result.StandardOutput);
     }
 
     internal static bool IsBrokenLauncherError(string message) =>
@@ -90,7 +74,7 @@ internal static class CliService
             var result = await RunAsync(executable, ["--version"], TimeSpan.FromSeconds(15), cancellationToken);
             return result.ExitCode == 0;
         }
-        catch (CliUnavailableException) { return false; }
+        catch (PluginDependencyException) { return false; }
     }
 
     private static async Task<(int ExitCode, string StandardOutput, string StandardError)> RunAsync(
@@ -106,7 +90,7 @@ internal static class CliService
         };
         foreach (var argument in arguments) process.StartInfo.ArgumentList.Add(argument);
         try { process.Start(); }
-        catch (Win32Exception ex) { throw new CliUnavailableException(CliProblem.Broken, $"Cannot start {Path.GetFileName(executable)}: {ex.Message}"); }
+        catch (Win32Exception ex) { throw new PluginDependencyException(DependencyProblem.Broken, $"Cannot start {Path.GetFileName(executable)}: {ex.Message}"); }
 
         using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutSource.CancelAfter(timeout);

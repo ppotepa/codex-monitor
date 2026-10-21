@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-$project = $PSScriptRoot
+$project = Split-Path -Parent $PSScriptRoot
 $compilerCandidates = @(
     (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe'),
     'C:\Program Files\Inno Setup 6\ISCC.exe',
@@ -12,11 +12,11 @@ if (-not $compiler) {
 
 Push-Location $project
 try {
-    dotnet publish CodexMonitor.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o (Join-Path $project 'build\publish')
+    dotnet publish CodexMonitor.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeSourceRevisionInInformationalVersion=false -o (Join-Path $project 'build\publish')
     if ($LASTEXITCODE -ne 0) { throw 'App publishing failed.' }
-    & $compiler (Join-Path $project 'CodexMonitor.iss')
+    & $compiler (Join-Path $project 'packaging\CodexMonitor.iss')
     if ($LASTEXITCODE -ne 0) { throw 'Installer build failed.' }
-    Write-Output (Join-Path $project 'installer\CodexMonitor-0.1.2-Setup.exe')
+    Write-Output (Join-Path $project 'installer\CodexMonitor-0.4.0-Setup.exe')
 }
 finally {
     Pop-Location

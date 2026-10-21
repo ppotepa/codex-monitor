@@ -1,19 +1,11 @@
 using System.Globalization;
 using System.Text.Json;
 
-namespace CodexMonitor;
+namespace CodexMonitor.Plugins.Codex;
 
-internal sealed record UsageWindow(string Name, double UsedPercent, DateTimeOffset? ResetsAt);
-
-internal sealed record UsageSnapshot(string? Plan, DateTimeOffset? RetrievedAt, IReadOnlyList<UsageWindow> Windows)
+internal static class CodexUsageParser
 {
-    public string? Status { get; init; }
-
-    public UsageWindow? MainWindow => Windows.FirstOrDefault(w => w.Name.Equals("5-hour", StringComparison.OrdinalIgnoreCase))
-        ?? Windows.FirstOrDefault(w => w.Name.Equals("weekly", StringComparison.OrdinalIgnoreCase))
-        ?? Windows.FirstOrDefault();
-
-    public static UsageSnapshot Parse(string json)
+    public static UsageSnapshot ParseLimits(string json)
     {
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
@@ -44,7 +36,7 @@ internal sealed record UsageSnapshot(string? Plan, DateTimeOffset? RetrievedAt, 
             ? planElement.GetString() : null;
         var status = root.TryGetProperty("status", out var statusElement) && statusElement.ValueKind == JsonValueKind.String
             ? statusElement.GetString() : null;
-        return new UsageSnapshot(plan, ReadDate(root, "retrieved_at"), windows) { Status = status };
+        return new UsageSnapshot(plan, ReadDate(root, "retrieved_at"), windows.OrderBy(w => w.Name.ToLowerInvariant() switch { "5-hour" => 0, "weekly" => 1, _ => 2 }).ToArray()) { Status = status };
     }
 
     private static DateTimeOffset? ReadDate(JsonElement parent, string key)

@@ -8,10 +8,13 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <AssemblyName>CodexMonitor</AssemblyName>
     <RootNamespace>CodexMonitor</RootNamespace>
-    <Version>0.1.2</Version>
+    <Version>0.4.0</Version>
     <Product>Codex Monitor</Product>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="tests/**/*.cs" />
+    <Compile Remove="build/**/*.cs" />
+    <Compile Remove="tools/**/*.cs" />
+    <InternalsVisibleTo Include="CodexMonitor.Screenshots" />
   </ItemGroup>
 </Project>

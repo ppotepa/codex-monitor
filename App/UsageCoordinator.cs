@@ -1,0 +1,252 @@
+namespace CodexMonitor;
+
+// Application-layer coordinator. It knows when data should be read and how a
+// provider failure is represented, but it does not know anything about forms,
+// tray menus or controls.
+internal sealed class UsageCoordinator : IDisposable
+{
+    private readonly IUsagePlugin _plugin;
+    private readonly MonitorSettings _settings;
+    private readonly UsageHistory _history;
+    private readonly MonitorDatabase _database;
+    private readonly CancellationToken _shutdown;
+    private bool _autoRecoveryAttempted;
+    private DateTimeOffset? _tokenLastAttemptAt;
+
+    public UsageSnapshot? Snapshot { get; private set; }
+    public TokenUsageSnapshot? TokenUsage { get; private set; }
+    public string? LimitError { get; private set; }
+    public string? TokenError { get; private set; }
+    public DependencyProblem DependencyProblem { get; private set; }
+    public bool IsBusy { get; private set; }
+    public bool IsTokenBusy { get; private set; }
+    public PluginStatus PluginStatus { get; private set; } = new(PluginHealth.Unknown);
+    public PluginInfo PluginInfo => _plugin.Info;
+    public bool ShowingFreshLimits => Snapshot?.Status != "stale" && Snapshot is not null;
+
+    public event Action? Changed;
+    public event Action<string, string, ToolTipIcon>? AlertRaised;
+
+    public UsageCoordinator(IUsagePlugin plugin, MonitorSettings settings, UsageHistory history,
+        MonitorDatabase database, CancellationToken shutdown)
+    {
+        _plugin = plugin;
+        _settings = settings;
+        _history = history;
+        _database = database;
+        _shutdown = shutdown;
+        var cachedTokens = _database.ReadTokenUsage(_plugin.Info.Id);
+        if (cachedTokens is not null)
+        {
+            TokenUsage = cachedTokens.Snapshot;
+            _tokenLastAttemptAt = cachedTokens.CachedAt;
+        }
+    }
+
+    public UsageWindow? SelectedWindow => Snapshot?.Windows.FirstOrDefault(window =>
+            window.Name.Equals(_settings.TrayWindow, StringComparison.OrdinalIgnoreCase))
+        ?? Snapshot?.MainWindow;
+
+    public IReadOnlyList<UsageHistoryPoint> RecentHistory =>
+        _history.Recent(SelectedWindow?.Name, DateTimeOffset.UtcNow);
+
+    public void SetTrayWindow(string key) => _settings.TrayWindow = key;
+
+    public void ResetAlertLevels()
+    {
+        foreach (var key in _settings.AlertStates.Keys.ToArray())
+            _settings.AlertStates[key] = _settings.AlertStates[key] with { Level = 0 };
+    }
+
+    public void ToggleSnooze()
+    {
+        var selected = SelectedWindow;
+        if (selected?.ResetsAt is null) return;
+        var resetAt = selected.ResetsAt.Value.ToUnixTimeSeconds();
+        _settings.AlertStates.TryGetValue(selected.Name, out var prior);
+        var level = AlertPolicy.Level(selected.UsedPercent, _settings.WarningThreshold, _settings.CriticalThreshold);
+        _settings.AlertStates[selected.Name] = new WindowAlertState(resetAt, level, !(prior?.Snoozed ?? false));
+    }
+
+    public bool IsSnoozed()
+    {
+        var selected = SelectedWindow;
+        return selected is not null && _settings.AlertStates.TryGetValue(selected.Name, out var state) &&
+            state.Snoozed && state.ResetAt == selected.ResetsAt?.ToUnixTimeSeconds();
+    }
+
+    public async Task RefreshLimitsAsync()
+    {
+        if (IsBusy || _shutdown.IsCancellationRequested) return;
+        IsBusy = true;
+        PluginStatus = PluginStatus with { Health = PluginHealth.Refreshing };
+        NotifyChanged();
+        try
+        {
+            await ReadLimitsAsync();
+        }
+        catch (PluginDependencyException ex)
+        {
+            SetDependencyError(ex);
+            if (!_autoRecoveryAttempted && _plugin.Info.CanRepair)
+            {
+                _autoRecoveryAttempted = true;
+                try
+                {
+                    await _plugin.RepairAsync(_shutdown);
+                    await ReadLimitsAsync();
+                }
+                catch (Exception repairError)
+                {
+                    LimitError = $"Could not repair the CLI: {repairError.Message}";
+                    PluginStatus = PluginStatus with { Health = PluginHealth.Broken, Detail = LimitError };
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            LimitError = ex.Message;
+            PluginStatus = PluginStatus with { Health = PluginHealth.Error, Detail = ex.Message };
+        }
+        finally
+        {
+            IsBusy = false;
+            NotifyChanged();
+        }
+    }
+
+    public async Task RepairAsync()
+    {
+        if (IsBusy || _shutdown.IsCancellationRequested) return;
+        IsBusy = true;
+        LimitError = null;
+        PluginStatus = PluginStatus with { Health = PluginHealth.Refreshing, Detail = null };
+        NotifyChanged();
+        try
+        {
+            await _plugin.RepairAsync(_shutdown);
+            await ReadLimitsAsync();
+        }
+        catch (PluginDependencyException ex)
+        {
+            SetDependencyError(ex);
+        }
+        catch (Exception ex)
+        {
+            LimitError = ex.Message;
+            PluginStatus = PluginStatus with { Health = PluginHealth.Error, Detail = ex.Message };
+        }
+        finally
+        {
+            IsBusy = false;
+            NotifyChanged();
+        }
+    }
+
+    public async Task RefreshTokensAsync(bool force)
+    {
+        if (IsTokenBusy || !_plugin.Info.SupportsTokens || _shutdown.IsCancellationRequested) return;
+        var now = DateTimeOffset.UtcNow;
+        if (!force && _tokenLastAttemptAt is { } attempt &&
+            now - attempt < TimeSpan.FromMinutes(_settings.TokenRefreshMinutes)) return;
+
+        IsTokenBusy = true;
+        TokenError = null;
+        _tokenLastAttemptAt = now;
+        NotifyChanged();
+        try
+        {
+            TokenUsage = await _plugin.ReadTokensAsync(_shutdown);
+            try { _database.SaveTokenUsage(_plugin.Info.Id, TokenUsage, DateTimeOffset.UtcNow); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+            TokenError = null;
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested) { return; }
+        catch (Exception ex)
+        {
+            TokenError = ex.Message;
+        }
+        finally
+        {
+            IsTokenBusy = false;
+            if (!_shutdown.IsCancellationRequested) NotifyChanged();
+        }
+    }
+
+    private async Task ReadLimitsAsync()
+    {
+        Snapshot = await _plugin.ReadLimitsAsync(_shutdown);
+        LimitError = Snapshot.Status == "stale"
+            ? "Usage data is stale; the CLI could not fetch a fresh result."
+            : null;
+        DependencyProblem = DependencyProblem.None;
+        PluginStatus = PluginStatus with
+        {
+            Health = Snapshot.Status == "stale" ? PluginHealth.Stale : PluginHealth.Ready,
+            Detail = LimitError,
+            LastSuccessfulAt = Snapshot.Status == "stale"
+                ? PluginStatus.LastSuccessfulAt ?? Snapshot.RetrievedAt
+                : Snapshot.RetrievedAt
+        };
+
+        if (Snapshot.Status == "stale") return;
+        if (_history.Add(Snapshot, DateTimeOffset.UtcNow))
+        {
+            try { _history.Save(); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+        CheckAlerts(Snapshot);
+    }
+
+    private void SetDependencyError(PluginDependencyException exception)
+    {
+        LimitError = exception.Message;
+        DependencyProblem = exception.Problem;
+        PluginStatus = PluginStatus with
+        {
+            Health = exception.Problem == DependencyProblem.Missing ? PluginHealth.Missing : PluginHealth.Broken,
+            Detail = exception.Message
+        };
+    }
+
+    private void CheckAlerts(UsageSnapshot snapshot)
+    {
+        var changed = false;
+        foreach (var window in snapshot.Windows)
+        {
+            var resetAt = window.ResetsAt?.ToUnixTimeSeconds();
+            _settings.AlertStates.TryGetValue(window.Name, out var previous);
+            if (_settings.AlertsEnabled && previous is { Level: > 0 } && previous.ResetAt != resetAt)
+                AlertRaised?.Invoke($"{_plugin.Info.DisplayName} limit reset", $"{window.Name} usage window has reset.", ToolTipIcon.Info);
+
+            var level = AlertPolicy.Level(window.UsedPercent, _settings.WarningThreshold, _settings.CriticalThreshold);
+            if (_settings.AlertsEnabled && AlertPolicy.ShouldNotify(level, previous, resetAt))
+                AlertRaised?.Invoke($"{_plugin.Info.DisplayName} usage alert", $"{window.Name} limit is {window.UsedPercent:0}% used.", ToolTipIcon.Warning);
+
+            var snoozed = previous is not null && previous.ResetAt == resetAt && previous.Snoozed;
+            var recordedLevel = previous is not null && previous.ResetAt == resetAt ? Math.Max(previous.Level, level) : level;
+            if (previous?.ResetAt != resetAt || previous?.Level != recordedLevel || previous?.Snoozed != snoozed)
+            {
+                _settings.AlertStates[window.Name] = new WindowAlertState(resetAt, recordedLevel, snoozed);
+                changed = true;
+            }
+        }
+        if (changed) SaveSettings();
+    }
+
+    private void SaveSettings()
+    {
+        try { _settings.Save(); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+    }
+
+    private void NotifyChanged() => Changed?.Invoke();
+
+    public void Dispose()
+    {
+        Changed = null;
+        AlertRaised = null;
+    }
+}

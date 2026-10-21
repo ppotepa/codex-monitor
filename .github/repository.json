@@ -1,0 +1,4 @@
+{
+  "description": "Small Windows tray app for Codex usage limits, reset times and token activity. Native WinForms UI with a built-in Codex plugin.",
+  "topics": ["codex", "codex-cli", "windows", "windows-desktop", "system-tray", "usage-monitor", "token-usage", "winforms", "dotnet", "csharp"]
+}

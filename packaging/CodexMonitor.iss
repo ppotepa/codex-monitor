@@ -1,5 +1,5 @@
 #define MyAppName "Codex Monitor"
-#define MyAppVersion "0.1.2"
+#define MyAppVersion "0.4.0"
 #define MyAppExeName "CodexMonitor.exe"
 
 [Setup]
@@ -15,7 +15,7 @@ MinVersion=10.0
 AppMutex=Local\CodexMonitor
 CloseApplications=yes
 UninstallDisplayIcon={app}\{#MyAppExeName}
-OutputDir=installer
+OutputDir=..\installer
 OutputBaseFilename=CodexMonitor-{#MyAppVersion}-Setup
 Compression=lzma2
 SolidCompression=yes
@@ -25,7 +25,7 @@ WizardStyle=modern
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "build\publish\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\build\publish\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

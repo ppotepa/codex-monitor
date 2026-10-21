@@ -1,6 +1,6 @@
 using Microsoft.Win32;
 
-namespace CodexMonitor;
+namespace CodexMonitor.Infrastructure.Windows;
 
 internal static class AutoStart
 {

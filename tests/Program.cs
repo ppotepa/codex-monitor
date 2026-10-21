@@ -1,4 +1,5 @@
 using CodexMonitor;
+using CodexMonitor.Plugins.Codex;
 
 const string actualShape = """
 {
@@ -7,7 +8,7 @@ const string actualShape = """
   "windows":[{"name":"weekly","seconds":604800,"used_pct":33,"resets_at":"2026-10-27T07:48:58+00:00"}]
 }
 """;
-var weekly = UsageSnapshot.Parse(actualShape);
+var weekly = CodexUsageParser.ParseLimits(actualShape);
 Assert(weekly.MainWindow?.Name == "weekly", "Weekly-only account");
 Assert(weekly.MainWindow?.UsedPercent == 33, "Used percentage");
 Assert(weekly.MainWindow?.ResetsAt is not null, "Reset date");
@@ -17,21 +18,86 @@ const string multipleWindows = """
 {"schema":"usage-v1","provider":"codex","windows":[
   {"name":"weekly","used_pct":80}, {"name":"5-hour","used_pct":25}]}
 """;
-var multiple = UsageSnapshot.Parse(multipleWindows);
+var multiple = CodexUsageParser.ParseLimits(multipleWindows);
 Assert(multiple.MainWindow?.Name == "5-hour", "Prefer 5-hour window");
 
 try
 {
-    UsageSnapshot.Parse("{\"schema\":\"unexpected\",\"provider\":\"codex\",\"windows\":[]}");
+    CodexUsageParser.ParseLimits("{\"schema\":\"unexpected\",\"provider\":\"codex\",\"windows\":[]}");
     throw new Exception("Unknown schema accepted");
 }
 catch (FormatException) { }
 
-Assert(CliService.IsBrokenLauncherError("did not find executable at 'C:\\Users\\name\\AppData\\Roaming\\uv\\python\\cpython...'"), "Missing Python launcher");
-Assert(CliService.IsBrokenLauncherError("Fatal error in launcher"), "Broken Python launcher");
-Assert(!CliService.IsBrokenLauncherError("authentication failed"), "Authentication error is not a launcher failure");
+Assert(CodexCliService.IsBrokenLauncherError("did not find executable at 'C:\\Users\\name\\AppData\\Roaming\\uv\\python\\cpython...'"), "Missing Python launcher");
+Assert(CodexCliService.IsBrokenLauncherError("Fatal error in launcher"), "Broken Python launcher");
+Assert(!CodexCliService.IsBrokenLauncherError("authentication failed"), "Authentication error is not a launcher failure");
 
-Console.WriteLine("Parser checks passed.");
+Assert(AlertPolicy.Level(79.9, 80, 95) == 0, "Below warning");
+Assert(AlertPolicy.Level(80, 80, 95) == 1, "At warning");
+Assert(AlertPolicy.Level(95, 80, 95) == 2, "At critical");
+Assert(!AlertPolicy.ShouldNotify(2, new WindowAlertState(10, 1, true), 10), "Snoozed alert");
+Assert(AlertPolicy.ShouldNotify(2, new WindowAlertState(10, 1, true), 11), "New window after reset");
+
+var now = DateTimeOffset.UtcNow;
+var history = new UsageHistory(Path.Combine(Path.GetTempPath(), "codex-monitor-test-history.json"),
+    [new UsageHistoryPoint(now.AddDays(-8), "weekly", 10, 1)]);
+Assert(history.Add(weekly, now), "Record current reading and prune old reading");
+Assert(history.Recent("weekly", now).Count == 1, "Only recent reading remains");
+Assert(!history.Add(weekly, now.AddMinutes(1)), "Avoid duplicate reading within four minutes");
+Assert(history.Add(weekly, now.AddMinutes(5)), "Sample after five minutes");
+Assert(history.Recent("weekly", now.AddMinutes(5)).Count == 2, "Two chart samples");
+
+Assert(PluginRegistry.All.Count == 1 && PluginRegistry.All[0].Info.Id == "codex", "Only Codex is registered");
+Assert(PluginRegistry.Get("CODEX").Info.SupportsTokens, "Codex advertises token support");
+Assert(PluginRegistry.Get("codex").Info.CanRepair, "Codex advertises dependency repair");
+var detectedAgents = new AgentCatalogSnapshot(DateTimeOffset.UtcNow, [
+    new DetectedAgent(AgentCatalog.Known.Single(agent => agent.Id == "claude"), "C:\\tools\\claude.cmd"),
+    new DetectedAgent(AgentCatalog.Known.Single(agent => agent.Id == "codex"), "C:\\tools\\codex.cmd")
+]);
+var selectedAgent = AgentCatalog.Select(detectedAgents, PluginRegistry.All, "auto");
+Assert(selectedAgent.Plugin.Info.Id == "codex" && selectedAgent.DetectedAgent?.Definition.Id == "codex",
+    "Select the installed supported agent over an unsupported detected agent");
+var preferredSelection = AgentCatalog.Select(detectedAgents, PluginRegistry.All, "codex");
+Assert(preferredSelection.Reason == "Preferred agent", "Honor preferred agent selection");
+var unsupportedOnly = new AgentCatalogSnapshot(DateTimeOffset.UtcNow, [
+    new DetectedAgent(AgentCatalog.Known.Single(agent => agent.Id == "claude"), "C:\\tools\\claude.cmd")
+]);
+var fallbackSelection = AgentCatalog.Select(unsupportedOnly, PluginRegistry.All, "auto");
+Assert(fallbackSelection.Plugin.Info.Id == "codex" && fallbackSelection.DetectedAgent is null,
+    "Keep Codex repair adapter when only unsupported agents are installed");
+var defaultSettings = new MonitorSettings();
+Assert(defaultSettings.LimitsRefreshMinutes == 5 && defaultSettings.TokenRefreshMinutes == 30,
+    "Use gentle default refresh cadence");
+Assert(defaultSettings.AgentScanMinutes == 30 && defaultSettings.AutoRefreshTokens,
+    "Enable periodic agent scan and token refresh by default");
+try
+{
+    PluginRegistry.Get("unsupported-provider");
+    throw new Exception("Unsupported provider accepted");
+}
+catch (NotSupportedException) { }
+
+var tokenSnapshot = CodexTokenParser.ParseTokens("""
+{"summary":{"lifetimeTokens":12345,"peakDailyTokens":-1},"dailyUsageBuckets":[
+ {"startDate":"2026-10-20","tokens":100},
+ {"startDate":"2026-10-19","tokens":0},
+ {"startDate":"2026-10-20","tokens":120},
+ {"startDate":"2026-10-21","tokens":"invalid"},
+ {"startDate":"bad-date","tokens":42}]}
+""", now);
+Assert(tokenSnapshot.LifetimeTokens == 12345 && tokenSnapshot.PeakDailyTokens is null, "Optional nonnegative token summary");
+Assert(tokenSnapshot.DailyBuckets.Count == 2 && tokenSnapshot.DailyBuckets[0].Tokens == 0 && tokenSnapshot.DailyBuckets[1].Tokens == 120,
+    "Token dates sorted and deduplicated; zero is data; malformed entries ignored");
+Assert(CodexTokenParser.ParseTokens("{\"summary\":{}}", now).DailyBuckets.Count == 0, "Absent daily history remains empty");
+var databasePath = Path.Combine(Path.GetTempPath(), $"codex-monitor-db-{Guid.NewGuid():N}.json");
+var database = new MonitorDatabase(databasePath);
+database.SaveTokenUsage("codex", tokenSnapshot, now);
+var reloadedDatabase = MonitorDatabase.Open(databasePath);
+var cached = reloadedDatabase.ReadTokenUsage("CODEX");
+Assert(cached?.Snapshot.LifetimeTokens == 12345 && cached.CachedAt == now, "Persist and reload token cache");
+File.Delete(databasePath);
+
+Console.WriteLine("Parser and plugin checks passed.");
 
 static void Assert(bool condition, string message)
 {
