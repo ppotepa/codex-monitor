@@ -17,7 +17,7 @@ internal static class AutoStart
         set
         {
             using var key = Registry.CurrentUser.OpenSubKey(RunKey, writable: true)
-                ?? throw new InvalidOperationException("Nie można otworzyć ustawień autostartu Windows.");
+                ?? throw new InvalidOperationException("Cannot open Windows startup settings.");
             if (value) key.SetValue(ValueName, QuotedExecutable);
             else key.DeleteValue(ValueName, throwOnMissingValue: false);
         }

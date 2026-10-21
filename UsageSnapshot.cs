@@ -20,10 +20,10 @@ internal sealed record UsageSnapshot(string? Plan, DateTimeOffset? RetrievedAt, 
         if (root.ValueKind != JsonValueKind.Object ||
             !root.TryGetProperty("schema", out var schema) || schema.GetString() != "usage-v1" ||
             !root.TryGetProperty("provider", out var provider) || provider.GetString() != "codex")
-            throw new FormatException("Nieznany format odpowiedzi codex-cli-usage.");
+            throw new FormatException("Unknown codex-cli-usage response format.");
 
         if (!root.TryGetProperty("windows", out var windowsElement) || windowsElement.ValueKind != JsonValueKind.Array)
-            throw new FormatException("Odpowiedź nie zawiera listy limitów.");
+            throw new FormatException("The response does not contain usage windows.");
 
         var windows = new List<UsageWindow>();
         foreach (var item in windowsElement.EnumerateArray())
@@ -38,7 +38,7 @@ internal sealed record UsageSnapshot(string? Plan, DateTimeOffset? RetrievedAt, 
         }
 
         if (windows.Count == 0)
-            throw new FormatException("Odpowiedź nie zawiera dostępnego limitu.");
+            throw new FormatException("The response does not contain a usable limit.");
 
         var plan = root.TryGetProperty("plan", out var planElement) && planElement.ValueKind == JsonValueKind.String
             ? planElement.GetString() : null;

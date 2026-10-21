@@ -8,7 +8,7 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <AssemblyName>CodexMonitor</AssemblyName>
     <RootNamespace>CodexMonitor</RootNamespace>
-    <Version>0.1.1</Version>
+    <Version>0.1.2</Version>
     <Product>Codex Monitor</Product>
   </PropertyGroup>
   <ItemGroup>

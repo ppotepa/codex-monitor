@@ -21,16 +21,16 @@ internal sealed class MonitorContext : ApplicationContext
         _popup.InstallRequested += (_, _) => _ = InstallAsync();
 
         var menu = new ContextMenuStrip();
-        menu.Items.Add("Pokaż limity", null, (_, _) => ShowPopup());
-        menu.Items.Add("Odśwież", null, (_, _) => _ = RefreshAsync());
-        _installItem = new ToolStripMenuItem("Zainstaluj codex-cli-usage", null, (_, _) => _ = InstallAsync());
+        menu.Items.Add("Show usage", null, (_, _) => ShowPopup());
+        menu.Items.Add("Refresh", null, (_, _) => _ = RefreshAsync());
+        _installItem = new ToolStripMenuItem("Install usage CLI", null, (_, _) => _ = InstallAsync());
         menu.Items.Add(_installItem);
-        _startupItem = new ToolStripMenuItem("Uruchamiaj z Windows", null, (_, _) => ToggleAutoStart());
+        _startupItem = new ToolStripMenuItem("Start with Windows", null, (_, _) => ToggleAutoStart());
         _startupItem.Enabled = AutoStart.IsPackagedExecutable;
         _startupItem.Checked = AutoStart.IsPackagedExecutable && AutoStart.Enabled;
         menu.Items.Add(_startupItem);
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("Zamknij", null, (_, _) => ExitThread());
+        menu.Items.Add("Exit", null, (_, _) => ExitThread());
 
         _tray = new NotifyIcon { ContextMenuStrip = menu, Visible = true };
         _tray.MouseClick += (_, e) => { if (e.Button == MouseButtons.Left) ShowPopup(); };
@@ -70,7 +70,7 @@ internal sealed class MonitorContext : ApplicationContext
                 }
                 catch (Exception repairError)
                 {
-                    _error = $"Nie udało się naprawić CLI: {repairError.Message}";
+                    _error = $"Could not repair the CLI: {repairError.Message}";
                 }
             }
         }
@@ -108,7 +108,7 @@ internal sealed class MonitorContext : ApplicationContext
     private async Task ReadSnapshotAsync()
     {
         _snapshot = await CliService.ReadAsync(CancellationToken.None);
-        _error = _snapshot.Status == "stale" ? "Dane są nieaktualne; CLI nie mogło pobrać świeżego wyniku." : null;
+        _error = _snapshot.Status == "stale" ? "Usage data is stale; the CLI could not fetch a fresh result." : null;
         _cliProblem = CliProblem.None;
     }
 
@@ -135,10 +135,10 @@ internal sealed class MonitorContext : ApplicationContext
         _icon = TrayIcon.Create(main?.UsedPercent, _error is not null);
         _tray.Icon = _icon;
         oldIcon?.Dispose();
-        var summary = main is null ? "Codex: brak danych" : $"Codex: {main.UsedPercent:0}% użyte ({main.Name})";
+        var summary = main is null ? "Codex: no data" : $"Codex: {main.UsedPercent:0}% used ({main.Name})";
         _tray.Text = summary.Length > 63 ? summary[..63] : summary;
         _installItem.Visible = _cliProblem != CliProblem.None;
-        _installItem.Text = _cliProblem == CliProblem.Broken ? "Napraw narzędzie CLI" : "Zainstaluj narzędzie CLI";
+        _installItem.Text = _cliProblem == CliProblem.Broken ? "Repair usage CLI" : "Install usage CLI";
         UpdatePopup();
     }
 

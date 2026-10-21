@@ -31,10 +31,10 @@ internal sealed class UsagePopup : Form
         ConfigureLabel(_error, 12, 150, 276, 38, 8);
         ConfigureLabel(_updated, 12, 191, 276, 18, 8);
 
-        _refresh.Text = "Odśwież";
+        _refresh.Text = "Refresh";
         _refresh.SetBounds(12, 214, 88, 25);
         _refresh.Click += (_, _) => RefreshRequested?.Invoke(this, EventArgs.Empty);
-        _install.Text = "Zainstaluj CLI";
+        _install.Text = "Install CLI";
         _install.SetBounds(108, 214, 140, 25);
         _install.Click += (_, _) => InstallRequested?.Invoke(this, EventArgs.Empty);
         Controls.AddRange([_refresh, _install]);
@@ -44,20 +44,20 @@ internal sealed class UsagePopup : Form
     public void ShowSnapshot(UsageSnapshot? snapshot, string? error, bool busy, CliProblem cliProblem)
     {
         _title.Text = snapshot?.Plan is { Length: > 0 } plan ? $"Codex · {plan}" : "Codex Monitor";
-        _status.Text = busy ? "Pobieranie danych…" : error is not null ? "Problem z odczytem" : "Zużycie limitów";
+        _status.Text = busy ? "Loading usage…" : error is not null ? "Could not read usage" : "Usage limits";
         _status.ForeColor = error is null ? Color.White : Color.Salmon;
-        _windows.Text = snapshot is null ? "Brak danych" : string.Join(Environment.NewLine,
-            snapshot.Windows.Select(w => $"{WindowName(w.Name)}: {w.UsedPercent:0}% użyte" +
+        _windows.Text = snapshot is null ? "No data" : string.Join(Environment.NewLine,
+            snapshot.Windows.Select(w => $"{WindowName(w.Name)}: {w.UsedPercent:0}% used" +
                 (w.ResetsAt is { } reset ? $"  ·  reset {reset.ToLocalTime():dd.MM HH:mm}" : "")));
         _error.Text = error is null ? "" : error.Length > 105 ? error[..105] + "…" : error;
         _errorTip.SetToolTip(_error, error);
         _error.ForeColor = Color.Salmon;
         _updated.Text = snapshot?.RetrievedAt is { } at
-            ? $"Dane z {at.ToLocalTime():dd.MM.yyyy HH:mm}" : "";
+            ? $"Updated {at.ToLocalTime():dd.MM.yyyy HH:mm}" : "";
         _updated.ForeColor = Color.Silver;
         _refresh.Enabled = !busy;
         _install.Visible = cliProblem != CliProblem.None;
-        _install.Text = cliProblem == CliProblem.Broken ? "Napraw CLI" : "Zainstaluj CLI";
+        _install.Text = cliProblem == CliProblem.Broken ? "Repair CLI" : "Install CLI";
         _install.Enabled = !busy;
     }
 
@@ -73,9 +73,9 @@ internal sealed class UsagePopup : Form
 
     private static string WindowName(string name) => name.ToLowerInvariant() switch
     {
-        "5-hour" or "5h" => "5 godzin",
-        "weekly" => "Tydzień",
-        "daily" => "Dzień",
+        "5-hour" or "5h" => "5 hours",
+        "weekly" => "Weekly",
+        "daily" => "Daily",
         _ => name
     };
 

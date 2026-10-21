@@ -42,7 +42,7 @@ internal static class CliService
         }
         if (core is not null)
             return await ReadFromAsync(core, ["codex", "json", "--max-age", "300"], cancellationToken);
-        throw new CliUnavailableException(CliProblem.Missing, "Brak narzędzia odczytującego limity Codex.");
+        throw new CliUnavailableException(CliProblem.Missing, "Codex usage CLI is not installed.");
     }
 
     private static async Task<UsageSnapshot> ReadFromAsync(string executable, string[] arguments, CancellationToken cancellationToken)
@@ -52,7 +52,7 @@ internal static class CliService
         {
             var error = ShortError(result.StandardError, result.StandardOutput);
             if (IsBrokenLauncherError(error))
-                throw new CliUnavailableException(CliProblem.Broken, "Narzędzie CLI nie działa: brakuje jego interpretera Pythona.");
+                throw new CliUnavailableException(CliProblem.Broken, "The usage CLI cannot start because its Python interpreter is missing.");
             throw new InvalidOperationException(error);
         }
         return UsageSnapshot.Parse(result.StandardOutput);
@@ -65,7 +65,7 @@ internal static class CliService
     public static async Task InstallOrRepairAsync(CancellationToken cancellationToken)
     {
         var uv = FindExecutable("uv.exe") ?? throw new FileNotFoundException(
-            "Brak uv.exe. Zainstaluj uv z docs.astral.sh/uv, a potem ponów próbę.");
+            "uv.exe was not found. Install uv from docs.astral.sh/uv, then try again.");
 
         var primary = await RunAsync(uv, ["tool", "install", "--force", "--python", "3.12", "codex-cli-usage"],
             TimeSpan.FromMinutes(5), cancellationToken);
@@ -78,7 +78,7 @@ internal static class CliService
         if (fallback.ExitCode == 0 && await IsCommandHealthyAsync("clanker-usage.exe", cancellationToken)) return;
 
         var details = ShortError(fallback.StandardError, fallback.StandardOutput);
-        throw new InvalidOperationException($"Instalacja CLI nie powiodła się. {details}");
+        throw new InvalidOperationException($"CLI installation failed. {details}");
     }
 
     private static async Task<bool> IsCommandHealthyAsync(string name, CancellationToken cancellationToken)
@@ -106,7 +106,7 @@ internal static class CliService
         };
         foreach (var argument in arguments) process.StartInfo.ArgumentList.Add(argument);
         try { process.Start(); }
-        catch (Win32Exception ex) { throw new CliUnavailableException(CliProblem.Broken, $"Nie można uruchomić {Path.GetFileName(executable)}: {ex.Message}"); }
+        catch (Win32Exception ex) { throw new CliUnavailableException(CliProblem.Broken, $"Cannot start {Path.GetFileName(executable)}: {ex.Message}"); }
 
         using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutSource.CancelAfter(timeout);
@@ -121,7 +121,7 @@ internal static class CliService
         {
             if (!process.HasExited) process.Kill(entireProcessTree: true);
             if (cancellationToken.IsCancellationRequested) throw;
-            throw new TimeoutException($"{Path.GetFileName(executable)} nie odpowiedział w wyznaczonym czasie.");
+            throw new TimeoutException($"{Path.GetFileName(executable)} did not respond in time.");
         }
     }
 
@@ -129,6 +129,6 @@ internal static class CliService
     {
         var message = string.IsNullOrWhiteSpace(stderr) ? stdout : stderr;
         message = message.Trim();
-        return message.Length > 240 ? message[..240] + "…" : message.Length > 0 ? message : "Polecenie zakończyło się błędem.";
+        return message.Length > 240 ? message[..240] + "…" : message.Length > 0 ? message : "The command failed.";
     }
 }

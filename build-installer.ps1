@@ -7,16 +7,16 @@ $compilerCandidates = @(
 )
 $compiler = $compilerCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 if (-not $compiler) {
-    throw 'Brak Inno Setup 6. Zainstaluj: winget install --id JRSoftware.InnoSetup -e'
+    throw 'Inno Setup 6 is missing. Install it with: winget install --id JRSoftware.InnoSetup -e'
 }
 
 Push-Location $project
 try {
     dotnet publish CodexMonitor.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o (Join-Path $project 'build\publish')
-    if ($LASTEXITCODE -ne 0) { throw 'Publikacja aplikacji nie powiodla sie.' }
+    if ($LASTEXITCODE -ne 0) { throw 'App publishing failed.' }
     & $compiler (Join-Path $project 'CodexMonitor.iss')
-    if ($LASTEXITCODE -ne 0) { throw 'Budowanie instalatora nie powiodlo sie.' }
-    Write-Output (Join-Path $project 'installer\CodexMonitor-0.1.1-Setup.exe')
+    if ($LASTEXITCODE -ne 0) { throw 'Installer build failed.' }
+    Write-Output (Join-Path $project 'installer\CodexMonitor-0.1.2-Setup.exe')
 }
 finally {
     Pop-Location
