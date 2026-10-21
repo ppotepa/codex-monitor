@@ -8,17 +8,10 @@ internal sealed class UsageAlertService(MonitorSettings settings)
 {
     private static string Key(string pluginId, string windowName) => $"{pluginId}:{windowName}";
 
-    private WindowAlertState? Read(string pluginId, string windowName)
-    {
-        if (settings.AlertStates.TryGetValue(Key(pluginId, windowName), out var state))
-            return state;
+    private WindowAlertState? Read(string pluginId, string windowName) =>
+        settings.AlertStates.TryGetValue(Key(pluginId, windowName), out var state) ? state : null;
 
-        // Pre-refactor settings were Codex-only and keyed solely by window name.
-        return string.Equals(pluginId, "codex", StringComparison.OrdinalIgnoreCase) &&
-               settings.AlertStates.TryGetValue(windowName, out state) ? state : null;
-    }
-
-    public void ToggleSnooze(UsageWindow? selected, string pluginId = "codex")
+    public void ToggleSnooze(UsageWindow? selected, string pluginId)
     {
         if (selected?.ResetsAt is null) return;
         var resetAt = selected.ResetsAt.Value.ToUnixTimeSeconds();
@@ -30,10 +23,11 @@ internal sealed class UsageAlertService(MonitorSettings settings)
                 !(previous?.Snoozed ?? false));
     }
 
-    public bool IsSnoozed(UsageWindow? selected, string pluginId = "codex") =>
-        selected is not null && Read(pluginId, selected.Name)?.Snoozed == true;
+    public bool IsSnoozed(UsageWindow? selected, string pluginId) =>
+        selected is not null && Read(pluginId, selected.Name) is { Snoozed: true } state &&
+        state.ResetAt == selected.ResetsAt?.ToUnixTimeSeconds();
 
-    public AlertEvaluation Evaluate(UsageSnapshot snapshot, string pluginName, string pluginId = "codex")
+    public AlertEvaluation Evaluate(UsageSnapshot snapshot, string pluginName, string pluginId)
     {
         var notifications = new List<UsageNotification>();
         var changed = false;

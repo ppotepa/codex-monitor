@@ -1,4 +1,4 @@
-# Architectural decisions and next migration steps
+# Architecture decisions
 
 ## Intent
 
@@ -24,10 +24,11 @@ and different AI providers are the actual sources of variation.
   without token support does not need dummy methods.
 - Keep a small read-only list of *unsupported* CLI names solely for diagnostics.
   It is not a plugin catalog or a promise of compatibility.
-- Preserve published Windows behavior, local files and installer naming during
-  migration. No feature rewrites as part of the structural change.
+- Keep the native Windows host and installation layout stable, but do not
+  implement runtime migrations or compatibility layers for old data files.
+  The application is a fresh baseline, not an upgrade framework.
 
-## Implemented in this migration
+## Current implementation
 
 1. Six source projects: Core, Codex plugin, shared DI composition, WinForms
    desktop, Unix platform services, and experimental Avalonia Unix desktop.
@@ -58,8 +59,10 @@ and different AI providers are the actual sources of variation.
 4. Build and validate the source-provided Debian and macOS packaging scripts.
    Native notifications have best-effort Linux/macOS adapters; Developer ID
    signing and notarization remain required for release distribution.
-5. Provider-namespaced alert state/history has been added with legacy Codex
-   compatibility. Verify existing user settings/history after migration.
+5. Provider-namespaced alert states and history are the only supported format.
+   The old `history.json` import, default plugin IDs and pre-refactor
+   alert-key lookup have been removed. Database reads accept only baseline
+   schema `v1`, without any migration pipeline.
 6. Automated behavioral tests remain deliberately deferred for now; the
    existing console checks are the CI smoke gate.
 

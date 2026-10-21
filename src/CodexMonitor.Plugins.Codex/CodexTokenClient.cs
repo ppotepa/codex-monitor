@@ -12,7 +12,7 @@ internal sealed class CodexTokenClient(IExecutableLocator locator, ICommandLaunc
 
     public async Task<TokenUsageSnapshot> ReadAsync(CancellationToken cancellationToken)
     {
-        var launcher = locator.Find(ExecutableNames()) ??
+        var launcher = locator.Find(["codex.exe", "codex.cmd"]) ??
             throw new InvalidOperationException("Codex CLI was not found. Install or update Codex CLI, then refresh.");
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -67,8 +67,9 @@ internal sealed class CodexTokenClient(IExecutableLocator locator, ICommandLaunc
                 try { await process.WaitForExitAsync(cleanupDeadline.Token); }
                 catch (OperationCanceledException) { /* Kill can fail; never hang on cleanup. */ }
             }
-            try { await stderrTask; }
+            try { await stderrTask.WaitAsync(TimeSpan.FromSeconds(2)); }
             catch (OperationCanceledException) { }
+            catch (TimeoutException) { /* Drain must not outlive process cleanup. */ }
         }
     }
 
@@ -78,10 +79,6 @@ internal sealed class CodexTokenClient(IExecutableLocator locator, ICommandLaunc
         await process.StandardInput.WriteLineAsync(json.AsMemory(), cancellationToken);
         await process.StandardInput.FlushAsync(cancellationToken);
     }
-
-    internal static IReadOnlyList<string> ExecutableNames() => OperatingSystem.IsWindows()
-        ? ["codex.exe", "codex.cmd"]
-        : ["codex", "codex.exe", "codex.cmd"];
 
     private static async Task<JsonElement> ReadResponseAsync(Process process, long requestId, CancellationToken cancellationToken)
     {

@@ -33,7 +33,7 @@ internal static class Program
             var cycle = (int)Math.Floor((i - 256) / 60d);
             var step = i - 256 - cycle * 60;
             return new UsageHistoryPoint(now.AddMinutes((i - 287) * 5), "5-hour", step * 38d / 31,
-                windows[0].ResetsAt!.Value.AddHours(cycle * 5).ToUnixTimeSeconds());
+                windows[0].ResetsAt!.Value.AddHours(cycle * 5).ToUnixTimeSeconds(), "codex");
         }).ToArray();
         var daily = new long[] { 185_200, 312_400, 245_800, 418_600, 172_900, 355_100, 286_420 };
         var tokens = new TokenUsageSnapshot(now, 12_846_920, 842_160, 7,

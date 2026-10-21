@@ -1,3 +1,5 @@
+> Historical release notes. The current codebase does not implement migration of old data formats.
+
 # Codex Monitor 0.5.1
 
 0.5.1 is a reliability release built on the refactored project layout.

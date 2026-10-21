@@ -1,3 +1,5 @@
+> Historical release notes. The current codebase does not implement migration of old data formats.
+
 # Codex Monitor 0.5.0
 
 0.5.0 is the first release built from the refactored project layout.

@@ -32,34 +32,14 @@ internal sealed class MonitorDatabase
         get { lock (_gate) return _persistenceError; }
     }
 
-    public static MonitorDatabase Load(string? filePath = null)
-    {
-        var path = filePath ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "CodexMonitor", "monitor.db.json");
-        var database = Open(path);
-        if (File.Exists(path)) return database;
-
-        // Keep the existing seven-day chart when upgrading from pre-database
-        // builds. The legacy file is never deleted; it remains a safe fallback.
-        var legacyPath = Path.Combine(Path.GetDirectoryName(path)!, "history.json");
-        try
-        {
-            var legacy = JsonSerializer.Deserialize<List<UsageHistoryPoint>>(
-                File.ReadAllText(legacyPath), JsonOptions);
-            if (legacy is { Count: > 0 }) database.ReplaceLimitHistory(legacy);
-        }
-        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException) { }
-        return database;
-    }
+    public static MonitorDatabase Load(string filePath) => Open(filePath);
 
     internal static MonitorDatabase Open(string path)
     {
         if (!File.Exists(path)) return new MonitorDatabase(path);
         try
         {
-            var document = JsonSerializer.Deserialize<MonitorDatabaseDocument>(File.ReadAllText(path), JsonOptions)
-                ?? new MonitorDatabaseDocument();
+            var document = ReadBaselineDocument(path);
             return new MonitorDatabase(path, document);
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
@@ -71,7 +51,7 @@ internal sealed class MonitorDatabase
             {
                 try
                 {
-                    var recovered = JsonSerializer.Deserialize<MonitorDatabaseDocument>(File.ReadAllText(backup), JsonOptions);
+                    var recovered = ReadBaselineDocument(backup);
                     if (recovered is not null)
                     {
                         database._document = new MonitorDatabase(path, recovered)._document;
@@ -83,6 +63,20 @@ internal sealed class MonitorDatabase
             }
             return database;
         }
+    }
+
+    private static MonitorDatabaseDocument ReadBaselineDocument(string path)
+    {
+        var document = JsonSerializer.Deserialize<MonitorDatabaseDocument>(File.ReadAllText(path), JsonOptions)
+            ?? throw new JsonException("The local database is empty.");
+        if (document.Version != MonitorDatabaseDocument.BaselineVersion ||
+            document.LimitHistory is null || document.TokenCache is null ||
+            document.LimitHistory.Any(point => point is null ||
+                string.IsNullOrWhiteSpace(point.Name) || string.IsNullOrWhiteSpace(point.PluginId)) ||
+            document.TokenCache.Any(pair => string.IsNullOrWhiteSpace(pair.Key) ||
+                pair.Value is null || pair.Value.Snapshot is null))
+            throw new JsonException("Unsupported local database format. Only baseline schema v1 is supported.");
+        return document;
     }
 
     public IReadOnlyList<UsageHistoryPoint> ReadLimitHistory()
@@ -168,9 +162,17 @@ internal sealed class MonitorDatabase
 
 internal sealed class MonitorDatabaseDocument
 {
-    public int Version { get; set; } = 1;
+    public const int BaselineVersion = 1;
+
+    [System.Text.Json.Serialization.JsonRequired]
+    public int Version { get; set; } = BaselineVersion;
+
+    [System.Text.Json.Serialization.JsonRequired]
     public List<UsageHistoryPoint> LimitHistory { get; set; } = [];
-    public Dictionary<string, TokenCacheEntry> TokenCache { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    [System.Text.Json.Serialization.JsonRequired]
+    public Dictionary<string, TokenCacheEntry> TokenCache { get; set; } =
+        new(StringComparer.OrdinalIgnoreCase);
 }
 
 internal sealed record TokenCacheEntry(DateTimeOffset CachedAt, TokenUsageSnapshot Snapshot);

@@ -31,9 +31,6 @@ catch (FormatException) { }
 Assert(CodexCliService.IsBrokenLauncherError("did not find executable at 'C:\\Users\\name\\AppData\\Roaming\\uv\\python\\cpython...'"), "Missing Python launcher");
 Assert(CodexCliService.IsBrokenLauncherError("Fatal error in launcher"), "Broken Python launcher");
 Assert(!CodexCliService.IsBrokenLauncherError("authentication failed"), "Authentication error is not a launcher failure");
-if (OperatingSystem.IsWindows())
-    Assert(!CodexTokenClient.ExecutableNames().Contains("codex"), "Windows must not select the extensionless npm shim");
-
 Assert(AlertPolicy.Level(79.9, 80, 95) == 0, "Below warning");
 Assert(AlertPolicy.Level(80, 80, 95) == 1, "At warning");
 Assert(AlertPolicy.Level(95, 80, 95) == 2, "At critical");
@@ -41,13 +38,15 @@ Assert(!AlertPolicy.ShouldNotify(2, new WindowAlertState(10, 1, true), 10), "Sno
 Assert(AlertPolicy.ShouldNotify(2, new WindowAlertState(10, 1, true), 11), "New window after reset");
 
 var now = DateTimeOffset.UtcNow;
-var history = new UsageHistory(Path.Combine(Path.GetTempPath(), "codex-monitor-test-history.json"),
-    [new UsageHistoryPoint(now.AddDays(-8), "weekly", 10, 1)]);
-Assert(history.Add(weekly, now), "Record current reading and prune old reading");
-Assert(history.Recent("weekly", now).Count == 1, "Only recent reading remains");
-Assert(!history.Add(weekly, now.AddMinutes(1)), "Avoid duplicate reading within four minutes");
-Assert(history.Add(weekly, now.AddMinutes(5)), "Sample after five minutes");
-Assert(history.Recent("weekly", now.AddMinutes(5)).Count == 2, "Two chart samples");
+var historyStore = new MonitorDatabase(Path.Combine(Path.GetTempPath(),
+    $"codex-monitor-history-{Guid.NewGuid():N}.json"));
+historyStore.ReplaceLimitHistory([new UsageHistoryPoint(now.AddDays(-8), "weekly", 10, 1, "codex")]);
+var history = UsageHistory.Load(historyStore);
+Assert(history.Add(weekly, now, "codex"), "Record current reading and prune old reading");
+Assert(history.Recent("weekly", now, "codex").Count == 1, "Only recent reading remains");
+Assert(!history.Add(weekly, now.AddMinutes(1), "codex"), "Avoid duplicate reading within four minutes");
+Assert(history.Add(weekly, now.AddMinutes(5), "codex"), "Sample after five minutes");
+Assert(history.Recent("weekly", now.AddMinutes(5), "codex").Count == 2, "Two chart samples");
 
 var registry = new PluginCatalog([new CodexPlugin(new NullExecutableLocator(), new NullCommandLaunchStrategy(),
     new ProcessRunner(new NullCommandLaunchStrategy()))]);

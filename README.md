@@ -10,7 +10,7 @@
 
 A small tray app with reset countdowns and daily token totals. **Codex is the only supported plugin. Windows is the only released operating system; Linux and macOS have an unverified source-build preview.**
 
-Current release: **0.5.1**. This release keeps the Windows user experience while hardening refresh, persistence and agent selection across the refactored Core, plugin, composition and desktop projects.
+Current source version: **0.5.1**. GitHub Releases may contain older packaged installers; check the actual published asset version before downloading. The Windows application can also be built directly from source.
 
 ![Codex Monitor: Limits and Tokens views with illustrative data](docs/images/overview.png)
 
@@ -29,7 +29,7 @@ Token activity and quota percentages measure different things. The app does not 
 
 ## Install
 
-1. Get the latest published Windows installer from [Releases](https://github.com/ppotepa/codex-monitor/releases), or build the current source below. The 0.5.1 installer is `installer\CodexMonitor-0.5.1-Setup.exe`.
+1. Download an available Windows installer from [Releases](https://github.com/ppotepa/codex-monitor/releases), checking its version, or build current source using `scripts/build-installer.ps1` (output: `installer\CodexMonitor-0.5.1-Setup.exe`).
 2. Install the [.NET 10 Desktop Runtime for Windows x64](https://dotnet.microsoft.com/en-us/download/dotnet/10.0) if needed. The small installer does not bundle the runtime.
 3. Start **Codex Monitor** from the Start menu. Use Codex CLI signed in under the same Windows account.
 
@@ -122,6 +122,6 @@ platform differences and known limitations. Scripts to build preview `.deb` and 
 
 The default refresh policy is deliberately gentle: limits every five minutes, token activity every 30 minutes while the Tokens view is open, and agent detection every 30 minutes. These intervals are configurable in **Settings...**. You can choose a faster limits cadence for active monitoring, keep token reads manual to reduce CLI wake-ups, or scan agents only at startup. A failed request retains the last successful values and displays an error; missing data is never shown as zero.
 
-On Windows, preferences and alert state live in `%LOCALAPPDATA%\CodexMonitor\settings.json`; on Linux and macOS the experimental host uses XDG data directories and Application Support respectively. The local micro-store at `monitor.db.json` keeps limit samples and the last token snapshot in one atomic file. A cached token snapshot is shown immediately after startup and is reused until the configured token refresh interval expires; **Refresh token activity** bypasses that TTL. Existing `history.json` files are migrated automatically. If the JSON store is unreadable, the original is kept as a timestamped `.corrupt.*` file and a valid `.bak` is recovered when available; the dashboard reports any persistence degradation. Samples older than seven days are removed. The chart shows the last 24 hours with gaps when observations are missing. Codex Monitor does not persist credentials, prompts or conversations. The external CLIs manage their own authentication and caches.
+On Windows, preferences and alert state live in `%LOCALAPPDATA%\CodexMonitor\settings.json`; on Linux and macOS the experimental host uses XDG data directories and Application Support respectively. The local micro-store at `monitor.db.json` keeps limit samples and the last token snapshot in one atomic file. A cached token snapshot is shown immediately after startup and is reused until the configured token refresh interval expires; **Refresh token activity** bypasses that TTL. This is a fresh-baseline application: only `monitor.db.json` schema v1 is supported, and `history.json` is never imported. Alert keys must already include the provider ID. No automatic upgrades or conversions of older data are performed. If the JSON store is unreadable or has an unsupported structure, the original is kept as a timestamped `.corrupt.*` file and a valid `.bak` is recovered when available; the dashboard reports any persistence degradation. Samples older than seven days are removed. The chart shows the last 24 hours with gaps when observations are missing. Codex Monitor does not persist credentials, prompts or conversations. The external CLIs manage their own authentication and caches.
 
 See [architecture](docs/ARCHITECTURE.md) for the plugin boundary and [UI design](docs/UI-DESIGN.md) for layout and state behavior. Repository topics are declared in [.github/repository.json](.github/repository.json); applying them to GitHub is a separate publishing step.

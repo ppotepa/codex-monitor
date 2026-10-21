@@ -64,15 +64,19 @@ global `PluginRegistry` or assembly-scanning magic. The list of known but
 unsupported agents remains informational; discovering a CLI does not grant
 monitoring functionality.
 
-## Compatibility and remaining work
+## Baseline storage and remaining work
 
 - Release 0.5.1 keeps the Windows executable name `CodexMonitor.exe` and is built by
   `scripts/build-installer.ps1` using the new Windows project path.
 - The native WinForms interface remains on Windows. Its large popup and tray
   shell are now split into smaller components without changing their intended
   controls, refresh cadence or persisted formats.
-- Persisted files (`settings.json`, `monitor.db.json` and legacy
-  `history.json`) retain their schema and Windows locations.
+- Storage starts from a single baseline: `settings.json` and `monitor.db.json`
+  (database schema `v1`) in the OS-specific data directory.
+  There is no `history.json` importer or backwards-compatibility lookup.
+  History records and alert keys must always include a plugin ID.
+  Unknown or incomplete database schemas are not converted.
+  Error recovery through `.bak` and atomic file replacement is retained.
 - Linux/macOS now have an **experimental**, shared Avalonia desktop host with
   a real window and tray menu. It has not been compiled or validated on target
   systems and must not yet be presented as supported. Native notifications use optional Linux/macOS adapters with an in-window

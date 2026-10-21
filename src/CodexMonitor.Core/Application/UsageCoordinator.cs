@@ -84,11 +84,11 @@ internal sealed class UsageCoordinator : IDisposable
         }
         catch (PluginDependencyException ex)
         {
-            SetDependencyError(ex);
+            if (ReferenceEquals(_plugin, plugin)) SetDependencyError(ex);
         }
         catch (Exception ex)
         {
-            SetReadError(ex.Message);
+            if (ReferenceEquals(_plugin, plugin)) SetReadError(ex.Message);
         }
         finally
         {
@@ -114,11 +114,11 @@ internal sealed class UsageCoordinator : IDisposable
         }
         catch (PluginDependencyException ex)
         {
-            SetDependencyError(ex);
+            if (ReferenceEquals(_plugin, plugin)) SetDependencyError(ex);
         }
         catch (Exception ex)
         {
-            SetReadError(ex.Message);
+            if (ReferenceEquals(_plugin, plugin)) SetReadError(ex.Message);
         }
         finally
         {
@@ -158,7 +158,7 @@ internal sealed class UsageCoordinator : IDisposable
         catch (OperationCanceledException) when (_shutdown.IsCancellationRequested) { return; }
         catch (Exception ex)
         {
-            TokenError = ex.Message;
+            if (ReferenceEquals(_plugin, plugin)) TokenError = ex.Message;
         }
         finally
         {
