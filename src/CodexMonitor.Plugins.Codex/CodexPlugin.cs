@@ -9,9 +9,9 @@ internal sealed class CodexPlugin : IUsagePlugin, ITokenUsagePlugin, IRepairable
     private readonly CodexCliService _cli;
     private readonly CodexTokenClient _tokens;
 
-    public CodexPlugin(IExecutableLocator locator, ICommandLaunchStrategy launchStrategy)
+    public CodexPlugin(IExecutableLocator locator, ICommandLaunchStrategy launchStrategy, IProcessRunner processRunner)
     {
-        _cli = new CodexCliService(locator);
+        _cli = new CodexCliService(locator, processRunner);
         _tokens = new CodexTokenClient(locator, launchStrategy);
     }
 

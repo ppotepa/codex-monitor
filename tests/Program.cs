@@ -47,7 +47,8 @@ Assert(!history.Add(weekly, now.AddMinutes(1)), "Avoid duplicate reading within 
 Assert(history.Add(weekly, now.AddMinutes(5)), "Sample after five minutes");
 Assert(history.Recent("weekly", now.AddMinutes(5)).Count == 2, "Two chart samples");
 
-var registry = new PluginCatalog([new CodexPlugin(new NullExecutableLocator(), new NullCommandLaunchStrategy())]);
+var registry = new PluginCatalog([new CodexPlugin(new NullExecutableLocator(), new NullCommandLaunchStrategy(),
+    new ProcessRunner(new NullCommandLaunchStrategy()))]);
 Assert(registry.All.Count == 1 && registry.All[0].Info.Id == "codex", "Only Codex is registered");
 Assert(registry.Get("CODEX").Info.SupportsTokens, "Codex advertises token support");
 Assert(registry.Get("codex").Info.CanRepair, "Codex advertises dependency repair");

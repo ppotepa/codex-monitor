@@ -17,6 +17,7 @@ internal static class Program
         var services = new ServiceCollection();
         services.AddSingleton<IExecutableLocator, WindowsExecutableLocator>();
         services.AddSingleton<ICommandLaunchStrategy, WindowsCommandLaunchStrategy>();
+        services.AddSingleton<IProcessRunner, ProcessRunner>();
         services.AddSingleton<IAppPaths, WindowsAppPaths>();
         services.AddSingleton<IUsagePlugin, CodexPlugin>();
         services.AddSingleton<IPluginCatalog>(sp => new PluginCatalog(sp.GetServices<IUsagePlugin>()));

@@ -1,9 +1,7 @@
-using System.ComponentModel;
-using System.Diagnostics;
 
 namespace CodexMonitor.Plugins.Codex;
 
-internal sealed class CodexCliService(IExecutableLocator locator)
+internal sealed class CodexCliService(IExecutableLocator locator, IProcessRunner runner)
 {
     private const string GitSource = "git+https://github.com/wakamex/clanker-usage.git@v0.4.1";
 
@@ -27,9 +25,9 @@ internal sealed class CodexCliService(IExecutableLocator locator)
         throw new PluginDependencyException(DependencyProblem.Missing, "Codex usage CLI is not installed.");
     }
 
-    private static async Task<UsageSnapshot> ReadFromAsync(string executable, string[] arguments, CancellationToken cancellationToken)
+    private async Task<UsageSnapshot> ReadFromAsync(string executable, string[] arguments, CancellationToken cancellationToken)
     {
-        var result = await RunAsync(executable, arguments, TimeSpan.FromSeconds(25), cancellationToken);
+        var result = await runner.RunAsync(executable, arguments, TimeSpan.FromSeconds(25), cancellationToken);
         if (result.ExitCode != 0)
         {
             var error = ShortError(result.StandardError, result.StandardOutput);
@@ -49,13 +47,13 @@ internal sealed class CodexCliService(IExecutableLocator locator)
         var uv = FindExecutable("uv.exe") ?? throw new FileNotFoundException(
             "uv.exe was not found. Install uv from docs.astral.sh/uv, then try again.");
 
-        var primary = await RunAsync(uv, ["tool", "install", "--force", "--python", "3.12", "codex-cli-usage"],
+        var primary = await runner.RunAsync(uv, ["tool", "install", "--force", "--python", "3.12", "codex-cli-usage"],
             TimeSpan.FromMinutes(5), cancellationToken);
         if (primary.ExitCode == 0 && await IsCommandHealthyAsync("codex-cli-usage.exe", cancellationToken)) return;
 
         // The upstream Git repository contains the core command, while the PyPI package
         // provides the codex-cli-usage wrapper. The core accepts `codex json`.
-        var fallback = await RunAsync(uv, ["tool", "install", "--force", "--python", "3.12", GitSource],
+        var fallback = await runner.RunAsync(uv, ["tool", "install", "--force", "--python", "3.12", GitSource],
             TimeSpan.FromMinutes(5), cancellationToken);
         if (fallback.ExitCode == 0 && await IsCommandHealthyAsync("clanker-usage.exe", cancellationToken)) return;
 
@@ -69,42 +67,10 @@ internal sealed class CodexCliService(IExecutableLocator locator)
         if (executable is null) return false;
         try
         {
-            var result = await RunAsync(executable, ["--version"], TimeSpan.FromSeconds(15), cancellationToken);
+            var result = await runner.RunAsync(executable, ["--version"], TimeSpan.FromSeconds(15), cancellationToken);
             return result.ExitCode == 0;
         }
         catch (PluginDependencyException) { return false; }
-    }
-
-    private static async Task<(int ExitCode, string StandardOutput, string StandardError)> RunAsync(
-        string executable, string[] arguments, TimeSpan timeout, CancellationToken cancellationToken)
-    {
-        using var process = new Process();
-        process.StartInfo = new ProcessStartInfo(executable)
-        {
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
-        };
-        foreach (var argument in arguments) process.StartInfo.ArgumentList.Add(argument);
-        try { process.Start(); }
-        catch (Win32Exception ex) { throw new PluginDependencyException(DependencyProblem.Broken, $"Cannot start {Path.GetFileName(executable)}: {ex.Message}"); }
-
-        using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutSource.CancelAfter(timeout);
-        var outputTask = process.StandardOutput.ReadToEndAsync(timeoutSource.Token);
-        var errorTask = process.StandardError.ReadToEndAsync(timeoutSource.Token);
-        try
-        {
-            await process.WaitForExitAsync(timeoutSource.Token);
-            return (process.ExitCode, await outputTask, await errorTask);
-        }
-        catch (OperationCanceledException)
-        {
-            if (!process.HasExited) process.Kill(entireProcessTree: true);
-            if (cancellationToken.IsCancellationRequested) throw;
-            throw new TimeoutException($"{Path.GetFileName(executable)} did not respond in time.");
-        }
     }
 
     private static string ShortError(string stderr, string stdout)

@@ -19,7 +19,8 @@ internal static class Program
         Directory.CreateDirectory(destination);
         var checksDirectory = Path.GetFullPath("build/screenshots");
         Directory.CreateDirectory(checksDirectory);
-        var info = new CodexPlugin(new WindowsExecutableLocator(), new WindowsCommandLaunchStrategy()).Info;
+        var info = new CodexPlugin(new WindowsExecutableLocator(), new WindowsCommandLaunchStrategy(),
+            new ProcessRunner(new WindowsCommandLaunchStrategy())).Info;
         var now = DateTimeOffset.Now;
         var windows = new UsageWindow[]
         {
