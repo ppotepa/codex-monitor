@@ -1,5 +1,5 @@
 #define MyAppName "Codex Monitor"
-#define MyAppVersion "0.1.0"
+#define MyAppVersion "0.1.1"
 #define MyAppExeName "CodexMonitor.exe"
 
 [Setup]

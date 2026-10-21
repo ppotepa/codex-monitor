@@ -7,5 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../UsageSnapshot.cs" Link="UsageSnapshot.cs" />
+    <Compile Include="../CliService.cs" Link="CliService.cs" />
   </ItemGroup>
 </Project>

@@ -9,6 +9,7 @@ internal sealed class UsagePopup : Form
     private readonly Label _updated = new();
     private readonly Button _refresh = new();
     private readonly Button _install = new();
+    private readonly ToolTip _errorTip = new();
 
     public event EventHandler? RefreshRequested;
     public event EventHandler? InstallRequested;
@@ -40,7 +41,7 @@ internal sealed class UsagePopup : Form
         Deactivate += (_, _) => Hide();
     }
 
-    public void ShowSnapshot(UsageSnapshot? snapshot, string? error, bool busy, bool missingCli)
+    public void ShowSnapshot(UsageSnapshot? snapshot, string? error, bool busy, CliProblem cliProblem)
     {
         _title.Text = snapshot?.Plan is { Length: > 0 } plan ? $"Codex · {plan}" : "Codex Monitor";
         _status.Text = busy ? "Pobieranie danych…" : error is not null ? "Problem z odczytem" : "Zużycie limitów";
@@ -49,12 +50,14 @@ internal sealed class UsagePopup : Form
             snapshot.Windows.Select(w => $"{WindowName(w.Name)}: {w.UsedPercent:0}% użyte" +
                 (w.ResetsAt is { } reset ? $"  ·  reset {reset.ToLocalTime():dd.MM HH:mm}" : "")));
         _error.Text = error is null ? "" : error.Length > 105 ? error[..105] + "…" : error;
+        _errorTip.SetToolTip(_error, error);
         _error.ForeColor = Color.Salmon;
         _updated.Text = snapshot?.RetrievedAt is { } at
             ? $"Dane z {at.ToLocalTime():dd.MM.yyyy HH:mm}" : "";
         _updated.ForeColor = Color.Silver;
         _refresh.Enabled = !busy;
-        _install.Visible = missingCli;
+        _install.Visible = cliProblem != CliProblem.None;
+        _install.Text = cliProblem == CliProblem.Broken ? "Napraw CLI" : "Zainstaluj CLI";
         _install.Enabled = !busy;
     }
 

@@ -4,11 +4,11 @@ Mała aplikacja Windows pokazująca zużycie limitów Codex w zasobniku obok zeg
 
 ## Instalacja
 
-1. Pobierz `CodexMonitor-0.1.0-Setup.exe` z zakładki **Releases** i uruchom instalator.
+1. Pobierz `CodexMonitor-0.1.1-Setup.exe` z zakładki **Releases** i uruchom instalator.
 2. Zainstaluj [.NET 10 Desktop Runtime dla Windows x64](https://dotnet.microsoft.com/en-us/download/dotnet/10.0), jeśli nie jest jeszcze dostępny. Mały instalator nie zawiera runtime’u.
 3. Uruchom Codex Monitor z menu Start. Codex CLI powinien być zalogowany na tym samym koncie Windows.
 
-Jeżeli brakuje `codex-cli-usage.exe`, aplikacja pokaże przycisk instalacji przez `uv tool install codex-cli-usage`. Wymaga to [uv](https://docs.astral.sh/uv/getting-started/installation/) w `PATH` lub `%USERPROFILE%\.local\bin`.
+Jeżeli `codex-cli-usage.exe` nie istnieje albo jego środowisko Pythona jest uszkodzone, aplikacja spróbuje go automatycznie zainstalować lub naprawić przez `uv`. Używa Pythona 3.12; gdy instalacja paczki się nie powiedzie, instaluje rdzeń narzędzia z [repozytorium clanker-usage](https://github.com/wakamex/clanker-usage) w wersji `v0.4.1`. Przycisk w oknie pozwala ponowić naprawę. Wymaga to [uv](https://docs.astral.sh/uv/getting-started/installation/) w `PATH` lub `%USERPROFILE%\.local\bin`.
 
 Kliknięcie ikony pokazuje limity i czas ich odnowienia. Prawy przycisk otwiera menu z odświeżaniem, autostartem i zamknięciem. Windows może początkowo schować ikonę w rozwijanym zasobniku; można ją przeciągnąć obok zegara.
 
@@ -28,4 +28,4 @@ dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile
 
 ## Dane
 
-Aplikacja co 5 minut uruchamia `codex-cli-usage.exe json --max-age 300` bez okna konsoli. Pokazuje limity zwrócone w `windows[]`, bez zakładania, że każde konto ma limit 5-godzinny. Gdy odczyt się nie powiedzie, zachowuje ostatni wynik i oznacza go jako nieaktualny.
+Aplikacja co 5 minut uruchamia `codex-cli-usage.exe json --max-age 300` bez okna konsoli. Jeśli dostępny jest tylko rdzeń, używa `clanker-usage.exe codex json --max-age 300`. Pokazuje limity zwrócone w `windows[]`, bez zakładania, że każde konto ma limit 5-godzinny. Gdy odczyt się nie powiedzie, zachowuje ostatni wynik i oznacza go jako nieaktualny.

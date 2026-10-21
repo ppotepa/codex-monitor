@@ -27,6 +27,10 @@ try
 }
 catch (FormatException) { }
 
+Assert(CliService.IsBrokenLauncherError("did not find executable at 'C:\\Users\\name\\AppData\\Roaming\\uv\\python\\cpython...'"), "Missing Python launcher");
+Assert(CliService.IsBrokenLauncherError("Fatal error in launcher"), "Broken Python launcher");
+Assert(!CliService.IsBrokenLauncherError("authentication failed"), "Authentication error is not a launcher failure");
+
 Console.WriteLine("Parser checks passed.");
 
 static void Assert(bool condition, string message)

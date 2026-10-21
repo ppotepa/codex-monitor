@@ -16,7 +16,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Publikacja aplikacji nie powiodla sie.' }
     & $compiler (Join-Path $project 'CodexMonitor.iss')
     if ($LASTEXITCODE -ne 0) { throw 'Budowanie instalatora nie powiodlo sie.' }
-    Write-Output (Join-Path $project 'installer\CodexMonitor-0.1.0-Setup.exe')
+    Write-Output (Join-Path $project 'installer\CodexMonitor-0.1.1-Setup.exe')
 }
 finally {
     Pop-Location

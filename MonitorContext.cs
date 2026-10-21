@@ -11,7 +11,8 @@ internal sealed class MonitorContext : ApplicationContext
     private UsageSnapshot? _snapshot;
     private string? _error;
     private bool _busy;
-    private bool _missingCli;
+    private CliProblem _cliProblem;
+    private bool _autoRecoveryAttempted;
 
     public MonitorContext()
     {
@@ -50,18 +51,32 @@ internal sealed class MonitorContext : ApplicationContext
     {
         if (_busy) return;
         _busy = true;
-        _missingCli = CliService.FindExecutable("codex-cli-usage.exe") is null;
         UpdateView();
         try
         {
-            _snapshot = await CliService.ReadAsync(CancellationToken.None);
-            _error = _snapshot.Status == "stale" ? "Dane są nieaktualne; CLI nie mogło pobrać świeżego wyniku." : null;
-            _missingCli = false;
+            await ReadSnapshotAsync();
+        }
+        catch (CliUnavailableException ex)
+        {
+            _error = ex.Message;
+            _cliProblem = ex.Problem;
+            if (!_autoRecoveryAttempted)
+            {
+                _autoRecoveryAttempted = true;
+                try
+                {
+                    await CliService.InstallOrRepairAsync(CancellationToken.None);
+                    await ReadSnapshotAsync();
+                }
+                catch (Exception repairError)
+                {
+                    _error = $"Nie udało się naprawić CLI: {repairError.Message}";
+                }
+            }
         }
         catch (Exception ex)
         {
             _error = ex.Message;
-            _missingCli = ex is FileNotFoundException;
         }
         finally
         {
@@ -73,18 +88,13 @@ internal sealed class MonitorContext : ApplicationContext
     private async Task InstallAsync()
     {
         if (_busy) return;
-        if (CliService.FindExecutable("codex-cli-usage.exe") is not null)
-        {
-            await RefreshAsync();
-            return;
-        }
         _busy = true;
         _error = null;
         UpdateView();
         try
         {
-            await CliService.InstallAsync(CancellationToken.None);
-            _missingCli = false;
+            await CliService.InstallOrRepairAsync(CancellationToken.None);
+            await ReadSnapshotAsync();
         }
         catch (Exception ex) { _error = ex.Message; }
         finally
@@ -92,8 +102,14 @@ internal sealed class MonitorContext : ApplicationContext
             _busy = false;
             UpdateView();
         }
-        if (_error is null) await RefreshAsync();
-        else ShowPopup();
+        if (_error is not null) ShowPopup();
+    }
+
+    private async Task ReadSnapshotAsync()
+    {
+        _snapshot = await CliService.ReadAsync(CancellationToken.None);
+        _error = _snapshot.Status == "stale" ? "Dane są nieaktualne; CLI nie mogło pobrać świeżego wyniku." : null;
+        _cliProblem = CliProblem.None;
     }
 
     private void ToggleAutoStart()
@@ -121,11 +137,12 @@ internal sealed class MonitorContext : ApplicationContext
         oldIcon?.Dispose();
         var summary = main is null ? "Codex: brak danych" : $"Codex: {main.UsedPercent:0}% użyte ({main.Name})";
         _tray.Text = summary.Length > 63 ? summary[..63] : summary;
-        _installItem.Visible = _missingCli;
+        _installItem.Visible = _cliProblem != CliProblem.None;
+        _installItem.Text = _cliProblem == CliProblem.Broken ? "Napraw narzędzie CLI" : "Zainstaluj narzędzie CLI";
         UpdatePopup();
     }
 
-    private void UpdatePopup() => _popup.ShowSnapshot(_snapshot, _error, _busy, _missingCli);
+    private void UpdatePopup() => _popup.ShowSnapshot(_snapshot, _error, _busy, _cliProblem);
 
     protected override void ExitThreadCore()
     {
