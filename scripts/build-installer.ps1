@@ -12,7 +12,7 @@ if (-not $compiler) {
 
 Push-Location $project
 try {
-    dotnet publish CodexMonitor.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeSourceRevisionInInformationalVersion=false -o (Join-Path $project 'build\publish')
+    dotnet publish (Join-Path $project 'src\CodexMonitor.Desktop.Windows\CodexMonitor.Desktop.Windows.csproj') -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:IncludeSourceRevisionInInformationalVersion=false -o (Join-Path $project 'build\publish')
     if ($LASTEXITCODE -ne 0) { throw 'App publishing failed.' }
     & $compiler (Join-Path $project 'packaging\CodexMonitor.iss')
     if ($LASTEXITCODE -ne 0) { throw 'Installer build failed.' }

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>CodexMonitor.Plugins.Codex</AssemblyName>
+    <RootNamespace>CodexMonitor.Plugins.Codex</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../CodexMonitor.Core/CodexMonitor.Core.csproj" />
+    <InternalsVisibleTo Include="CodexMonitor.Desktop.Windows" />
+    <InternalsVisibleTo Include="CodexMonitor.Screenshots" />
+    <InternalsVisibleTo Include="ParserChecks" />
+  </ItemGroup>
+</Project>

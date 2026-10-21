@@ -8,6 +8,6 @@
     <AssemblyName>CodexMonitor.Screenshots</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../CodexMonitor.csproj" />
+    <ProjectReference Include="../../src/CodexMonitor.Desktop.Windows/CodexMonitor.Desktop.Windows.csproj" />
   </ItemGroup>
 </Project>

@@ -1,3 +1,5 @@
+using CodexMonitor.Infrastructure.Windows;
+using CodexMonitor.Plugins.Codex;
 using System.Drawing.Imaging;
 using System.Globalization;
 using CodexMonitor;
@@ -17,7 +19,7 @@ internal static class Program
         Directory.CreateDirectory(destination);
         var checksDirectory = Path.GetFullPath("build/screenshots");
         Directory.CreateDirectory(checksDirectory);
-        var info = PluginRegistry.Get("codex").Info;
+        var info = new CodexPlugin(new WindowsExecutableLocator(), new WindowsCommandLaunchStrategy()).Info;
         var now = DateTimeOffset.Now;
         var windows = new UsageWindow[]
         {

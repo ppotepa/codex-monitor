@@ -46,31 +46,32 @@ Installation and data refresh need network access through these dependencies. Co
 | Windows 10/11 x64 | Supported |
 | Codex plugin | Built in; limits, token activity, dependency repair |
 | Other providers | Not implemented |
-| macOS / Linux / Windows ARM64 package | Not supported |
+| macOS / Linux / Windows ARM64 package | Not supported (Unix executable locator prepared) |
 | External plugin installation | Not implemented; plugins are compiled into the app |
 
 Detection is intentionally broader than support. The catalog can find a known executable without reading or launching it. Selection first honors a saved preferred supported agent, then chooses the first installed supported adapter. If none is installed, the Codex adapter remains selected so its repair flow can install the missing dependency. An installed agent without an adapter is displayed as detected but is never used as a data source.
 
-The internal plugin boundary keeps provider integration separate from the Windows UI. It does not imply cross-platform support or compatibility with other providers.
+The core and plugin now compile as OS-neutral .NET libraries. Windows remains the only complete UI host; Linux/macOS need a tray/UI host and packaging before they become supported.
 
 ## Project layout
 
-The code is split by responsibility rather than by screen:
+The solution is divided into small buildable projects under `src/`:
 
-- `App/` hosts the Windows process and `UsageCoordinator`, which owns refresh state and transitions.
-- `Core/` contains provider-neutral models, settings, history and alert policy.
-- `Core/AgentCatalog.cs` defines known agents and the deterministic source-selection policy.
-- `Plugins/Codex/` contains all Codex CLI and app-server integration.
-- `UI/` contains WinForms controls and the tray presentation.
-- `Infrastructure/Windows/` contains Windows-only integrations such as autostart and executable discovery.
-- `tools/` and `tests/` are development-only projects and are excluded from the shipped executable.
+- `src/CodexMonitor.Core/` — shared snapshots, alert and refresh logic, agent catalog, persistence and platform contracts. No Windows Forms dependency.
+- `src/CodexMonitor.Plugins.Codex/` — Codex CLI and app-server implementation; receives OS services through interfaces.
+- `src/CodexMonitor.Desktop.Windows/` — the current native WinForms tray, dialogs and Windows-only integrations, wired through dependency injection.
+- `src/CodexMonitor.Platform.Unix/` — executable lookup shared by future Linux and macOS desktop hosts (not a complete UI).
+
+Provider metadata is declared with `[UsagePlugin]` on its implementation. Additional abilities are declared by `ITokenUsagePlugin` and `IRepairableUsagePlugin`, rather than magic booleans.
+The Windows host uses `Microsoft.Extensions.DependencyInjection` to assemble the coordinator, plugin and OS services.
+`tests/` and `tools/` remain separate development tools.
 
 ## Build and verify
 
 Requires Windows and the .NET 10 SDK. Building the installer also requires Inno Setup 6.
 
 ```powershell
-dotnet build -c Release
+dotnet build CodexMonitor.slnx -c Release
 dotnet run --project tests/ParserChecks.csproj
 dotnet run --project tools/Screenshots/Screenshots.csproj
 ./scripts/build-installer.ps1
@@ -79,7 +80,7 @@ dotnet run --project tools/Screenshots/Screenshots.csproj
 The current source builds `installer\CodexMonitor-0.4.0-Setup.exe`. To publish only the application:
 
 ```powershell
-dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist
+dotnet publish src/CodexMonitor.Desktop.Windows/CodexMonitor.Desktop.Windows.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist
 ```
 
 The screenshot tool uses actual WinForms views and synthetic snapshots. It creates PNGs in `docs/images`, plus empty/loading/error renders in `build/screenshots`, without opening a window or reading account data. It also checks tab capabilities and sizing on short displays. These development tools and images are not included in the installed application.

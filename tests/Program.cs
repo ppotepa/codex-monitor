@@ -47,22 +47,23 @@ Assert(!history.Add(weekly, now.AddMinutes(1)), "Avoid duplicate reading within 
 Assert(history.Add(weekly, now.AddMinutes(5)), "Sample after five minutes");
 Assert(history.Recent("weekly", now.AddMinutes(5)).Count == 2, "Two chart samples");
 
-Assert(PluginRegistry.All.Count == 1 && PluginRegistry.All[0].Info.Id == "codex", "Only Codex is registered");
-Assert(PluginRegistry.Get("CODEX").Info.SupportsTokens, "Codex advertises token support");
-Assert(PluginRegistry.Get("codex").Info.CanRepair, "Codex advertises dependency repair");
+var registry = new PluginCatalog([new CodexPlugin(new NullExecutableLocator(), new NullCommandLaunchStrategy())]);
+Assert(registry.All.Count == 1 && registry.All[0].Info.Id == "codex", "Only Codex is registered");
+Assert(registry.Get("CODEX").Info.SupportsTokens, "Codex advertises token support");
+Assert(registry.Get("codex").Info.CanRepair, "Codex advertises dependency repair");
 var detectedAgents = new AgentCatalogSnapshot(DateTimeOffset.UtcNow, [
-    new DetectedAgent(AgentCatalog.Known.Single(agent => agent.Id == "claude"), "C:\\tools\\claude.cmd"),
-    new DetectedAgent(AgentCatalog.Known.Single(agent => agent.Id == "codex"), "C:\\tools\\codex.cmd")
+    new DetectedAgent(AgentCatalog.Definitions(registry.All).Single(agent => agent.Id == "claude"), "C:\\tools\\claude.cmd"),
+    new DetectedAgent(AgentCatalog.Definitions(registry.All).Single(agent => agent.Id == "codex"), "C:\\tools\\codex.cmd")
 ]);
-var selectedAgent = AgentCatalog.Select(detectedAgents, PluginRegistry.All, "auto");
+var selectedAgent = AgentCatalog.Select(detectedAgents, registry.All, "auto");
 Assert(selectedAgent.Plugin.Info.Id == "codex" && selectedAgent.DetectedAgent?.Definition.Id == "codex",
     "Select the installed supported agent over an unsupported detected agent");
-var preferredSelection = AgentCatalog.Select(detectedAgents, PluginRegistry.All, "codex");
+var preferredSelection = AgentCatalog.Select(detectedAgents, registry.All, "codex");
 Assert(preferredSelection.Reason == "Preferred agent", "Honor preferred agent selection");
 var unsupportedOnly = new AgentCatalogSnapshot(DateTimeOffset.UtcNow, [
-    new DetectedAgent(AgentCatalog.Known.Single(agent => agent.Id == "claude"), "C:\\tools\\claude.cmd")
+    new DetectedAgent(AgentCatalog.Definitions(registry.All).Single(agent => agent.Id == "claude"), "C:\\tools\\claude.cmd")
 ]);
-var fallbackSelection = AgentCatalog.Select(unsupportedOnly, PluginRegistry.All, "auto");
+var fallbackSelection = AgentCatalog.Select(unsupportedOnly, registry.All, "auto");
 Assert(fallbackSelection.Plugin.Info.Id == "codex" && fallbackSelection.DetectedAgent is null,
     "Keep Codex repair adapter when only unsupported agents are installed");
 var defaultSettings = new MonitorSettings();
@@ -72,7 +73,7 @@ Assert(defaultSettings.AgentScanMinutes == 30 && defaultSettings.AutoRefreshToke
     "Enable periodic agent scan and token refresh by default");
 try
 {
-    PluginRegistry.Get("unsupported-provider");
+    registry.Get("unsupported-provider");
     throw new Exception("Unsupported provider accepted");
 }
 catch (NotSupportedException) { }
@@ -102,4 +103,15 @@ Console.WriteLine("Parser and plugin checks passed.");
 static void Assert(bool condition, string message)
 {
     if (!condition) throw new Exception(message);
+}
+
+internal sealed class NullExecutableLocator : IExecutableLocator
+{
+    public string? Find(IEnumerable<string> executableNames) => null;
+}
+
+internal sealed class NullCommandLaunchStrategy : ICommandLaunchStrategy
+{
+    public System.Diagnostics.ProcessStartInfo Create(string executable, IReadOnlyList<string> arguments, bool redirectStandardInput)
+        => throw new NotSupportedException();
 }

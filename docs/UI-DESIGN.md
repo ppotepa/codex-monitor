@@ -1,6 +1,6 @@
 # UI design
 
-Codex Monitor is a Windows tray app. The shell shows the active built-in plugin; currently only Codex is registered. There is no provider chooser until a second provider actually works.
+The current desktop host is a Windows tray app; its views live in `src/CodexMonitor.Desktop.Windows/Views/`. The shell shows the active built-in plugin; currently only Codex is registered. There is no provider chooser until a second provider actually works.
 
 ## Layout
 

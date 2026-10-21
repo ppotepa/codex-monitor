@@ -25,9 +25,9 @@ internal sealed class MonitorDatabase
         _document.TokenCache = new Dictionary<string, TokenCacheEntry>(_document.TokenCache, StringComparer.OrdinalIgnoreCase);
     }
 
-    public static MonitorDatabase Load()
+    public static MonitorDatabase Load(string? filePath = null)
     {
-        var path = Path.Combine(
+        var path = filePath ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "CodexMonitor", "monitor.db.json");
         var database = Open(path);

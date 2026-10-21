@@ -9,10 +9,11 @@ internal sealed class MonitorContext : ApplicationContext
     private readonly IUsagePlugin _plugin;
     private AgentCatalogSnapshot _agentCatalog;
     private readonly AgentSelection _selection;
-    private readonly MonitorSettings _settings = MonitorSettings.Load();
-    private readonly UsageHistory _history = UsageHistory.Load();
-    private readonly MonitorDatabase _database;
-    private readonly CancellationTokenSource _shutdown = new();
+    private readonly MonitorSettings _settings;
+    private readonly CancellationTokenSource _shutdown;
+    private readonly IAgentDiscovery _discovery;
+    private readonly IPluginCatalog _plugins;
+    private readonly IStartupService _startup;
     private readonly UsageCoordinator _coordinator;
     private readonly UsagePopup _popup;
     private readonly NotifyIcon _tray;
@@ -26,13 +27,19 @@ internal sealed class MonitorContext : ApplicationContext
     private ToolStripMenuItem _snoozeItem = null!;
     private Icon? _icon;
 
-    public MonitorContext(AgentSelection selection, AgentCatalogSnapshot agentCatalog)
+    public MonitorContext(AgentSelection selection, AgentCatalogSnapshot agentCatalog,
+        MonitorSettings settings, UsageCoordinator coordinator, IAgentDiscovery discovery,
+        IPluginCatalog plugins, IStartupService startup, CancellationTokenSource shutdown)
     {
         _selection = selection;
         _agentCatalog = agentCatalog;
         _plugin = selection.Plugin;
-        _database = _history.Database ?? MonitorDatabase.Load();
-        _coordinator = new UsageCoordinator(_plugin, _settings, _history, _database, _shutdown.Token);
+        _settings = settings;
+        _coordinator = coordinator;
+        _discovery = discovery;
+        _plugins = plugins;
+        _startup = startup;
+        _shutdown = shutdown;
         _coordinator.Changed += UpdateView;
 
         _popup = new UsagePopup(_plugin.Info);
@@ -45,7 +52,8 @@ internal sealed class MonitorContext : ApplicationContext
         var menu = BuildTrayMenu();
         _tray = new NotifyIcon { ContextMenuStrip = menu, Visible = true };
         _tray.MouseClick += (_, e) => { if (e.Button == MouseButtons.Left) ShowPopup(); };
-        _coordinator.AlertRaised += (title, message, icon) => _tray.ShowBalloonTip(4000, title, message, icon);
+        _coordinator.AlertRaised += (title, message, severity) => _tray.ShowBalloonTip(4000,
+            title, message, severity == UsageAlertSeverity.Info ? ToolTipIcon.Info : ToolTipIcon.Warning);
 
         _lastAgentScanAt = DateTimeOffset.UtcNow;
         _refreshTimer = new System.Windows.Forms.Timer { Interval = MinutesToMilliseconds(_settings.LimitsRefreshMinutes) };
@@ -101,9 +109,9 @@ internal sealed class MonitorContext : ApplicationContext
         menu.Items.Add(_snoozeItem);
         menu.Opening += (_, _) => UpdateSnoozeItem();
 
-        _startupItem = new ToolStripMenuItem("Start with Windows", null, (_, _) => ToggleAutoStart());
-        _startupItem.Enabled = AutoStart.IsPackagedExecutable;
-        _startupItem.Checked = AutoStart.IsPackagedExecutable && AutoStart.Enabled;
+        _startupItem = new ToolStripMenuItem(_startup.MenuLabel, null, (_, _) => ToggleAutoStart());
+        _startupItem.Enabled = _startup.CanConfigure;
+        _startupItem.Checked = _startup.CanConfigure && _startup.Enabled;
         menu.Items.Add(_startupItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Exit", null, (_, _) => ExitThread());
@@ -119,14 +127,14 @@ internal sealed class MonitorContext : ApplicationContext
     private void ShowAgentStatus()
     {
         RefreshAgentCatalog();
-        var selection = AgentCatalog.Select(_agentCatalog, PluginRegistry.All, _settings.PreferredAgentId);
+        var selection = AgentCatalog.Select(_agentCatalog, _plugins.All, _settings.PreferredAgentId);
         using var dialog = new AgentStatusDialog(_agentCatalog, selection);
         dialog.ShowDialog();
     }
 
     private void RefreshAgentCatalog()
     {
-        _agentCatalog = AgentDiscovery.Scan();
+        _agentCatalog = _discovery.Scan();
         _lastAgentScanAt = DateTimeOffset.UtcNow;
     }
 
@@ -135,7 +143,7 @@ internal sealed class MonitorContext : ApplicationContext
         using var dialog = new AlertSettingsDialog(_settings.WarningThreshold, _settings.CriticalThreshold,
             _settings.LimitsRefreshMinutes, _settings.TokenRefreshMinutes, _settings.AgentScanMinutes,
             _settings.AutoRefreshTokens, _settings.AlertsEnabled,
-            AutoStart.IsPackagedExecutable && AutoStart.Enabled, AutoStart.IsPackagedExecutable);
+            _startup.CanConfigure && _startup.Enabled, _startup.CanConfigure);
         if (dialog.ShowDialog() != DialogResult.OK) return;
         _settings.WarningThreshold = dialog.WarningThreshold;
         _settings.CriticalThreshold = dialog.CriticalThreshold;
@@ -146,11 +154,11 @@ internal sealed class MonitorContext : ApplicationContext
         _settings.AlertsEnabled = dialog.AlertsEnabled;
         _refreshTimer.Interval = MinutesToMilliseconds(_settings.LimitsRefreshMinutes);
         _alertsItem.Checked = dialog.AlertsEnabled;
-        if (AutoStart.IsPackagedExecutable && AutoStart.Enabled != dialog.StartWithWindows)
+        if (_startup.CanConfigure && _startup.Enabled != dialog.StartWithWindows)
         {
             try
             {
-                AutoStart.Enabled = dialog.StartWithWindows;
+                _startup.Enabled = dialog.StartWithWindows;
                 _startupItem.Checked = dialog.StartWithWindows;
             }
             catch (Exception ex)
@@ -167,8 +175,8 @@ internal sealed class MonitorContext : ApplicationContext
     {
         try
         {
-            AutoStart.Enabled = !_startupItem.Checked;
-            _startupItem.Checked = AutoStart.Enabled;
+            _startup.Enabled = !_startupItem.Checked;
+            _startupItem.Checked = _startup.Enabled;
         }
         catch (Exception ex) { MessageBox.Show(ex.Message, "Codex Monitor", MessageBoxButtons.OK, MessageBoxIcon.Error); }
     }
@@ -241,8 +249,6 @@ internal sealed class MonitorContext : ApplicationContext
         _tray.Dispose();
         _icon?.Dispose();
         _popup.Dispose();
-        _coordinator.Dispose();
-        _shutdown.Dispose();
         base.ExitThreadCore();
     }
 }

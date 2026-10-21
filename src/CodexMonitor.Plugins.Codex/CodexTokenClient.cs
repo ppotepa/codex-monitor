@@ -4,41 +4,22 @@ using System.Text.Json;
 
 namespace CodexMonitor.Plugins.Codex;
 
-internal static class CodexTokenClient
+internal sealed class CodexTokenClient(IExecutableLocator locator, ICommandLaunchStrategy launchStrategy)
 {
     private const int TimeoutSeconds = 24;
     private static long _nextRequestId;
 
-    public static async Task<TokenUsageSnapshot> ReadAsync(CancellationToken cancellationToken)
+    public async Task<TokenUsageSnapshot> ReadAsync(CancellationToken cancellationToken)
     {
-        var nativeLauncher = CodexCliService.FindExecutable("codex.exe");
-        var commandLauncher = CodexCliService.FindExecutable("codex.cmd");
-        var launcher = nativeLauncher ?? commandLauncher ??
+        var launcher = locator.Find(["codex.exe", "codex", "codex.cmd"]) ??
             throw new InvalidOperationException("Codex CLI was not found. Install or update Codex CLI, then refresh.");
-        var isCommandScript = nativeLauncher is null;
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(TimeoutSeconds));
-        using var process = new Process();
-        var commandProcessor = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe");
-        process.StartInfo = new ProcessStartInfo(isCommandScript ? commandProcessor : launcher)
+        using var process = new Process
         {
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
+            StartInfo = launchStrategy.Create(launcher, ["app-server", "--listen", "stdio://"], redirectStandardInput: true)
         };
-        // The npm PowerShell shim only forwards stdin when invoked as pipeline input.
-        // cmd.exe and native codex.exe preserve the app-server's stdio protocol.
-        if (isCommandScript)
-        {
-            process.StartInfo.ArgumentList.Add("/d");
-            process.StartInfo.ArgumentList.Add("/c");
-            process.StartInfo.ArgumentList.Add(launcher);
-        }
-        foreach (var argument in new[] { "app-server", "--listen", "stdio://" })
-            process.StartInfo.ArgumentList.Add(argument);
 
         try { process.Start(); }
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)

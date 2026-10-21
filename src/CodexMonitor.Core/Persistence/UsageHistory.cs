@@ -28,6 +28,8 @@ internal sealed class UsageHistory
     public static UsageHistory Load()
         => new(MonitorDatabase.Load());
 
+    public static UsageHistory Load(MonitorDatabase database) => new(database);
+
     public bool Add(UsageSnapshot snapshot, DateTimeOffset now)
     {
         var changed = false;
@@ -61,3 +63,4 @@ internal sealed class UsageHistory
         File.Move(temporary, _path, true);
     }
 }
+

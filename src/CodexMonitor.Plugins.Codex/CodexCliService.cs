@@ -1,17 +1,15 @@
 using System.ComponentModel;
 using System.Diagnostics;
-using CodexMonitor.Infrastructure.Windows;
 
 namespace CodexMonitor.Plugins.Codex;
 
-internal static class CodexCliService
+internal sealed class CodexCliService(IExecutableLocator locator)
 {
     private const string GitSource = "git+https://github.com/wakamex/clanker-usage.git@v0.4.1";
 
-    public static string? FindExecutable(string name)
-        => WindowsExecutableLocator.Find([name]);
+    private string? FindExecutable(string name) => locator.Find([name]);
 
-    public static async Task<UsageSnapshot> ReadAsync(CancellationToken cancellationToken)
+    public async Task<UsageSnapshot> ReadAsync(CancellationToken cancellationToken)
     {
         var wrapper = FindExecutable("codex-cli-usage.exe");
         var core = FindExecutable("clanker-usage.exe");
@@ -46,7 +44,7 @@ internal static class CodexCliService
         message.Contains("did not find executable at", StringComparison.OrdinalIgnoreCase) ||
         message.Contains("fatal error in launcher", StringComparison.OrdinalIgnoreCase);
 
-    public static async Task InstallOrRepairAsync(CancellationToken cancellationToken)
+    public async Task InstallOrRepairAsync(CancellationToken cancellationToken)
     {
         var uv = FindExecutable("uv.exe") ?? throw new FileNotFoundException(
             "uv.exe was not found. Install uv from docs.astral.sh/uv, then try again.");
@@ -65,7 +63,7 @@ internal static class CodexCliService
         throw new InvalidOperationException($"CLI installation failed. {details}");
     }
 
-    private static async Task<bool> IsCommandHealthyAsync(string name, CancellationToken cancellationToken)
+    private async Task<bool> IsCommandHealthyAsync(string name, CancellationToken cancellationToken)
     {
         var executable = FindExecutable(name);
         if (executable is null) return false;
@@ -116,3 +114,4 @@ internal static class CodexCliService
         return message.Length > 240 ? message[..240] + "…" : message.Length > 0 ? message : "The command failed.";
     }
 }
+

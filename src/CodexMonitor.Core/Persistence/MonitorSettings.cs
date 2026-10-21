@@ -19,11 +19,15 @@ internal sealed class MonitorSettings
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "CodexMonitor", "settings.json");
 
-    public static MonitorSettings Load()
+    private string _filePath = FilePath;
+
+    public static MonitorSettings Load(string? filePath = null)
     {
+        var path = filePath ?? FilePath;
         try
         {
-            var settings = JsonSerializer.Deserialize<MonitorSettings>(File.ReadAllText(FilePath)) ?? new MonitorSettings();
+            var settings = JsonSerializer.Deserialize<MonitorSettings>(File.ReadAllText(path)) ?? new MonitorSettings();
+            settings._filePath = path;
             settings.AlertStates ??= new Dictionary<string, WindowAlertState>(StringComparer.OrdinalIgnoreCase);
             settings.AlertStates = new Dictionary<string, WindowAlertState>(settings.AlertStates, StringComparer.OrdinalIgnoreCase);
             foreach (var key in settings.AlertStates.Keys.ToArray())
@@ -47,15 +51,15 @@ internal sealed class MonitorSettings
                 settings.AgentScanMinutes = 30;
             return settings;
         }
-        catch (IOException) { return new MonitorSettings(); }
-        catch (JsonException) { return new MonitorSettings(); }
-        catch (UnauthorizedAccessException) { return new MonitorSettings(); }
+        catch (IOException) { return new MonitorSettings { _filePath = path }; }
+        catch (JsonException) { return new MonitorSettings { _filePath = path }; }
+        catch (UnauthorizedAccessException) { return new MonitorSettings { _filePath = path }; }
     }
 
     public void Save()
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(this));
+        Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
+        File.WriteAllText(_filePath, JsonSerializer.Serialize(this));
     }
 }
 

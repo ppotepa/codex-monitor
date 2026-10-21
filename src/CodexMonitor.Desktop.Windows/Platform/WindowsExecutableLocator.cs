@@ -1,21 +1,9 @@
 namespace CodexMonitor.Infrastructure.Windows;
 
-internal static class AgentDiscovery
+// Windows executable discovery; the list of agents comes from Core/plugins.
+internal sealed class WindowsExecutableLocator : IExecutableLocator
 {
-    public static AgentCatalogSnapshot Scan()
-    {
-        var agents = AgentCatalog.Known.Select(definition =>
-        {
-            var executable = WindowsExecutableLocator.Find(definition.ExecutableNames);
-            return new DetectedAgent(definition, executable);
-        }).ToArray();
-        return new AgentCatalogSnapshot(DateTimeOffset.UtcNow, agents);
-    }
-}
-
-internal static class WindowsExecutableLocator
-{
-    public static string? Find(IEnumerable<string> names)
+    public string? Find(IEnumerable<string> names)
     {
         var directories = SearchDirectories();
         foreach (var name in names)
@@ -29,7 +17,7 @@ internal static class WindowsExecutableLocator
         return null;
     }
 
-    public static IReadOnlyList<string> SearchDirectories()
+    private static IReadOnlyList<string> SearchDirectories()
     {
         var result = new List<string>();
         var user = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

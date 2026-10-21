@@ -25,7 +25,7 @@ internal sealed class UsageCoordinator : IDisposable
     public bool ShowingFreshLimits => Snapshot?.Status != "stale" && Snapshot is not null;
 
     public event Action? Changed;
-    public event Action<string, string, ToolTipIcon>? AlertRaised;
+    public event Action<string, string, UsageAlertSeverity>? AlertRaised;
 
     public UsageCoordinator(IUsagePlugin plugin, MonitorSettings settings, UsageHistory history,
         MonitorDatabase database, CancellationToken shutdown)
@@ -88,12 +88,12 @@ internal sealed class UsageCoordinator : IDisposable
         catch (PluginDependencyException ex)
         {
             SetDependencyError(ex);
-            if (!_autoRecoveryAttempted && _plugin.Info.CanRepair)
+            if (!_autoRecoveryAttempted && _plugin is IRepairableUsagePlugin repairable)
             {
                 _autoRecoveryAttempted = true;
                 try
                 {
-                    await _plugin.RepairAsync(_shutdown);
+                    await repairable.RepairAsync(_shutdown);
                     await ReadLimitsAsync();
                 }
                 catch (Exception repairError)
@@ -117,14 +117,14 @@ internal sealed class UsageCoordinator : IDisposable
 
     public async Task RepairAsync()
     {
-        if (IsBusy || _shutdown.IsCancellationRequested) return;
+        if (IsBusy || _shutdown.IsCancellationRequested || _plugin is not IRepairableUsagePlugin repairable) return;
         IsBusy = true;
         LimitError = null;
         PluginStatus = PluginStatus with { Health = PluginHealth.Refreshing, Detail = null };
         NotifyChanged();
         try
         {
-            await _plugin.RepairAsync(_shutdown);
+            await repairable.RepairAsync(_shutdown);
             await ReadLimitsAsync();
         }
         catch (PluginDependencyException ex)
@@ -145,7 +145,7 @@ internal sealed class UsageCoordinator : IDisposable
 
     public async Task RefreshTokensAsync(bool force)
     {
-        if (IsTokenBusy || !_plugin.Info.SupportsTokens || _shutdown.IsCancellationRequested) return;
+        if (IsTokenBusy || _plugin is not ITokenUsagePlugin tokenProvider || _shutdown.IsCancellationRequested) return;
         var now = DateTimeOffset.UtcNow;
         if (!force && _tokenLastAttemptAt is { } attempt &&
             now - attempt < TimeSpan.FromMinutes(_settings.TokenRefreshMinutes)) return;
@@ -156,7 +156,7 @@ internal sealed class UsageCoordinator : IDisposable
         NotifyChanged();
         try
         {
-            TokenUsage = await _plugin.ReadTokensAsync(_shutdown);
+            TokenUsage = await tokenProvider.ReadTokensAsync(_shutdown);
             try { _database.SaveTokenUsage(_plugin.Info.Id, TokenUsage, DateTimeOffset.UtcNow); }
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
@@ -219,11 +219,11 @@ internal sealed class UsageCoordinator : IDisposable
             var resetAt = window.ResetsAt?.ToUnixTimeSeconds();
             _settings.AlertStates.TryGetValue(window.Name, out var previous);
             if (_settings.AlertsEnabled && previous is { Level: > 0 } && previous.ResetAt != resetAt)
-                AlertRaised?.Invoke($"{_plugin.Info.DisplayName} limit reset", $"{window.Name} usage window has reset.", ToolTipIcon.Info);
+                AlertRaised?.Invoke($"{_plugin.Info.DisplayName} limit reset", $"{window.Name} usage window has reset.", UsageAlertSeverity.Info);
 
             var level = AlertPolicy.Level(window.UsedPercent, _settings.WarningThreshold, _settings.CriticalThreshold);
             if (_settings.AlertsEnabled && AlertPolicy.ShouldNotify(level, previous, resetAt))
-                AlertRaised?.Invoke($"{_plugin.Info.DisplayName} usage alert", $"{window.Name} limit is {window.UsedPercent:0}% used.", ToolTipIcon.Warning);
+                AlertRaised?.Invoke($"{_plugin.Info.DisplayName} usage alert", $"{window.Name} limit is {window.UsedPercent:0}% used.", UsageAlertSeverity.Warning);
 
             var snoozed = previous is not null && previous.ResetAt == resetAt && previous.Snoozed;
             var recordedLevel = previous is not null && previous.ResetAt == resetAt ? Math.Max(previous.Level, level) : level;
@@ -250,3 +250,4 @@ internal sealed class UsageCoordinator : IDisposable
         AlertRaised = null;
     }
 }
+

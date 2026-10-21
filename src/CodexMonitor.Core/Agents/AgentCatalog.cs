@@ -26,23 +26,24 @@ internal static class AgentCatalog
 {
     // Detection is deliberately broader than support. Finding a CLI never means
     // that Codex Monitor will execute or read it without an adapter.
+    // Unsupported agents are visible for detection only; adapters are DI registrations.
     public static IReadOnlyList<AgentDefinition> Known { get; } =
     [
-        new("codex", "Codex", ["codex.exe", "codex.cmd"],
-            "Codex CLI app-server and codex-cli-usage", "codex"),
-        new("claude", "Claude Code", ["claude.exe", "claude.cmd"],
-            "Claude Code CLI", null),
-        new("gemini", "Gemini CLI", ["gemini.exe", "gemini.cmd"],
-            "Gemini CLI", null),
-        new("copilot", "GitHub Copilot CLI", ["copilot.exe", "copilot.cmd", "github-copilot-cli.exe"],
-            "GitHub Copilot CLI", null),
-        new("aider", "Aider", ["aider.exe", "aider.cmd"],
-            "Aider CLI", null),
-        new("opencode", "OpenCode", ["opencode.exe", "opencode.cmd"],
-            "OpenCode CLI", null),
-        new("goose", "Goose", ["goose.exe", "goose.cmd"],
-            "Goose CLI", null)
+        new("claude", "Claude Code", ["claude.exe", "claude.cmd"], "Claude Code CLI", null),
+        new("gemini", "Gemini CLI", ["gemini.exe", "gemini.cmd"], "Gemini CLI", null),
+        new("copilot", "GitHub Copilot CLI", ["copilot.exe", "copilot.cmd", "github-copilot-cli.exe"], "GitHub Copilot CLI", null),
+        new("aider", "Aider", ["aider.exe", "aider.cmd"], "Aider CLI", null),
+        new("opencode", "OpenCode", ["opencode.exe", "opencode.cmd"], "OpenCode CLI", null),
+        new("goose", "Goose", ["goose.exe", "goose.cmd"], "Goose CLI", null)
     ];
+
+    public static IReadOnlyList<AgentDefinition> Definitions(IReadOnlyList<IUsagePlugin> plugins)
+    {
+        var supported = plugins.Select(plugin => new AgentDefinition(plugin.Info.Id,
+            plugin.Info.DisplayName, plugin.Info.ExecutableNames, plugin.Info.DataSource, plugin.Info.Id));
+        return supported.Concat(Known.Where(known => !plugins.Any(plugin =>
+            plugin.Info.Id.Equals(known.Id, StringComparison.OrdinalIgnoreCase)))).ToArray();
+    }
 
     public static AgentSelection Select(
         AgentCatalogSnapshot snapshot,
@@ -73,3 +74,4 @@ internal static class AgentCatalog
                 : $"Detected {detectedUnsupported.Definition.DisplayName}, but no adapter is available");
     }
 }
+
