@@ -59,7 +59,9 @@ internal sealed class CodexTokenClient(IExecutableLocator locator, ICommandLaunc
             {
                 try { process.Kill(entireProcessTree: true); }
                 catch (Exception ex) when (ex is InvalidOperationException or Win32Exception) { }
-                await process.WaitForExitAsync(CancellationToken.None);
+                using var cleanupDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                try { await process.WaitForExitAsync(cleanupDeadline.Token); }
+                catch (OperationCanceledException) { /* Kill can fail; never hang on cleanup. */ }
             }
         }
     }

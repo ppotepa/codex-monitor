@@ -1,11 +1,9 @@
 name: Build
 
+# Trigger manually when GitHub-hosted runners are available. The current
+# repository's hosted jobs fail before runner allocation (no steps/logs).
 on:
-  push:
-    branches:
-      - main
-      - refactor/cross-platform-foundation
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   compile:

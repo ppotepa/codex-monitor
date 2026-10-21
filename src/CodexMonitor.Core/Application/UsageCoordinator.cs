@@ -41,7 +41,7 @@ internal sealed class UsageCoordinator : IDisposable
         if (cachedTokens is not null)
         {
             TokenUsage = cachedTokens.Snapshot;
-            _tokenLastAttemptAt = cachedTokens.CachedAt;
+            // The cached snapshot is displayed immediately, but does not defer the first live read.
         }
     }
 
@@ -57,8 +57,6 @@ internal sealed class UsageCoordinator : IDisposable
         DependencyProblem, TokenUsage, TokenError, IsTokenBusy, PluginStatus);
 
     public void SetTrayWindow(string key) => _settings.TrayWindow = key;
-
-    public void ResetAlertLevels() => _alerts.ResetLevels();
 
     public void ToggleSnooze() => _alerts.ToggleSnooze(SelectedWindow);
 

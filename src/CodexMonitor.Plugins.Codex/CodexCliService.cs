@@ -27,7 +27,12 @@ internal sealed class CodexCliService(IExecutableLocator locator, IProcessRunner
 
     private async Task<UsageSnapshot> ReadFromAsync(string executable, string[] arguments, CancellationToken cancellationToken)
     {
-        var result = await runner.RunAsync(executable, arguments, TimeSpan.FromSeconds(25), cancellationToken);
+        ProcessResult result;
+        try { result = await runner.RunAsync(executable, arguments, TimeSpan.FromSeconds(25), cancellationToken); }
+        catch (ProcessLaunchException ex)
+        {
+            throw new PluginDependencyException(DependencyProblem.Broken, ex.Message);
+        }
         if (result.ExitCode != 0)
         {
             var error = ShortError(result.StandardError, result.StandardOutput);

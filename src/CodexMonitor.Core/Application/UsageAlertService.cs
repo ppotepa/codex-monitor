@@ -6,12 +6,6 @@ internal sealed record AlertEvaluation(bool StateChanged, IReadOnlyList<UsageNot
 
 internal sealed class UsageAlertService(MonitorSettings settings)
 {
-    public void ResetLevels()
-    {
-        foreach (var key in settings.AlertStates.Keys.ToArray())
-            settings.AlertStates[key] = settings.AlertStates[key] with { Level = 0 };
-    }
-
     public void ToggleSnooze(UsageWindow? selected)
     {
         if (selected?.ResetsAt is null) return;

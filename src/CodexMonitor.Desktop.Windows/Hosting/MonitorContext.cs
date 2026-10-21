@@ -167,7 +167,7 @@ internal sealed class MonitorContext : ApplicationContext
                 MessageBox.Show(ex.Message, "Codex Monitor", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-        _coordinator.ResetAlertLevels();
+        // Preserve per-window notification levels across unrelated settings changes.
         SaveSettings();
         if (_coordinator.ShowingFreshLimits) _ = _coordinator.RefreshLimitsAsync();
     }

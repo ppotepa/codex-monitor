@@ -5,6 +5,9 @@ namespace CodexMonitor;
 
 internal sealed record ProcessResult(int ExitCode, string StandardOutput, string StandardError);
 
+internal sealed class ProcessLaunchException(string message, Exception innerException)
+    : Exception(message, innerException);
+
 // One-shot process API shared by providers. Interactive protocols use ICommandLaunchStrategy directly.
 internal interface IProcessRunner
 {
@@ -27,7 +30,7 @@ internal sealed class ProcessRunner(ICommandLaunchStrategy commands) : IProcessR
         }
         catch (Win32Exception ex)
         {
-            throw new InvalidOperationException(
+            throw new ProcessLaunchException(
                 $"Cannot start {Path.GetFileName(executable)}: {ex.Message}", ex);
         }
 
