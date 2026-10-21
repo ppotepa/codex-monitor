@@ -20,11 +20,7 @@ internal sealed class MonitorContext : ApplicationContext
     private readonly System.Windows.Forms.Timer _refreshTimer;
     private readonly System.Windows.Forms.Timer _displayTimer;
     private DateTimeOffset _lastAgentScanAt;
-    private ToolStripMenuItem _installItem = null!;
-    private ToolStripMenuItem _startupItem = null!;
-    private ToolStripMenuItem[] _windowOptions = null!;
-    private ToolStripMenuItem _alertsItem = null!;
-    private ToolStripMenuItem _snoozeItem = null!;
+    private readonly MonitorTrayMenu _menu;
     private Icon? _icon;
 
     public MonitorContext(AgentSelection selection, AgentCatalogSnapshot agentCatalog,
@@ -50,8 +46,13 @@ internal sealed class MonitorContext : ApplicationContext
         _popup.TokensRequested += (_, _) => _ = _coordinator.RefreshTokensAsync(force: false);
         _popup.TokenRefreshRequested += (_, _) => _ = _coordinator.RefreshTokensAsync(force: true);
 
-        var menu = BuildTrayMenu();
-        _tray = new NotifyIcon { ContextMenuStrip = menu, Visible = true };
+        _menu = new MonitorTrayMenu(_plugin.Info, _settings, _coordinator, _startup);
+        _menu.ShowRequested += (_, _) => ShowPopup();
+        _menu.AgentStatusRequested += (_, _) => ShowAgentStatus();
+        _menu.SettingsRequested += (_, _) => ConfigureSettings();
+        _menu.ExitRequested += (_, _) => ExitThread();
+        _menu.RedrawRequested += (_, _) => UpdateView();
+        _tray = new NotifyIcon { ContextMenuStrip = _menu.Menu, Visible = true };
         _tray.MouseClick += (_, e) => { if (e.Button == MouseButtons.Left) ShowPopup(); };
         _coordinator.AlertRaised += (title, message, severity) => _tray.ShowBalloonTip(4000,
             title, message, severity == UsageAlertSeverity.Info ? ToolTipIcon.Info : ToolTipIcon.Warning);
@@ -72,51 +73,6 @@ internal sealed class MonitorContext : ApplicationContext
         _displayTimer.Start();
         UpdateView();
         Application.Idle += StartFirstRefresh;
-    }
-
-    private ContextMenuStrip BuildTrayMenu()
-    {
-        var menu = new ContextMenuStrip();
-        menu.Items.Add("Show usage", null, (_, _) => ShowPopup());
-        menu.Items.Add("Refresh", null, (_, _) => _ = _coordinator.RefreshLimitsAsync());
-        _installItem = new ToolStripMenuItem("Install usage CLI", null, (_, _) => _ = _coordinator.RepairAsync());
-        menu.Items.Add(_installItem);
-
-        var displayMenu = new ToolStripMenuItem("Tray icon shows");
-        var windowChoices = new[] { new UsageWindowOption("auto", "Automatic") }.Concat(_plugin.Info.WindowOptions);
-        _windowOptions = windowChoices.Select(choice =>
-        {
-            var item = new ToolStripMenuItem(choice.Label) { Tag = choice.Key };
-            item.Click += (_, _) =>
-            {
-                _coordinator.SetTrayWindow(choice.Key);
-                UpdateWindowChecks();
-                SaveSettings();
-                UpdateView();
-            };
-            displayMenu.DropDownItems.Add(item);
-            return item;
-        }).ToArray();
-        UpdateWindowChecks();
-        menu.Items.Add(displayMenu);
-
-        menu.Items.Add("AI agents...", null, (_, _) => ShowAgentStatus());
-
-        _alertsItem = new ToolStripMenuItem("Usage alerts") { Checked = _settings.AlertsEnabled, CheckOnClick = true };
-        _alertsItem.CheckedChanged += (_, _) => { _settings.AlertsEnabled = _alertsItem.Checked; SaveSettings(); };
-        menu.Items.Add(_alertsItem);
-        menu.Items.Add("Settings...", null, (_, _) => ConfigureSettings());
-        _snoozeItem = new ToolStripMenuItem("Snooze alerts until reset", null, (_, _) => ToggleSnooze());
-        menu.Items.Add(_snoozeItem);
-        menu.Opening += (_, _) => UpdateSnoozeItem();
-
-        _startupItem = new ToolStripMenuItem(_startup.MenuLabel, null, (_, _) => ToggleAutoStart());
-        _startupItem.Enabled = _startup.CanConfigure;
-        _startupItem.Checked = _startup.CanConfigure && _startup.Enabled;
-        menu.Items.Add(_startupItem);
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("Exit", null, (_, _) => ExitThread());
-        return menu;
     }
 
     private void StartFirstRefresh(object? sender, EventArgs e)
@@ -154,52 +110,9 @@ internal sealed class MonitorContext : ApplicationContext
         _settings.AutoRefreshTokens = dialog.AutoRefreshTokens;
         _settings.AlertsEnabled = dialog.AlertsEnabled;
         _refreshTimer.Interval = MinutesToMilliseconds(_settings.LimitsRefreshMinutes);
-        _alertsItem.Checked = dialog.AlertsEnabled;
-        if (_startup.CanConfigure && _startup.Enabled != dialog.StartWithWindows)
-        {
-            try
-            {
-                _startup.Enabled = dialog.StartWithWindows;
-                _startupItem.Checked = dialog.StartWithWindows;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message, "Codex Monitor", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-        // Preserve per-window notification levels across unrelated settings changes.
+        _menu.SyncSettings(dialog.StartWithWindows);
         SaveSettings();
         if (_coordinator.ShowingFreshLimits) _ = _coordinator.RefreshLimitsAsync();
-    }
-
-    private void ToggleAutoStart()
-    {
-        try
-        {
-            _startup.Enabled = !_startupItem.Checked;
-            _startupItem.Checked = _startup.Enabled;
-        }
-        catch (Exception ex) { MessageBox.Show(ex.Message, "Codex Monitor", MessageBoxButtons.OK, MessageBoxIcon.Error); }
-    }
-
-    private void ToggleSnooze()
-    {
-        _coordinator.ToggleSnooze();
-        SaveSettings();
-        UpdateSnoozeItem();
-    }
-
-    private void UpdateSnoozeItem()
-    {
-        var selected = _coordinator.SelectedWindow;
-        _snoozeItem.Enabled = _settings.AlertsEnabled && selected?.ResetsAt is not null;
-        _snoozeItem.Checked = _coordinator.IsSnoozed();
-    }
-
-    private void UpdateWindowChecks()
-    {
-        foreach (var item in _windowOptions)
-            item.Checked = string.Equals(item.Tag as string, _settings.TrayWindow, StringComparison.OrdinalIgnoreCase);
     }
 
     private void SaveSettings()
@@ -226,8 +139,7 @@ internal sealed class MonitorContext : ApplicationContext
         var summary = main is null ? $"{_plugin.Info.DisplayName}: no data" :
             $"{main.Name}: {main.UsedPercent:0}% used, {UsageDisplayText.ResetShort(main.ResetsAt)}";
         _tray.Text = summary.Length > 63 ? summary[..63] : summary;
-        _installItem.Visible = _plugin.Info.CanRepair && _coordinator.DependencyProblem != DependencyProblem.None;
-        _installItem.Text = _coordinator.DependencyProblem == DependencyProblem.Broken ? "Repair usage CLI" : "Install usage CLI";
+        _menu.UpdateStatus();
         UpdatePopup();
     }
 
@@ -245,6 +157,7 @@ internal sealed class MonitorContext : ApplicationContext
         _displayTimer.Dispose();
         _tray.Visible = false;
         _tray.Dispose();
+        _menu.Dispose();
         _icon?.Dispose();
         // The DI container owns the dashboard view's lifetime.
         base.ExitThreadCore();
