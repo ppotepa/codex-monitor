@@ -59,7 +59,9 @@ internal sealed class MonitorSettings
     public void Save()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
-        File.WriteAllText(_filePath, JsonSerializer.Serialize(this));
+        var temporary = _filePath + ".tmp";
+        File.WriteAllText(temporary, JsonSerializer.Serialize(this));
+        File.Move(temporary, _filePath, overwrite: true);
     }
 }
 
