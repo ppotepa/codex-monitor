@@ -63,8 +63,20 @@ internal sealed class UsageHistory
         }
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         var temporary = _path + ".tmp";
-        File.WriteAllText(temporary, JsonSerializer.Serialize(_points));
-        File.Move(temporary, _path, true);
+        try
+        {
+            File.WriteAllText(temporary, JsonSerializer.Serialize(_points));
+            File.Move(temporary, _path, true);
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(temporary)) File.Delete(temporary);
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
     }
 }
 

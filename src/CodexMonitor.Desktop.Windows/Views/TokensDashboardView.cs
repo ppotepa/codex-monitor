@@ -5,7 +5,7 @@ namespace CodexMonitor;
 // The token dashboard is independent from the limits dashboard and tray host.
 internal sealed class TokensDashboardView : DashboardSection
 {
-    private readonly PluginInfo _plugin;
+    private PluginInfo _plugin;
     private readonly Label _latestDay = new();
     private readonly Label _latestCount = new();
     private readonly Label _tokenUnavailable = new();
@@ -17,6 +17,8 @@ internal sealed class TokensDashboardView : DashboardSection
     private readonly ToolTip _errors = new();
 
     public event EventHandler? RefreshRequested;
+
+    public void SetPlugin(PluginInfo plugin) => _plugin = plugin;
 
     public TokensDashboardView(PluginInfo plugin)
     {
@@ -62,9 +64,10 @@ internal sealed class TokensDashboardView : DashboardSection
         _peak.AccessibleName = $"Peak daily tokens: {UsageDisplayText.FormatTokenCount(usage?.PeakDailyTokens)}";
         _chart.SetBuckets(usage?.DailyBuckets ?? []);
         _chart.AccessibleName = "Daily token totals: seven calendar days ending on the latest reported day; focus or hover a bar for exact values";
-        _tokenError.Text = state.TokenError ?? "";
-        _tokenError.Visible = state.TokenError is not null;
-        _errors.SetToolTip(_tokenError, state.TokenError);
+        var error = state.TokenError ?? state.PersistenceError;
+        _tokenError.Text = error ?? "";
+        _tokenError.Visible = error is not null;
+        _errors.SetToolTip(_tokenError, error);
         _refreshTokens.Enabled = !state.TokensBusy;
     }
 

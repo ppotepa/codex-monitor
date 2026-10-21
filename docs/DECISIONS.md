@@ -41,8 +41,9 @@ and different AI providers are the actual sources of variation.
 6. Single DI registrations for coordinator, database/history, settings,
    discovery and Codex via `CodexMonitor.Composition`. Each host supplies
    only its platform services and views.
-7. GitHub build workflow remains manually triggered: hosted jobs have failed
-   before runner allocation; no compiler output is available.
+7. GitHub Actions builds on pushes and pull requests for Windows, Linux and
+   macOS, and runs the existing parser/persistence console checks. A unit-test
+   framework remains intentionally deferred.
 
 ## Remaining work
 
@@ -59,7 +60,8 @@ and different AI providers are the actual sources of variation.
    signing and notarization remain required for release distribution.
 5. Provider-namespaced alert state/history has been added with legacy Codex
    compatibility. Verify existing user settings/history after migration.
-6. Automated behavioral tests remain deliberately deferred.
+6. Automated behavioral tests remain deliberately deferred for now; the
+   existing console checks are the CI smoke gate.
 
 ## Merge policy
 

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.ComponentModel;
 using System.Text.Json;
+using System.Text;
 
 namespace CodexMonitor.Plugins.Codex;
 
@@ -27,7 +28,7 @@ internal sealed class CodexTokenClient(IExecutableLocator locator, ICommandLaunc
             throw new InvalidOperationException(
                 $"Could not start the local Codex app-server ({Path.GetFileName(launcher)}): {ex.Message}", ex);
         }
-        _ = process.StandardError.ReadToEndAsync();
+        var stderrTask = DrainStandardErrorAsync(process.StandardError, timeout.Token);
 
         var waitingFor = "app-server initialization";
         try
@@ -43,7 +44,9 @@ internal sealed class CodexTokenClient(IExecutableLocator locator, ICommandLaunc
             await SendAsync(process, new { id = requestId, method = "account/usage/read" }, timeout.Token);
             var response = await ReadResponseAsync(process, requestId, timeout.Token);
             EnsureSuccess(response);
-            return CodexTokenParser.ParseTokens(response.GetProperty("result").GetRawText(), DateTimeOffset.UtcNow);
+            if (!response.TryGetProperty("result", out var result))
+                throw new InvalidOperationException("Codex returned no account activity result.");
+            return CodexTokenParser.ParseTokens(result.GetRawText(), DateTimeOffset.UtcNow);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -64,6 +67,8 @@ internal sealed class CodexTokenClient(IExecutableLocator locator, ICommandLaunc
                 try { await process.WaitForExitAsync(cleanupDeadline.Token); }
                 catch (OperationCanceledException) { /* Kill can fail; never hang on cleanup. */ }
             }
+            try { await stderrTask; }
+            catch (OperationCanceledException) { }
         }
     }
 
@@ -82,7 +87,7 @@ internal sealed class CodexTokenClient(IExecutableLocator locator, ICommandLaunc
     {
         while (true)
         {
-            var line = await process.StandardOutput.ReadLineAsync(cancellationToken);
+            var line = await ReadLineBoundedAsync(process.StandardOutput, 1_048_576, cancellationToken);
             if (line is null) throw new InvalidOperationException("Codex app-server closed before returning account activity.");
             try
             {
@@ -96,6 +101,33 @@ internal sealed class CodexTokenClient(IExecutableLocator locator, ICommandLaunc
                 // Ignore non-protocol output from local CLI startup wrappers.
             }
         }
+    }
+
+    private static async Task<string?> ReadLineBoundedAsync(StreamReader reader, int maximumLength,
+        CancellationToken cancellationToken)
+    {
+        var line = new StringBuilder(Math.Min(maximumLength, 4096));
+        var character = new char[1];
+        while (true)
+        {
+            var count = await reader.ReadAsync(character.AsMemory(), cancellationToken);
+            if (count == 0) return line.Length == 0 ? null : line.ToString();
+            if (character[0] == '\n') return line.ToString().TrimEnd('\r');
+            if (line.Length >= maximumLength)
+                throw new InvalidOperationException("Codex app-server returned an oversized protocol message.");
+            line.Append(character[0]);
+        }
+    }
+
+    private static async Task DrainStandardErrorAsync(StreamReader reader, CancellationToken cancellationToken)
+    {
+        var buffer = new char[4096];
+        try
+        {
+            while (await reader.ReadAsync(buffer.AsMemory(), cancellationToken) > 0) { }
+        }
+        catch (OperationCanceledException) { }
+        catch (IOException) { }
     }
 
     private static void EnsureSuccess(JsonElement response)

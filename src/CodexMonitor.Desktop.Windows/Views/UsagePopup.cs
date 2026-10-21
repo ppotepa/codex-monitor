@@ -12,7 +12,7 @@ internal sealed class UsagePopup : Form, IDashboardView
 
     private readonly Label _title = new();
     private readonly Label _subtitle = new();
-    private readonly PluginInfo _plugin;
+    private PluginInfo _plugin;
     private readonly Label _pluginTag = new();
     private string _limitsSubtitle = "Waiting for usage data";
     private string _tokensSubtitle = "Account token activity";
@@ -27,6 +27,17 @@ internal sealed class UsagePopup : Form, IDashboardView
 
     public bool ShowingTokens => _showingTokens;
     public bool IsOpen => Visible;
+
+    public void SetPlugin(PluginInfo plugin)
+    {
+        _plugin = plugin;
+        _limitsPanel.SetPlugin(plugin);
+        _tokensPanel.SetPlugin(plugin);
+        _tokensTab.Visible = plugin.SupportsTokens;
+        _tokensTab.Enabled = plugin.SupportsTokens;
+        if (!plugin.SupportsTokens) SelectView(false);
+        _pluginTag.Text = $"{plugin.DisplayName.ToUpperInvariant()} PLUGIN";
+    }
 
     public event EventHandler? RefreshRequested;
     public event EventHandler? InstallRequested;

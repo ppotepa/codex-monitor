@@ -19,13 +19,11 @@ internal static class MonitoringServices
         services.AddSingleton(sp => UsageHistory.Load(sp.GetRequiredService<MonitorDatabase>()));
         services.AddSingleton<CancellationTokenSource>();
         services.AddSingleton<UsageAlertService>();
-        services.AddSingleton(sp => sp.GetRequiredService<IAgentDiscovery>().Scan());
-        services.AddSingleton(sp => AgentCatalog.Select(
-            sp.GetRequiredService<AgentCatalogSnapshot>(),
-            sp.GetRequiredService<IPluginCatalog>().All,
-            sp.GetRequiredService<MonitorSettings>().PreferredAgentId));
+        services.AddSingleton<IAgentManager, AgentManager>();
+        services.AddSingleton(sp => sp.GetRequiredService<IAgentManager>().Snapshot);
+        services.AddSingleton(sp => sp.GetRequiredService<IAgentManager>().Selection);
         services.AddSingleton(sp => new UsageCoordinator(
-            sp.GetRequiredService<AgentSelection>().Plugin,
+            sp.GetRequiredService<IAgentManager>(),
             sp.GetRequiredService<MonitorSettings>(),
             sp.GetRequiredService<UsageHistory>(),
             sp.GetRequiredService<MonitorDatabase>(),

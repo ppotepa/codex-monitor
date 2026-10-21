@@ -78,8 +78,26 @@ monitoring functionality.
   systems and must not yet be presented as supported. Native notifications use optional Linux/macOS adapters with an in-window
   fallback. Packaging validation and full visual parity with Windows remain unfinished.
   Wayland/X11 and macOS menu bar behavior can differ even if the popup UI is shared.
-- Before enabling a second provider, scope persisted history and alert states
-  by plugin ID and provide selection in the UI.
+- Persisted history and alert states are scoped by plugin ID. The internal
+  agent manager can replace the active adapter after a later scan; a user
+  facing preferred-agent picker remains future work when a second supported
+  provider is added.
+- A failed automatic read never installs or replaces a dependency. Repair is an
+  explicit user action, while provider fallback is limited to process,
+  protocol and schema failures that are safe to retry with the alternate CLI.
+  Both the PyPI package and the Git fallback are pinned to reproducible
+  versions (the Git source uses the v0.4.1 commit hash).
+
+The `AgentManager` owns the current discovery snapshot and selected adapter.
+Hosts refresh that manager on their configured scan interval; a changed
+selection is propagated to the coordinator and dashboard without restarting
+the process. The built-in catalog is still compiled into the application, so
+this is an internal extension point rather than a public DLL loader.
+
+`MonitorDatabase` preserves unreadable JSON as a timestamped `.corrupt.*`
+copy, recovers a valid `.bak` when possible, and commits candidate documents
+only after the atomic file replacement succeeds. Persistence failures remain
+visible in the dashboard while the last good in-memory values stay available.
 
 The goal is to isolate concrete variations, not to wrap every control or
 single-use data record in an interface.
@@ -89,5 +107,5 @@ single-use data record in an interface.
 `dotnet build CodexMonitor.slnx -c Release` must pass before merging. For
 0.5.0 it passes on Windows together with the parser checks and native
 screenshot checks. `scripts/build-installer.ps1` also produces the 0.5.0 Inno
-Setup package locally. GitHub-hosted Actions jobs are not currently allocated
-runners, so the workflow remains manual-only until that is resolved.
+Setup package locally. GitHub Actions now runs the solution build and console
+checks on pushes and pull requests for all three target operating systems.

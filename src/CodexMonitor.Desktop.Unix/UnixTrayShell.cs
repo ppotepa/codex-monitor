@@ -8,6 +8,7 @@ namespace CodexMonitor.Desktop.Unix;
 internal sealed class UnixTrayShell(IStartupService startup, MonitorSettings settings,
     UsageCoordinator coordinator, IUsagePlugin plugin) : IDisposable
 {
+    private PluginInfo _plugin = plugin.Info;
     private TrayIcon? _icon;
     private readonly NativeMenuItem _startupItem = new();
     private readonly NativeMenuItem _repairItem = new();
@@ -18,13 +19,13 @@ internal sealed class UnixTrayShell(IStartupService startup, MonitorSettings set
         var menu = new NativeMenu();
         Add(menu, "Show usage", show);
         Add(menu, "Refresh limits", () => _ = coordinator.RefreshLimitsAsync());
-        if (plugin.Info.SupportsTokens)
+        if (_plugin.SupportsTokens)
             Add(menu, "Refresh tokens", () => _ = coordinator.RefreshTokensAsync(force: true));
         menu.Add(new NativeMenuItemSeparator());
 
         var windows = new NativeMenu();
         Add(windows, "Automatic", () => SetWindow("auto"));
-        foreach (var option in plugin.Info.WindowOptions)
+        foreach (var option in _plugin.WindowOptions)
         {
             var key = option.Key;
             Add(windows, option.Label, () => SetWindow(key));
@@ -97,13 +98,19 @@ internal sealed class UnixTrayShell(IStartupService startup, MonitorSettings set
 
     public event Action? Changed;
 
+    public void SetPlugin(PluginInfo pluginInfo)
+    {
+        _plugin = pluginInfo;
+        Update(coordinator.Dashboard);
+    }
+
     public void Update(DashboardState state)
     {
         if (_icon is null) return;
         var window = state.SelectedLimit;
         _icon.ToolTipText = window is null ? "Codex Monitor: no usage data"
-            : $"{plugin.Info.DisplayName}: {window.UsedPercent:0}% used · {UsageDisplayText.WindowName(window.Name)}";
-        _repairItem.IsVisible = plugin.Info.CanRepair &&
+            : $"{_plugin.DisplayName}: {window.UsedPercent:0}% used · {UsageDisplayText.WindowName(window.Name)}";
+        _repairItem.IsVisible = _plugin.CanRepair &&
             state.DependencyProblem != DependencyProblem.None;
         _repairItem.Header = state.DependencyProblem == DependencyProblem.Broken
             ? "Repair CLI" : "Install CLI";

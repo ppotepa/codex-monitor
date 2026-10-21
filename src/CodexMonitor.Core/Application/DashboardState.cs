@@ -11,4 +11,5 @@ internal sealed record DashboardState(
     TokenUsageSnapshot? Tokens,
     string? TokenError,
     bool TokensBusy,
-    PluginStatus PluginStatus);
+    PluginStatus PluginStatus,
+    string? PersistenceError = null);

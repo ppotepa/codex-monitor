@@ -6,13 +6,11 @@ namespace CodexMonitor;
 // provider-agnostic UsageCoordinator. Data access and alert policy live there.
 internal sealed class MonitorContext : ApplicationContext
 {
-    private readonly IUsagePlugin _plugin;
+    private IUsagePlugin _plugin;
     private AgentCatalogSnapshot _agentCatalog;
-    private readonly AgentSelection _selection;
+    private readonly IAgentManager _agentManager;
     private readonly MonitorSettings _settings;
     private readonly CancellationTokenSource _shutdown;
-    private readonly IAgentDiscovery _discovery;
-    private readonly IPluginCatalog _plugins;
     private readonly IStartupService _startup;
     private readonly UsageCoordinator _coordinator;
     private readonly IDashboardView _popup;
@@ -23,21 +21,19 @@ internal sealed class MonitorContext : ApplicationContext
     private readonly MonitorTrayMenu _menu;
     private Icon? _icon;
 
-    public MonitorContext(AgentSelection selection, AgentCatalogSnapshot agentCatalog,
-        MonitorSettings settings, UsageCoordinator coordinator, IAgentDiscovery discovery,
-        IPluginCatalog plugins, IStartupService startup, CancellationTokenSource shutdown,
+    public MonitorContext(IAgentManager agentManager, MonitorSettings settings,
+        UsageCoordinator coordinator, IStartupService startup, CancellationTokenSource shutdown,
         IDashboardView popup)
     {
-        _selection = selection;
-        _agentCatalog = agentCatalog;
-        _plugin = selection.Plugin;
+        _agentManager = agentManager;
+        _agentCatalog = agentManager.Snapshot;
+        _plugin = agentManager.Selection.Plugin;
         _settings = settings;
         _coordinator = coordinator;
-        _discovery = discovery;
-        _plugins = plugins;
         _startup = startup;
         _shutdown = shutdown;
         _coordinator.Changed += UpdateView;
+        _agentManager.Changed += OnAgentChanged;
 
         _popup = popup;
         _popup.RefreshRequested += (_, _) => _ = _coordinator.RefreshLimitsAsync();
@@ -84,15 +80,24 @@ internal sealed class MonitorContext : ApplicationContext
     private void ShowAgentStatus()
     {
         RefreshAgentCatalog();
-        var selection = AgentCatalog.Select(_agentCatalog, _plugins.All, _settings.PreferredAgentId);
-        using var dialog = new AgentStatusDialog(_agentCatalog, selection);
+        using var dialog = new AgentStatusDialog(_agentCatalog, _agentManager.Selection);
         dialog.ShowDialog();
     }
 
     private void RefreshAgentCatalog()
     {
-        _agentCatalog = _discovery.Scan();
+        _agentManager.Refresh();
+        _agentCatalog = _agentManager.Snapshot;
         _lastAgentScanAt = DateTimeOffset.UtcNow;
+    }
+
+    private void OnAgentChanged()
+    {
+        _plugin = _agentManager.Selection.Plugin;
+        _agentCatalog = _agentManager.Snapshot;
+        _popup.SetPlugin(_plugin.Info);
+        _menu.SetPlugin(_plugin.Info);
+        UpdateView();
     }
 
     private void ConfigureSettings()
@@ -155,6 +160,7 @@ internal sealed class MonitorContext : ApplicationContext
         _refreshTimer.Dispose();
         _displayTimer.Stop();
         _displayTimer.Dispose();
+        _agentManager.Changed -= OnAgentChanged;
         _tray.Visible = false;
         _tray.Dispose();
         _menu.Dispose();

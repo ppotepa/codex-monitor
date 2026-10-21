@@ -4,6 +4,7 @@ namespace CodexMonitor;
 // Shared application code never references a Form, Control or tray library.
 internal interface IDashboardView : IDisposable
 {
+    void SetPlugin(PluginInfo plugin);
     bool IsOpen { get; }
     bool ShowingTokens { get; }
 

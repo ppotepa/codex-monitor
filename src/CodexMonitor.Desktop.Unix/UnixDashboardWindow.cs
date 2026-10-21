@@ -11,7 +11,7 @@ namespace CodexMonitor.Desktop.Unix;
 // Same dashboard contract as the Windows host, implemented with Avalonia only.
 internal sealed class UnixDashboardWindow : Window, IDashboardView
 {
-    private readonly PluginInfo _plugin;
+    private PluginInfo _plugin;
     private readonly TextBlock _status = new();
     private readonly TextBlock _notice = new();
     private readonly IWindowClosePolicy _closePolicy;
@@ -32,6 +32,7 @@ internal sealed class UnixDashboardWindow : Window, IDashboardView
     private readonly Button _repair = new() { Content = "Repair CLI" };
     private readonly Button _refreshTokens = new() { Content = "Refresh token activity" };
     private readonly TabControl _tabs = new();
+    private readonly TabItem _tokenTab;
     private bool _closingForExit;
     private bool _trayAvailable;
 
@@ -85,8 +86,8 @@ internal sealed class UnixDashboardWindow : Window, IDashboardView
         page.Children.Add(_notice);
 
         _tabs.Items.Add(new TabItem { Header = "Limits", Content = BuildLimits() });
-        if (plugin.SupportsTokens)
-            _tabs.Items.Add(new TabItem { Header = "Tokens", Content = BuildTokens() });
+        _tokenTab = new TabItem { Header = "Tokens", Content = BuildTokens() };
+        _tabs.Items.Add(_tokenTab);
         _tabs.SelectionChanged += (_, _) =>
         {
             if (ShowingTokens) TokensRequested?.Invoke(this, EventArgs.Empty);
@@ -95,6 +96,16 @@ internal sealed class UnixDashboardWindow : Window, IDashboardView
         page.Children.Add(_tabs);
 
         Content = new ScrollViewer { Content = page };
+        SetPlugin(plugin);
+    }
+
+    public void SetPlugin(PluginInfo plugin)
+    {
+        _plugin = plugin;
+        _tokenTab.IsVisible = plugin.SupportsTokens;
+        _tokenTab.IsEnabled = plugin.SupportsTokens;
+        if (!plugin.SupportsTokens && _tabs.SelectedIndex == 1)
+            _tabs.SelectedIndex = 0;
     }
 
     private Control BuildLimits()
@@ -174,8 +185,9 @@ internal sealed class UnixDashboardWindow : Window, IDashboardView
             }
         }
 
-        _limitError.Text = state.LimitError ?? "";
-        _limitError.IsVisible = !string.IsNullOrWhiteSpace(state.LimitError);
+        var limitError = state.LimitError ?? state.PersistenceError;
+        _limitError.Text = limitError ?? "";
+        _limitError.IsVisible = !string.IsNullOrWhiteSpace(limitError);
         _refreshLimits.IsEnabled = !state.LimitsBusy;
         _repair.IsVisible = _plugin.CanRepair && state.DependencyProblem != DependencyProblem.None;
         _repair.IsEnabled = !state.LimitsBusy;
@@ -206,8 +218,9 @@ internal sealed class UnixDashboardWindow : Window, IDashboardView
                 }
             });
         }
-        _tokenError.Text = state.TokenError ?? "";
-        _tokenError.IsVisible = !string.IsNullOrWhiteSpace(state.TokenError);
+        var tokenError = state.TokenError ?? state.PersistenceError;
+        _tokenError.Text = tokenError ?? "";
+        _tokenError.IsVisible = !string.IsNullOrWhiteSpace(tokenError);
         _refreshTokens.IsEnabled = !state.TokensBusy;
     }
 

@@ -63,6 +63,14 @@ internal sealed class UnixSettingsWindow : Window
                 _error.Text = "Thresholds must satisfy 1 <= warning < critical <= 100.";
                 return;
             }
+            var originalWarning = settings.WarningThreshold;
+            var originalCritical = settings.CriticalThreshold;
+            var originalAlerts = settings.AlertsEnabled;
+            var originalAutoTokens = settings.AutoRefreshTokens;
+            var originalLimits = settings.LimitsRefreshMinutes;
+            var originalTokens = settings.TokenRefreshMinutes;
+            var originalAgents = settings.AgentScanMinutes;
+            var originalStartup = startup.CanConfigure && startup.Enabled;
             settings.WarningThreshold = warning;
             settings.CriticalThreshold = critical;
             settings.AlertsEnabled = _alerts.IsChecked == true;
@@ -79,6 +87,18 @@ internal sealed class UnixSettingsWindow : Window
             }
             catch (Exception ex)
             {
+                settings.WarningThreshold = originalWarning;
+                settings.CriticalThreshold = originalCritical;
+                settings.AlertsEnabled = originalAlerts;
+                settings.AutoRefreshTokens = originalAutoTokens;
+                settings.LimitsRefreshMinutes = originalLimits;
+                settings.TokenRefreshMinutes = originalTokens;
+                settings.AgentScanMinutes = originalAgents;
+                if (startup.CanConfigure && startup.Enabled != originalStartup)
+                {
+                    try { startup.Enabled = originalStartup; }
+                    catch (Exception rollbackError) { ex = new AggregateException(ex, rollbackError); }
+                }
                 _error.Text = ex.Message;
             }
         };

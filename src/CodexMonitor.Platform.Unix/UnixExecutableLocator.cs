@@ -24,13 +24,34 @@ internal sealed class UnixExecutableLocator : IExecutableLocator
             var name = original.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
                        original.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase)
                 ? Path.GetFileNameWithoutExtension(original) : original;
-            if (Path.IsPathFullyQualified(name) && File.Exists(name)) return name;
+            if (Path.IsPathFullyQualified(name) && IsExecutable(name)) return name;
             foreach (var directory in searchDirectories)
             {
                 var candidate = Path.Combine(directory, name);
-                if (File.Exists(candidate)) return candidate;
+                if (IsExecutable(candidate)) return candidate;
             }
         }
         return null;
+    }
+
+    private static bool IsExecutable(string path)
+    {
+        if (!File.Exists(path)) return false;
+        if (OperatingSystem.IsWindows()) return true;
+        try
+        {
+            var mode = File.GetUnixFileMode(path);
+            return mode.HasFlag(UnixFileMode.UserExecute) ||
+                   mode.HasFlag(UnixFileMode.GroupExecute) ||
+                   mode.HasFlag(UnixFileMode.OtherExecute);
+        }
+        catch (PlatformNotSupportedException)
+        {
+            return true;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
     }
 }

@@ -12,7 +12,7 @@ internal sealed class UnixDesktopHost(
     UnixTrayShell tray,
     UsageCoordinator coordinator,
     MonitorSettings settings,
-    IAgentDiscovery discovery,
+    IAgentManager agentManager,
     IStartupService startup,
     IDesktopNotificationService notifications,
     CancellationTokenSource shutdown) : IDesktopHost, IDisposable
@@ -53,6 +53,7 @@ internal sealed class UnixDesktopHost(
         tray.Changed += RefreshView;
         tray.ErrorOccurred += ShowStatus;
         coordinator.Changed += RefreshView;
+        agentManager.Changed += OnAgentChanged;
         coordinator.AlertRaised += (title, message, severity) =>
         {
             ShowStatus($"{title}: {message}");
@@ -72,7 +73,7 @@ internal sealed class UnixDesktopHost(
                 DateTimeOffset.UtcNow - _lastAgentScanAt >= TimeSpan.FromMinutes(settings.AgentScanMinutes))
             {
                 _lastAgentScanAt = DateTimeOffset.UtcNow;
-                discovery.Scan();
+                agentManager.Refresh();
             }
         };
         _displayTimer.Start();
@@ -119,8 +120,9 @@ internal sealed class UnixDesktopHost(
     private void ShowAgents()
     {
         window.ShowNearCursor();
-        var agents = discovery.Scan();
+        agentManager.Refresh();
         _lastAgentScanAt = DateTimeOffset.UtcNow;
+        var agents = agentManager.Snapshot;
         var rows = new StackPanel { Margin = new Avalonia.Thickness(16), Spacing = 10 };
         foreach (var agent in agents.Agents)
         {
@@ -144,6 +146,18 @@ internal sealed class UnixDesktopHost(
         dialog.Show(window);
     }
 
+    private void OnAgentChanged()
+    {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(OnAgentChanged);
+            return;
+        }
+        window.SetPlugin(agentManager.Selection.Plugin.Info);
+        tray.SetPlugin(agentManager.Selection.Plugin.Info);
+        RefreshView();
+    }
+
     private void Quit(IClassicDesktopStyleApplicationLifetime desktop)
     {
         Dispose();
@@ -160,6 +174,7 @@ internal sealed class UnixDesktopHost(
         coordinator.Changed -= RefreshView;
         tray.Changed -= RefreshView;
         tray.ErrorOccurred -= ShowStatus;
+        agentManager.Changed -= OnAgentChanged;
         tray.Dispose();
         window.Dispose();
     }

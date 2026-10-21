@@ -60,8 +60,20 @@ internal sealed class MonitorSettings
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
         var temporary = _filePath + ".tmp";
-        File.WriteAllText(temporary, JsonSerializer.Serialize(this));
-        File.Move(temporary, _filePath, overwrite: true);
+        try
+        {
+            File.WriteAllText(temporary, JsonSerializer.Serialize(this));
+            File.Move(temporary, _filePath, overwrite: true);
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(temporary)) File.Delete(temporary);
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
     }
 }
 

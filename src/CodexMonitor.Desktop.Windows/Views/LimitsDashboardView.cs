@@ -3,7 +3,7 @@ namespace CodexMonitor;
 // Owns only the limits view and its controls; refresh/repair are requests to the host.
 internal sealed class LimitsDashboardView : DashboardSection
 {
-    private readonly PluginInfo _plugin;
+    private PluginInfo _plugin;
     private readonly Label _windowName = new();
     private readonly Label _remaining = new();
     private readonly Label _reset = new();
@@ -18,6 +18,8 @@ internal sealed class LimitsDashboardView : DashboardSection
 
     public event EventHandler? RefreshRequested;
     public event EventHandler? InstallRequested;
+
+    public void SetPlugin(PluginInfo plugin) => _plugin = plugin;
 
     public LimitsDashboardView(PluginInfo plugin)
     {
@@ -73,9 +75,10 @@ internal sealed class LimitsDashboardView : DashboardSection
         _sparkline.Top = historyTop + LogicalToDeviceUnits(24);
         _sparkline.Height = LogicalToDeviceUnits(415) - _sparkline.Top;
 
-        _limitError.Text = state.LimitError ?? "";
-        _limitError.Visible = state.LimitError is not null;
-        _errors.SetToolTip(_limitError, state.LimitError);
+        var error = state.LimitError ?? state.PersistenceError;
+        _limitError.Text = error ?? "";
+        _limitError.Visible = error is not null;
+        _errors.SetToolTip(_limitError, error);
         _refreshLimits.Enabled = !state.LimitsBusy;
         _install.Visible = _plugin.CanRepair && state.DependencyProblem != DependencyProblem.None;
         _install.Text = state.DependencyProblem == DependencyProblem.Broken ? "Repair CLI" : "Install CLI";

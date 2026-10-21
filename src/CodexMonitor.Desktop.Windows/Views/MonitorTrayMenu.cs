@@ -3,7 +3,7 @@ namespace CodexMonitor;
 // Owns Windows tray commands and their UI state. The host owns lifetime and dialogs.
 internal sealed class MonitorTrayMenu : IDisposable
 {
-    private readonly PluginInfo _plugin;
+    private PluginInfo _plugin;
     private readonly MonitorSettings _settings;
     private readonly UsageCoordinator _coordinator;
     private readonly IStartupService _startup;
@@ -11,7 +11,8 @@ internal sealed class MonitorTrayMenu : IDisposable
     private readonly ToolStripMenuItem _startupItem;
     private readonly ToolStripMenuItem _alertsItem;
     private readonly ToolStripMenuItem _snoozeItem;
-    private readonly ToolStripMenuItem[] _windowOptions;
+    private ToolStripMenuItem[] _windowOptions = [];
+    private readonly ToolStripMenuItem _displayMenu;
 
     public ContextMenuStrip Menu { get; } = new();
 
@@ -34,23 +35,9 @@ internal sealed class MonitorTrayMenu : IDisposable
         _installItem = new ToolStripMenuItem("Install usage CLI", null, (_, _) => _ = _coordinator.RepairAsync());
         Menu.Items.Add(_installItem);
 
-        var displayMenu = new ToolStripMenuItem("Tray icon shows");
-        var choices = new[] { new UsageWindowOption("auto", "Automatic") }.Concat(_plugin.WindowOptions);
-        _windowOptions = choices.Select(choice =>
-        {
-            var item = new ToolStripMenuItem(choice.Label) { Tag = choice.Key };
-            item.Click += (_, _) =>
-            {
-                _coordinator.SetTrayWindow(choice.Key);
-                UpdateWindowChecks();
-                SaveSettings();
-                RedrawRequested?.Invoke(this, EventArgs.Empty);
-            };
-            displayMenu.DropDownItems.Add(item);
-            return item;
-        }).ToArray();
-        UpdateWindowChecks();
-        Menu.Items.Add(displayMenu);
+        _displayMenu = new ToolStripMenuItem("Tray icon shows");
+        RebuildWindowOptions();
+        Menu.Items.Add(_displayMenu);
 
         Menu.Items.Add("AI agents...", null, (_, _) => AgentStatusRequested?.Invoke(this, EventArgs.Empty));
         _alertsItem = new ToolStripMenuItem("Usage alerts") { Checked = _settings.AlertsEnabled, CheckOnClick = true };
@@ -75,6 +62,33 @@ internal sealed class MonitorTrayMenu : IDisposable
         _installItem.Visible = _plugin.CanRepair && _coordinator.DependencyProblem != DependencyProblem.None;
         _installItem.Text = _coordinator.DependencyProblem == DependencyProblem.Broken
             ? "Repair usage CLI" : "Install usage CLI";
+    }
+
+    public void SetPlugin(PluginInfo plugin)
+    {
+        _plugin = plugin;
+        RebuildWindowOptions();
+        UpdateStatus();
+    }
+
+    private void RebuildWindowOptions()
+    {
+        _displayMenu.DropDownItems.Clear();
+        var choices = new[] { new UsageWindowOption("auto", "Automatic") }.Concat(_plugin.WindowOptions);
+        _windowOptions = choices.Select(choice =>
+        {
+            var item = new ToolStripMenuItem(choice.Label) { Tag = choice.Key };
+            item.Click += (_, _) =>
+            {
+                _coordinator.SetTrayWindow(choice.Key);
+                UpdateWindowChecks();
+                SaveSettings();
+                RedrawRequested?.Invoke(this, EventArgs.Empty);
+            };
+            _displayMenu.DropDownItems.Add(item);
+            return item;
+        }).ToArray();
+        UpdateWindowChecks();
     }
 
     public void SyncSettings(bool startAtLogin)

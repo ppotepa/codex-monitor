@@ -13,6 +13,11 @@
   discovery, including a manual-only token mode.
 - **AI agents...** reports detected command-line agents and clearly separates
   detection from supported adapters. Codex remains the only working adapter.
+- A failed limits read no longer installs or replaces a CLI automatically.
+  Installation and repair are explicit actions from the dashboard or tray.
+- An unreadable local store is preserved as a `.corrupt.*` copy and a valid
+  `.bak` is recovered when possible; persistence failures remain visible while
+  the last good usage result is retained.
 
 ## Structural changes
 
@@ -28,8 +33,8 @@
 
 ```powershell
 dotnet build CodexMonitor.slnx -c Release --nologo
-dotnet run --project tests/ParserChecks.csproj -c Release --nologo
-dotnet run --project tools/Screenshots/Screenshots.csproj -c Release --nologo
+dotnet run --project tests/ParserChecks.csproj -c Release
+dotnet run --project tools/Screenshots/Screenshots.csproj -c Release
 ./scripts/build-installer.ps1
 ```
 
