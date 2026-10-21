@@ -66,7 +66,7 @@ monitoring functionality.
 
 ## Compatibility and remaining work
 
-- Release 0.5.0 keeps the Windows executable name `CodexMonitor.exe` and is built by
+- Release 0.5.1 keeps the Windows executable name `CodexMonitor.exe` and is built by
   `scripts/build-installer.ps1` using the new Windows project path.
 - The native WinForms interface remains on Windows. Its large popup and tray
   shell are now split into smaller components without changing their intended
@@ -105,7 +105,7 @@ single-use data record in an interface.
 ## Build validation
 
 `dotnet build CodexMonitor.slnx -c Release` must pass before merging. For
-0.5.0 it passes on Windows together with the parser checks and native
-screenshot checks. `scripts/build-installer.ps1` also produces the 0.5.0 Inno
+0.5.1 it passes on Windows together with the parser checks and native
+screenshot checks. `scripts/build-installer.ps1` also produces the 0.5.1 Inno
 Setup package locally. GitHub Actions now runs the solution build and console
 checks on pushes and pull requests for all three target operating systems.

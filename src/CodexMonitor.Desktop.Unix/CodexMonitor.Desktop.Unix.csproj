@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>CodexMonitor.Desktop.Unix</AssemblyName>
     <RootNamespace>CodexMonitor.Desktop.Unix</RootNamespace>
-    <Version>0.5.0</Version>
+    <Version>0.5.1</Version>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../CodexMonitor.Core/CodexMonitor.Core.csproj" />

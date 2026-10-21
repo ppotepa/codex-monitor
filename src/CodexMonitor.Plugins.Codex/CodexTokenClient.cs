@@ -33,7 +33,7 @@ internal sealed class CodexTokenClient(IExecutableLocator locator, ICommandLaunc
         var waitingFor = "app-server initialization";
         try
         {
-            await SendAsync(process, new { id = 1, method = "initialize", @params = new { clientInfo = new { name = "codex_monitor", title = "Codex Monitor", version = "0.5.0" } } }, timeout.Token);
+            await SendAsync(process, new { id = 1, method = "initialize", @params = new { clientInfo = new { name = "codex_monitor", title = "Codex Monitor", version = "0.5.1" } } }, timeout.Token);
             var initialized = await ReadResponseAsync(process, 1, timeout.Token);
             EnsureSuccess(initialized);
             await SendAsync(process, new { method = "initialized", @params = new { } }, timeout.Token);

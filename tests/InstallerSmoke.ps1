@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 $project = Split-Path -Parent $PSScriptRoot
-$setup = Join-Path $project 'installer\CodexMonitor-0.5.0-Setup.exe'
+$setup = Join-Path $project 'installer\CodexMonitor-0.5.1-Setup.exe'
 $target = [System.IO.Path]::GetFullPath((Join-Path $project 'build\smoke-install'))
 $shortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Codex Monitor\Codex Monitor.lnk'
 if (-not (Test-Path -LiteralPath $setup)) { throw 'Installer was not built.' }

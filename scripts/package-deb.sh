@@ -17,7 +17,7 @@ esac
 command -v dotnet >/dev/null || { echo ".NET 10 SDK is required" >&2; exit 1; }
 command -v dpkg-deb >/dev/null || { echo "Install dpkg-deb to build a Debian package" >&2; exit 1; }
 
-version=0.5.0
+version=0.5.1
 staging="$(mktemp -d)"
 trap 'rm -rf "$staging"' EXIT
 appdir="$staging/usr/lib/codex-monitor"

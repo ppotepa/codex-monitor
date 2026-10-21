@@ -10,7 +10,7 @@
 
 A small tray app with reset countdowns and daily token totals. **Codex is the only supported plugin. Windows is the only released operating system; Linux and macOS have an unverified source-build preview.**
 
-Current release: **0.5.0**. This release keeps the Windows user experience while moving the product code into shared Core, plugin, composition and desktop projects. It also ships the local token cache and the first cross-platform host foundation.
+Current release: **0.5.1**. This release keeps the Windows user experience while hardening refresh, persistence and agent selection across the refactored Core, plugin, composition and desktop projects.
 
 ![Codex Monitor: Limits and Tokens views with illustrative data](docs/images/overview.png)
 
@@ -29,7 +29,7 @@ Token activity and quota percentages measure different things. The app does not 
 
 ## Install
 
-1. Get the latest published Windows installer from [Releases](https://github.com/ppotepa/codex-monitor/releases), or build the current source below. The 0.5.0 installer is `installer\CodexMonitor-0.5.0-Setup.exe`.
+1. Get the latest published Windows installer from [Releases](https://github.com/ppotepa/codex-monitor/releases), or build the current source below. The 0.5.1 installer is `installer\CodexMonitor-0.5.1-Setup.exe`.
 2. Install the [.NET 10 Desktop Runtime for Windows x64](https://dotnet.microsoft.com/en-us/download/dotnet/10.0) if needed. The small installer does not bundle the runtime.
 3. Start **Codex Monitor** from the Start menu. Use Codex CLI signed in under the same Windows account.
 
@@ -83,7 +83,7 @@ dotnet run --project tools/Screenshots/Screenshots.csproj
 ./scripts/build-installer.ps1
 ```
 
-The current source builds `installer\CodexMonitor-0.5.0-Setup.exe`. The installer is a small x64 Inno Setup package and expects the .NET 10 Desktop Runtime to be installed. To publish only the application:
+The current source builds `installer\CodexMonitor-0.5.1-Setup.exe`. The installer is a small x64 Inno Setup package and expects the .NET 10 Desktop Runtime to be installed. To publish only the application:
 
 ```powershell
 dotnet publish src/CodexMonitor.Desktop.Windows/CodexMonitor.Desktop.Windows.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist
@@ -91,7 +91,7 @@ dotnet publish src/CodexMonitor.Desktop.Windows/CodexMonitor.Desktop.Windows.csp
 
 The screenshot tool uses actual WinForms views and synthetic snapshots. It creates PNGs in `docs/images`, plus empty/loading/error renders in `build/screenshots`, without opening a window or reading account data. It also checks tab capabilities and sizing on short displays. These development tools and images are not included in the installed application.
 
-GitHub Actions builds the solution and runs the existing parser/persistence checks on pushes and pull requests across Windows, Linux and macOS. The 0.5.0 Windows build was also validated locally with screenshot checks and a real installer publish. The workflow intentionally uses the existing console checks; a unit-test framework is outside the current scope.
+GitHub Actions builds the solution and runs the existing parser/persistence checks on pushes and pull requests across Windows, Linux and macOS. The 0.5.1 Windows build was also validated locally with screenshot checks and a real installer publish. The workflow intentionally uses the existing console checks; a unit-test framework is outside the current scope.
 
 ### Experimental Linux/macOS desktop
 
