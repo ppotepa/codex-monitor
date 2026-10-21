@@ -224,7 +224,7 @@ internal sealed class MonitorContext : ApplicationContext
         _tray.Icon = _icon;
         oldIcon?.Dispose();
         var summary = main is null ? $"{_plugin.Info.DisplayName}: no data" :
-            $"{main.Name}: {main.UsedPercent:0}% used, {UsagePopup.ResetShort(main.ResetsAt)}";
+            $"{main.Name}: {main.UsedPercent:0}% used, {UsageDisplayText.ResetShort(main.ResetsAt)}";
         _tray.Text = summary.Length > 63 ? summary[..63] : summary;
         _installItem.Visible = _plugin.Info.CanRepair && _coordinator.DependencyProblem != DependencyProblem.None;
         _installItem.Text = _coordinator.DependencyProblem == DependencyProblem.Broken ? "Repair usage CLI" : "Install usage CLI";

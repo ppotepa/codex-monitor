@@ -32,7 +32,7 @@ internal sealed class UsageLimitRow : Control
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
             return;
         }
-        TextRenderer.DrawText(e.Graphics, UsagePopup.WindowName(_window.Name), nameFont,
+        TextRenderer.DrawText(e.Graphics, UsageDisplayText.WindowName(_window.Name), nameFont,
             new Rectangle(U(12), U(5), Width - U(112), U(20)), ForeColor, TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
         TextRenderer.DrawText(e.Graphics, $"{_window.UsedPercent:0}% used",
             nameFont, new Rectangle(Width - U(101), U(5), U(89), U(20)),
@@ -44,7 +44,7 @@ internal sealed class UsageLimitRow : Control
         e.Graphics.FillRectangle(background, track);
         e.Graphics.FillRectangle(foreground, new Rectangle(track.X, track.Y,
             (int)Math.Round(track.Width * Math.Clamp(_window.UsedPercent / 100, 0, 1)), track.Height));
-        TextRenderer.DrawText(e.Graphics, UsagePopup.ResetShort(_window.ResetsAt), Font,
+        TextRenderer.DrawText(e.Graphics, UsageDisplayText.ResetShort(_window.ResetsAt), Font,
             new Rectangle(U(12), U(39), Width - U(24), U(20)), muted.Color, TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
     }
 }

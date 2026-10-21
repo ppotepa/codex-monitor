@@ -132,7 +132,7 @@ internal sealed class UsagePopup : Form, IDashboardView
         var tokenError = state.TokenError;
         var tokenBusy = state.TokensBusy;
         var status = state.PluginStatus;
-        var statusText = StatusText(status.Health);
+        var statusText = UsageDisplayText.StatusText(status.Health);
         _pluginTag.Text = status.Health switch
         {
             PluginHealth.Ready => $"{_plugin.DisplayName.ToUpperInvariant()} · OK",
@@ -145,20 +145,20 @@ internal sealed class UsagePopup : Form, IDashboardView
         };
         _pluginTag.ForeColor = StatusColor(status.Health);
         _limitsSubtitle = busy ? $"{statusText} · Refreshing limits..." : snapshot?.Plan is { Length: > 0 } plan
-                ? $"{statusText} · {char.ToUpperInvariant(plan[0])}{plan[1..]} plan  ·  {UpdatedText(snapshot.RetrievedAt, status.Health is PluginHealth.Stale or PluginHealth.Error)}"
-                : $"{statusText} · {UpdatedText(snapshot?.RetrievedAt, status.Health is PluginHealth.Stale or PluginHealth.Error)}";
-        _tokensSubtitle = TokenUpdatedText(tokenUsage?.RetrievedAt, tokenBusy);
+                ? $"{statusText} · {char.ToUpperInvariant(plan[0])}{plan[1..]} plan  ·  {UsageDisplayText.UpdatedText(snapshot.RetrievedAt, status.Health is PluginHealth.Stale or PluginHealth.Error)}"
+                : $"{statusText} · {UsageDisplayText.UpdatedText(snapshot?.RetrievedAt, status.Health is PluginHealth.Stale or PluginHealth.Error)}";
+        _tokensSubtitle = UsageDisplayText.TokenUpdatedText(tokenUsage?.RetrievedAt, tokenBusy);
         _subtitle.Text = _showingTokens ? _tokensSubtitle : _limitsSubtitle;
 
-        _windowName.Text = selected is null ? "Usage" : WindowName(selected.Name);
+        _windowName.Text = selected is null ? "Usage" : UsageDisplayText.WindowName(selected.Name);
         _windowName.AccessibleName = _windowName.Text;
         _ring.UsedPercent = selected?.UsedPercent;
         _remaining.Text = selected is null ? "No data" : $"{100 - selected.UsedPercent:0}% left";
         _remaining.ForeColor = UsageColor.For(selected?.UsedPercent);
-        _reset.Text = selected is null ? $"Connect {_plugin.DisplayName} to view your limits." : ResetText(selected.ResetsAt);
+        _reset.Text = selected is null ? $"Connect {_plugin.DisplayName} to view your limits." : UsageDisplayText.ResetText(selected.ResetsAt);
         _reset.AccessibleName = _reset.Text.Replace("\n", ", ");
         _sparkline.SetPoints(history);
-        _sparkline.AccessibleName = $"{WindowName(selected?.Name ?? "limit")} usage history for the last 24 hours";
+        _sparkline.AccessibleName = $"{UsageDisplayText.WindowName(selected?.Name ?? "limit")} usage history for the last 24 hours";
 
         var otherWindows = snapshot?.Windows.Where(w => !ReferenceEquals(w, selected)).Take(2).ToArray() ?? [];
         for (var i = 0; i < _otherRows.Length; i++)
@@ -181,7 +181,7 @@ internal sealed class UsagePopup : Form, IDashboardView
 
         UpdateTokenView(tokenUsage, tokenError, tokenBusy);
         _subtitle.Text = _showingTokens
-            ? TokenUpdatedText(tokenUsage?.RetrievedAt, tokenBusy)
+            ? UsageDisplayText.TokenUpdatedText(tokenUsage?.RetrievedAt, tokenBusy)
             : _subtitle.Text;
     }
 
@@ -279,10 +279,10 @@ internal sealed class UsagePopup : Form, IDashboardView
         _tokenUnavailable.Text = usage is null
             ? busy ? "Loading account activity..." : "Refresh to load account activity"
             : latest is null ? "No daily totals reported for this account." : $"Total tokens reported by {_plugin.DisplayName}";
-        _lifetime.Text = $"LIFETIME\n{FormatTokenCount(usage?.LifetimeTokens)}";
-        _peak.Text = $"PEAK DAY\n{FormatTokenCount(usage?.PeakDailyTokens)}";
-        _lifetime.AccessibleName = $"Lifetime tokens: {FormatTokenCount(usage?.LifetimeTokens)}";
-        _peak.AccessibleName = $"Peak daily tokens: {FormatTokenCount(usage?.PeakDailyTokens)}";
+        _lifetime.Text = $"LIFETIME\n{UsageDisplayText.FormatTokenCount(usage?.LifetimeTokens)}";
+        _peak.Text = $"PEAK DAY\n{UsageDisplayText.FormatTokenCount(usage?.PeakDailyTokens)}";
+        _lifetime.AccessibleName = $"Lifetime tokens: {UsageDisplayText.FormatTokenCount(usage?.LifetimeTokens)}";
+        _peak.AccessibleName = $"Peak daily tokens: {UsageDisplayText.FormatTokenCount(usage?.PeakDailyTokens)}";
         _tokenChart.SetBuckets(usage?.DailyBuckets ?? []);
         _tokenChart.AccessibleName = "Daily token totals: seven calendar days ending on the latest reported day; focus or hover a bar for exact values";
         _tokenError.Text = error ?? "";
@@ -359,34 +359,6 @@ internal sealed class UsagePopup : Form, IDashboardView
         NativeMethods.SendMessage(Handle, 0xA1, 0x2, 0);
     }
 
-    internal static string WindowName(string? name) => name?.ToLowerInvariant() switch
-    {
-        "5-hour" or "5h" => "5-hour limit",
-        "weekly" => "Weekly limit",
-        "daily" => "Daily limit",
-        null => "Usage limit",
-        _ => name
-    };
-
-    private static string FormatTokenCount(long? count) => count is null ? "—" : count.Value.ToString("N0", CultureInfo.CurrentCulture);
-
-    private static string UpdatedText(DateTimeOffset? at) => at is { } date
-        ? $"Updated {date.ToLocalTime():MMM d, HH:mm}" : "Waiting for usage data";
-
-    private static string UpdatedText(DateTimeOffset? at, bool stale) => at is { } date
-        ? $"{(stale ? "Last successful" : "Updated")} {date.ToLocalTime():MMM d, HH:mm}" : "Waiting for usage data";
-
-    private static string StatusText(PluginHealth health) => health switch
-    {
-        PluginHealth.Ready => "Ready",
-        PluginHealth.Refreshing => "Updating",
-        PluginHealth.Stale => "Stale data",
-        PluginHealth.Missing => "Setup needed",
-        PluginHealth.Broken => "Repair needed",
-        PluginHealth.Error => "Error",
-        _ => "Waiting"
-    };
-
     private static Color StatusColor(PluginHealth health) => health switch
     {
         PluginHealth.Ready => Accent,
@@ -395,19 +367,6 @@ internal sealed class UsagePopup : Form, IDashboardView
         PluginHealth.Missing or PluginHealth.Broken or PluginHealth.Error => Color.FromArgb(245, 139, 139),
         _ => Muted
     };
-
-    private static string TokenUpdatedText(DateTimeOffset? at, bool busy) => busy
-        ? at is null ? "Loading account activity..." : $"Refreshing · updated {at.Value.ToLocalTime():HH:mm}"
-        : at is { } date ? $"Account activity · updated {date.ToLocalTime():MMM d, HH:mm}" : "Account token activity";
-
-    internal static string ResetShort(DateTimeOffset? at) => at is null ? "Reset time unavailable" :
-        at <= DateTimeOffset.Now ? "reset pending" : $"resets in {Duration(at.Value - DateTimeOffset.Now)}";
-
-    private static string ResetText(DateTimeOffset? at) => at is null ? "Reset time unavailable" :
-        at <= DateTimeOffset.Now ? "Reset pending" : $"Resets in {Duration(at.Value - DateTimeOffset.Now)}\n{at.Value.ToLocalTime():MMM d, HH:mm}";
-
-    private static string Duration(TimeSpan left) => left.TotalDays >= 1 ? $"{(int)left.TotalDays}d {left.Hours}h" :
-        left.TotalHours >= 1 ? $"{(int)left.TotalHours}h {left.Minutes}m" : $"{Math.Max(1, (int)Math.Ceiling(left.TotalMinutes))}m";
 
     protected override void OnResize(EventArgs e)
     {
