@@ -342,7 +342,9 @@ internal sealed class UsageCoordinator : IDisposable
         // Unlike timer/manual refresh, agent changes wait for an older read to
         // release the gate. Stale generations are skipped without a poll loop.
         _ = RefreshLimitsCoreAsync(waitForTurn: true, expectedGeneration: generation);
-        if (changedProvider && selected is ITokenUsagePlugin)
+        // A changed executable path can refresh the same plugin instance,
+        // so tokens must be re-read on any selection change, not only a new ID.
+        if (selected is ITokenUsagePlugin)
             _ = RefreshTokensCoreAsync(force: true, waitForTurn: true, expectedGeneration: generation);
     }
 
