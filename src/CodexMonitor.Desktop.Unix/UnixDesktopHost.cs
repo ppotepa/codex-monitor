@@ -53,7 +53,7 @@ internal sealed class UnixDesktopHost(
         tray.Changed += RefreshView;
         tray.ErrorOccurred += ShowStatus;
         coordinator.Changed += RefreshView;
-        coordinator.AlertRaised += (title, message, _) =>
+        coordinator.AlertRaised += (title, message, severity) =>
         {
             ShowStatus($"{title}: {message}");
             _ = notifications.NotifyAsync(title, message, shutdown.Token);

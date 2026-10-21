@@ -16,7 +16,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'App publishing failed.' }
     & $compiler (Join-Path $project 'packaging\CodexMonitor.iss')
     if ($LASTEXITCODE -ne 0) { throw 'Installer build failed.' }
-    Write-Output (Join-Path $project 'installer\CodexMonitor-0.4.0-Setup.exe')
+    Write-Output (Join-Path $project 'installer\CodexMonitor-0.5.0-Setup.exe')
 }
 finally {
     Pop-Location

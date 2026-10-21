@@ -11,6 +11,7 @@
     <ProjectReference Include="../CodexMonitor.Plugins.Codex/CodexMonitor.Plugins.Codex.csproj" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
     <InternalsVisibleTo Include="CodexMonitor.Desktop.Windows" />
+    <InternalsVisibleTo Include="CodexMonitor" />
     <InternalsVisibleTo Include="CodexMonitor.Desktop.Unix" />
   </ItemGroup>
 </Project>

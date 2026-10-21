@@ -46,10 +46,12 @@ and different AI providers are the actual sources of variation.
 
 ## Remaining work
 
-1. **Verify a real compile of the full solution and published binaries.** This
-   is not completed because .NET SDK is unavailable in the working environment.
-2. Check Windows WinForms behavior after the refactor, especially tray menus,
-   settings persistence, installer and app-server process handling.
+1. **Keep the release gate repeatable.** The full solution, parser checks,
+   screenshot checks and Windows installer now build locally on Windows. The
+   same commands remain the release checklist for future versions.
+2. Continue checking Windows WinForms behavior after structural changes,
+   especially tray menus, settings persistence, installer upgrades and
+   app-server process handling.
 3. Check Avalonia Linux (X11/Wayland) and macOS menu bar/tray operation on
    real target desktops, including fallback window closing without AppIndicator.
 4. Build and validate the source-provided Debian and macOS packaging scripts.
