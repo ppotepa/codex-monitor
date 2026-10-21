@@ -11,5 +11,6 @@
     <InternalsVisibleTo Include="CodexMonitor.Desktop.Windows" />
     <InternalsVisibleTo Include="CodexMonitor.Platform.Unix" />
     <InternalsVisibleTo Include="ParserChecks" />
+    <InternalsVisibleTo Include="CodexMonitor.Screenshots" />
   </ItemGroup>
 </Project>

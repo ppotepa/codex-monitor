@@ -28,6 +28,7 @@ internal static class Program
             sp.GetRequiredService<IAppPaths>().DataDirectory, "monitor.db.json")));
         services.AddSingleton(sp => UsageHistory.Load(sp.GetRequiredService<MonitorDatabase>()));
         services.AddSingleton<CancellationTokenSource>();
+        services.AddSingleton<UsageAlertService>();
         services.AddSingleton(sp => sp.GetRequiredService<IAgentDiscovery>().Scan());
         services.AddSingleton(sp => AgentCatalog.Select(
             sp.GetRequiredService<AgentCatalogSnapshot>(),
@@ -38,7 +39,8 @@ internal static class Program
             sp.GetRequiredService<MonitorSettings>(),
             sp.GetRequiredService<UsageHistory>(),
             sp.GetRequiredService<MonitorDatabase>(),
-            sp.GetRequiredService<CancellationTokenSource>().Token));
+            sp.GetRequiredService<CancellationTokenSource>().Token,
+            sp.GetRequiredService<UsageAlertService>()));
         services.AddSingleton<IDashboardView>(sp => new UsagePopup(
             sp.GetRequiredService<AgentSelection>().Plugin.Info));
         services.AddSingleton<MonitorContext>();

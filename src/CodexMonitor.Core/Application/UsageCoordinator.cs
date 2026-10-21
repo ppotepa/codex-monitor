@@ -7,6 +7,7 @@ internal sealed class UsageCoordinator : IDisposable
 {
     private readonly IUsagePlugin _plugin;
     private readonly MonitorSettings _settings;
+    private readonly UsageAlertService _alerts;
     private readonly UsageHistory _history;
     private readonly MonitorDatabase _database;
     private readonly CancellationToken _shutdown;
@@ -28,13 +29,14 @@ internal sealed class UsageCoordinator : IDisposable
     public event Action<string, string, UsageAlertSeverity>? AlertRaised;
 
     public UsageCoordinator(IUsagePlugin plugin, MonitorSettings settings, UsageHistory history,
-        MonitorDatabase database, CancellationToken shutdown)
+        MonitorDatabase database, CancellationToken shutdown, UsageAlertService alerts)
     {
         _plugin = plugin;
         _settings = settings;
         _history = history;
         _database = database;
         _shutdown = shutdown;
+        _alerts = alerts;
         var cachedTokens = _database.ReadTokenUsage(_plugin.Info.Id);
         if (cachedTokens is not null)
         {
@@ -56,28 +58,11 @@ internal sealed class UsageCoordinator : IDisposable
 
     public void SetTrayWindow(string key) => _settings.TrayWindow = key;
 
-    public void ResetAlertLevels()
-    {
-        foreach (var key in _settings.AlertStates.Keys.ToArray())
-            _settings.AlertStates[key] = _settings.AlertStates[key] with { Level = 0 };
-    }
+    public void ResetAlertLevels() => _alerts.ResetLevels();
 
-    public void ToggleSnooze()
-    {
-        var selected = SelectedWindow;
-        if (selected?.ResetsAt is null) return;
-        var resetAt = selected.ResetsAt.Value.ToUnixTimeSeconds();
-        _settings.AlertStates.TryGetValue(selected.Name, out var prior);
-        var level = AlertPolicy.Level(selected.UsedPercent, _settings.WarningThreshold, _settings.CriticalThreshold);
-        _settings.AlertStates[selected.Name] = new WindowAlertState(resetAt, level, !(prior?.Snoozed ?? false));
-    }
+    public void ToggleSnooze() => _alerts.ToggleSnooze(SelectedWindow);
 
-    public bool IsSnoozed()
-    {
-        var selected = SelectedWindow;
-        return selected is not null && _settings.AlertStates.TryGetValue(selected.Name, out var state) &&
-            state.Snoozed && state.ResetAt == selected.ResetsAt?.ToUnixTimeSeconds();
-    }
+    public bool IsSnoozed() => _alerts.IsSnoozed(SelectedWindow);
 
     public async Task RefreshLimitsAsync()
     {
@@ -217,27 +202,10 @@ internal sealed class UsageCoordinator : IDisposable
 
     private void CheckAlerts(UsageSnapshot snapshot)
     {
-        var changed = false;
-        foreach (var window in snapshot.Windows)
-        {
-            var resetAt = window.ResetsAt?.ToUnixTimeSeconds();
-            _settings.AlertStates.TryGetValue(window.Name, out var previous);
-            if (_settings.AlertsEnabled && previous is { Level: > 0 } && previous.ResetAt != resetAt)
-                AlertRaised?.Invoke($"{_plugin.Info.DisplayName} limit reset", $"{window.Name} usage window has reset.", UsageAlertSeverity.Info);
-
-            var level = AlertPolicy.Level(window.UsedPercent, _settings.WarningThreshold, _settings.CriticalThreshold);
-            if (_settings.AlertsEnabled && AlertPolicy.ShouldNotify(level, previous, resetAt))
-                AlertRaised?.Invoke($"{_plugin.Info.DisplayName} usage alert", $"{window.Name} limit is {window.UsedPercent:0}% used.", UsageAlertSeverity.Warning);
-
-            var snoozed = previous is not null && previous.ResetAt == resetAt && previous.Snoozed;
-            var recordedLevel = previous is not null && previous.ResetAt == resetAt ? Math.Max(previous.Level, level) : level;
-            if (previous?.ResetAt != resetAt || previous?.Level != recordedLevel || previous?.Snoozed != snoozed)
-            {
-                _settings.AlertStates[window.Name] = new WindowAlertState(resetAt, recordedLevel, snoozed);
-                changed = true;
-            }
-        }
-        if (changed) SaveSettings();
+        var evaluation = _alerts.Evaluate(snapshot, _plugin.Info.DisplayName);
+        foreach (var notification in evaluation.Notifications)
+            AlertRaised?.Invoke(notification.Title, notification.Message, notification.Severity);
+        if (evaluation.StateChanged) SaveSettings();
     }
 
     private void SaveSettings()
