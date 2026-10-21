@@ -31,6 +31,8 @@ catch (FormatException) { }
 Assert(CodexCliService.IsBrokenLauncherError("did not find executable at 'C:\\Users\\name\\AppData\\Roaming\\uv\\python\\cpython...'"), "Missing Python launcher");
 Assert(CodexCliService.IsBrokenLauncherError("Fatal error in launcher"), "Broken Python launcher");
 Assert(!CodexCliService.IsBrokenLauncherError("authentication failed"), "Authentication error is not a launcher failure");
+if (OperatingSystem.IsWindows())
+    Assert(!CodexTokenClient.ExecutableNames().Contains("codex"), "Windows must not select the extensionless npm shim");
 
 Assert(AlertPolicy.Level(79.9, 80, 95) == 0, "Below warning");
 Assert(AlertPolicy.Level(80, 80, 95) == 1, "At warning");

@@ -11,7 +11,7 @@ internal sealed class CodexTokenClient(IExecutableLocator locator, ICommandLaunc
 
     public async Task<TokenUsageSnapshot> ReadAsync(CancellationToken cancellationToken)
     {
-        var launcher = locator.Find(["codex.exe", "codex", "codex.cmd"]) ??
+        var launcher = locator.Find(ExecutableNames()) ??
             throw new InvalidOperationException("Codex CLI was not found. Install or update Codex CLI, then refresh.");
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -24,7 +24,8 @@ internal sealed class CodexTokenClient(IExecutableLocator locator, ICommandLaunc
         try { process.Start(); }
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
         {
-            throw new InvalidOperationException("Could not start the local Codex app-server.", ex);
+            throw new InvalidOperationException(
+                $"Could not start the local Codex app-server ({Path.GetFileName(launcher)}): {ex.Message}", ex);
         }
         _ = process.StandardError.ReadToEndAsync();
 
@@ -72,6 +73,10 @@ internal sealed class CodexTokenClient(IExecutableLocator locator, ICommandLaunc
         await process.StandardInput.WriteLineAsync(json.AsMemory(), cancellationToken);
         await process.StandardInput.FlushAsync(cancellationToken);
     }
+
+    internal static IReadOnlyList<string> ExecutableNames() => OperatingSystem.IsWindows()
+        ? ["codex.exe", "codex.cmd"]
+        : ["codex", "codex.exe", "codex.cmd"];
 
     private static async Task<JsonElement> ReadResponseAsync(Process process, long requestId, CancellationToken cancellationToken)
     {
