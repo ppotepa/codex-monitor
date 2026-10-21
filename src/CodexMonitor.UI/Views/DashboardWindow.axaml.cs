@@ -12,6 +12,10 @@ public partial class DashboardWindow : Window
     private bool _trayAvailable;
     private bool _exit;
 
+    // Required by Avalonia's AXAML compiler/previewer; the desktop host uses
+    // the model-aware overload below.
+    public DashboardWindow() : this(new DashboardViewModel(), hideOnClose: false) { }
+
     internal DashboardWindow(DashboardViewModel model, bool hideOnClose)
     {
         _model = model;

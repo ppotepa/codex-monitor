@@ -9,7 +9,7 @@
 Codex Monitor shows signed-in Codex CLI usage limits, reset countdowns,
 seven-day token activity and local limit history from the desktop tray.
 
-**Source version 0.5.1, cross-platform UI refactor (unreleased).** The
+**Source version 0.5.2, cross-platform UI refactor (unreleased).** The
 previously published Windows installers use an earlier implementation; do
 not assume a GitHub Release contains these unverified changes.
 

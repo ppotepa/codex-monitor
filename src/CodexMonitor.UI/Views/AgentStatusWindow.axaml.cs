@@ -6,6 +6,10 @@ namespace CodexMonitor.UI.Views;
 
 public partial class AgentStatusWindow : Window
 {
+    // Avalonia's AXAML compiler and previewer require a public default
+    // constructor. The desktop host uses the data-backed overload below.
+    public AgentStatusWindow() : this(new AgentCatalogSnapshot(DateTimeOffset.UtcNow, [])) { }
+
     internal AgentStatusWindow(AgentCatalogSnapshot snapshot)
     {
         AvaloniaXamlLoader.Load(this);

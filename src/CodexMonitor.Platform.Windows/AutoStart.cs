@@ -1,7 +1,9 @@
 using Microsoft.Win32;
+using System.Runtime.Versioning;
 
 namespace CodexMonitor.Infrastructure.Windows;
 
+[SupportedOSPlatform("windows")]
 internal static class AutoStart
 {
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";

@@ -1,6 +1,6 @@
 # Code review — fresh baseline (2026-10-21)
 
-Reviewed against `main` commit `6a159d9` (source version 0.5.1). This review
+Reviewed against `main` commit `c302598` (source version 0.5.2). This review
 treats Codex Monitor as a new application, not an upgrade path for older
 on-disk formats. No unit tests were added or executed.
 
