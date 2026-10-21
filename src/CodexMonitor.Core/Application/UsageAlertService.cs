@@ -18,9 +18,12 @@ internal sealed class UsageAlertService(MonitorSettings settings)
         var previous = Read(pluginId, selected.Name);
         var level = AlertPolicy.Level(selected.UsedPercent,
             settings.WarningThreshold, settings.CriticalThreshold);
+        var previousCycleExpired = previous?.ResetAt is long old &&
+            old <= DateTimeOffset.UtcNow.ToUnixTimeSeconds() && resetAt > old;
+        var priorLevel = previousCycleExpired ? 0 : previous?.Level ?? 0;
+        var wasSnoozed = !previousCycleExpired && previous?.Snoozed == true;
         settings.AlertStates[Key(pluginId, selected.Name)] =
-            new WindowAlertState(resetAt, Math.Max(previous?.Level ?? 0, level),
-                !(previous?.Snoozed ?? false));
+            new WindowAlertState(resetAt, Math.Max(priorLevel, level), !wasSnoozed);
     }
 
     public bool IsSnoozed(UsageWindow? selected, string pluginId) =>
