@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Codex Monitor
+Comment=Codex usage limits and token activity
+Exec=codex-monitor
+Icon=codex-monitor
+Categories=Utility;Development;
+Terminal=false
+StartupNotify=false

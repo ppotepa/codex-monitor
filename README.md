@@ -107,10 +107,14 @@ dotnet run --project src/CodexMonitor.Desktop.Unix/CodexMonitor.Desktop.Unix.csp
 # Publish for the current target architecture
 bash scripts/publish-unix.sh linux-x64
 # Other accepted RIDs: linux-arm64, osx-x64, osx-arm64
+
+# Native bundle scripts (require the target OS and .NET SDK)
+bash scripts/package-deb.sh amd64
+bash scripts/package-macos.sh osx-arm64
 ```
 
 Read [Linux/macOS preview notes](docs/UNIX.md) for installation prerequisites,
-platform differences and known limitations. No .app/.deb/.rpm packages exist yet.
+platform differences and known limitations. Scripts to build preview `.deb` and `.app` packages are included, but the packages have not been built or verified in this environment.
 
 ## Data and privacy
 

@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
+using CodexMonitor.Platform.Unix;
 
 namespace CodexMonitor.Desktop.Unix;
 
@@ -12,11 +13,14 @@ internal sealed class UnixDashboardWindow : Window, IDashboardView
 {
     private readonly PluginInfo _plugin;
     private readonly TextBlock _status = new();
+    private readonly TextBlock _notice = new();
+    private readonly IWindowClosePolicy _closePolicy;
     private readonly TextBlock _limitTitle = new();
     private readonly TextBlock _remaining = new();
     private readonly TextBlock _reset = new();
     private readonly TextBlock _limitError = new();
     private readonly ProgressBar _progress = new() { Minimum = 0, Maximum = 100, Height = 12 };
+    private readonly UsageHistoryChart _history = new();
     private readonly StackPanel _otherWindows = new() { Spacing = 8 };
     private readonly TextBlock _tokenDate = new();
     private readonly TextBlock _latestTokens = new();
@@ -29,6 +33,7 @@ internal sealed class UnixDashboardWindow : Window, IDashboardView
     private readonly Button _refreshTokens = new() { Content = "Refresh token activity" };
     private readonly TabControl _tabs = new();
     private bool _closingForExit;
+    private bool _trayAvailable;
 
     public event EventHandler? RefreshRequested;
     public event EventHandler? InstallRequested;
@@ -37,11 +42,13 @@ internal sealed class UnixDashboardWindow : Window, IDashboardView
     public event EventHandler? TokenRefreshRequested;
 
     public bool IsOpen => IsVisible;
+    public void SetTrayAvailable(bool available) => _trayAvailable = available;
     public bool ShowingTokens => _tabs.SelectedIndex == 1 && _plugin.SupportsTokens;
 
-    public UnixDashboardWindow(PluginInfo plugin)
+    public UnixDashboardWindow(PluginInfo plugin, IWindowClosePolicy closePolicy)
     {
         _plugin = plugin;
+        _closePolicy = closePolicy;
         Title = "Codex Monitor";
         Width = 440;
         Height = 600;
@@ -50,7 +57,7 @@ internal sealed class UnixDashboardWindow : Window, IDashboardView
         Background = Brush("#161B23");
         Closing += (_, e) =>
         {
-            if (_closingForExit) return;
+            if (_closingForExit || !_trayAvailable || !_closePolicy.HideOnClose) return;
             e.Cancel = true;
             Hide();
         };
@@ -72,6 +79,10 @@ internal sealed class UnixDashboardWindow : Window, IDashboardView
         var page = new StackPanel { Spacing = 12, Margin = new Thickness(16) };
         page.Children.Add(header);
         page.Children.Add(_status);
+        _notice.Foreground = Brush("#F6C160");
+        _notice.TextWrapping = TextWrapping.Wrap;
+        _notice.IsVisible = false;
+        page.Children.Add(_notice);
 
         _tabs.Items.Add(new TabItem { Header = "Limits", Content = BuildLimits() });
         if (plugin.SupportsTokens)
@@ -99,7 +110,8 @@ internal sealed class UnixDashboardWindow : Window, IDashboardView
             Children = { _limitTitle, _remaining, _progress, _reset }
         }));
         content.Children.Add(_otherWindows);
-        content.Children.Add(Label("USAGE WINDOWS", 12, bold: true));
+        content.Children.Add(Label("USAGE HISTORY · 24 HOURS", 12, bold: true));
+        content.Children.Add(_history);
         _limitError.Foreground = Brush("#F58B8B");
         _limitError.TextWrapping = TextWrapping.Wrap;
         content.Children.Add(_limitError);
@@ -141,6 +153,7 @@ internal sealed class UnixDashboardWindow : Window, IDashboardView
         _limitTitle.Text = UsageDisplayText.WindowName(selected?.Name);
         _remaining.Text = selected is null ? "No data" : $"{100 - selected.UsedPercent:0}% left";
         _progress.Value = selected?.UsedPercent ?? 0;
+        _history.SetPoints(state.RecentHistory);
         _reset.Text = selected is null ? "Sign in to Codex CLI to see usage."
             : UsageDisplayText.ResetText(selected.ResetsAt);
         _otherWindows.Children.Clear();
@@ -175,15 +188,35 @@ internal sealed class UnixDashboardWindow : Window, IDashboardView
         _lifetime.Text = $"Lifetime: {UsageDisplayText.FormatTokenCount(tokens?.LifetimeTokens)}";
         _peak.Text = $"Peak day: {UsageDisplayText.FormatTokenCount(tokens?.PeakDailyTokens)}";
         _dailyTokens.Children.Clear();
-        foreach (var bucket in tokens?.DailyBuckets.TakeLast(7) ?? [])
-            _dailyTokens.Children.Add(Label($"{bucket.Date:MMM d}   {bucket.Tokens:N0}"));
+        var recent = tokens?.DailyBuckets.TakeLast(7).ToArray() ?? [];
+        var max = Math.Max(1L, recent.Select(bucket => bucket.Tokens).DefaultIfEmpty().Max());
+        foreach (var bucket in recent)
+        {
+            _dailyTokens.Children.Add(new StackPanel
+            {
+                Spacing = 3,
+                Children =
+                {
+                    Label($"{bucket.Date:MMM d} · {bucket.Tokens:N0} tokens", 11),
+                    new ProgressBar
+                    {
+                        Minimum = 0, Maximum = max, Value = Math.Max(0, bucket.Tokens),
+                        Height = 10
+                    }
+                }
+            });
+        }
         _tokenError.Text = state.TokenError ?? "";
         _tokenError.IsVisible = !string.IsNullOrWhiteSpace(state.TokenError);
         _refreshTokens.IsEnabled = !state.TokensBusy;
     }
 
     // Used for non-native alerts and platform error messages.
-    public void SetMessage(string message) => _status.Text = message;
+    public void SetMessage(string message)
+    {
+        _notice.Text = message;
+        _notice.IsVisible = !string.IsNullOrWhiteSpace(message);
+    }
 
     public void ShowNearCursor()
     {

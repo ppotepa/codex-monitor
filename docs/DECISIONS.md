@@ -51,11 +51,12 @@ and different AI providers are the actual sources of variation.
 2. Check Windows WinForms behavior after the refactor, especially tray menus,
    settings persistence, installer and app-server process handling.
 3. Check Avalonia Linux (X11/Wayland) and macOS menu bar/tray operation on
-   real target desktops, including fallbacks without AppIndicator.
-4. Make Unix native installers/packages and OS-specific notifications. The
-   Unix dashboard currently uses a compact text-based usage representation
-   rather than the richer Windows charts.
-5. Add provider-namespaced alert state/history when a second plugin exists.
+   real target desktops, including fallback window closing without AppIndicator.
+4. Build and validate the source-provided Debian and macOS packaging scripts.
+   Native notifications have best-effort Linux/macOS adapters; Developer ID
+   signing and notarization remain required for release distribution.
+5. Provider-namespaced alert state/history has been added with legacy Codex
+   compatibility. Verify existing user settings/history after migration.
 6. Automated behavioral tests remain deliberately deferred.
 
 ## Merge policy

@@ -50,7 +50,7 @@ internal sealed class UsageCoordinator : IDisposable
         ?? Snapshot?.MainWindow;
 
     public IReadOnlyList<UsageHistoryPoint> RecentHistory =>
-        _history.Recent(SelectedWindow?.Name, DateTimeOffset.UtcNow);
+        _history.Recent(SelectedWindow?.Name, DateTimeOffset.UtcNow, _plugin.Info.Id);
 
     public DashboardState Dashboard => new(
         Snapshot, SelectedWindow, RecentHistory, LimitError, IsBusy,
@@ -58,9 +58,9 @@ internal sealed class UsageCoordinator : IDisposable
 
     public void SetTrayWindow(string key) => _settings.TrayWindow = key;
 
-    public void ToggleSnooze() => _alerts.ToggleSnooze(SelectedWindow);
+    public void ToggleSnooze() => _alerts.ToggleSnooze(SelectedWindow, _plugin.Info.Id);
 
-    public bool IsSnoozed() => _alerts.IsSnoozed(SelectedWindow);
+    public bool IsSnoozed() => _alerts.IsSnoozed(SelectedWindow, _plugin.Info.Id);
 
     public async Task RefreshLimitsAsync()
     {
@@ -178,7 +178,7 @@ internal sealed class UsageCoordinator : IDisposable
         };
 
         if (Snapshot.Status == "stale") return;
-        if (_history.Add(Snapshot, DateTimeOffset.UtcNow))
+        if (_history.Add(Snapshot, DateTimeOffset.UtcNow, _plugin.Info.Id))
         {
             try { _history.Save(); }
             catch (IOException) { }
@@ -200,7 +200,7 @@ internal sealed class UsageCoordinator : IDisposable
 
     private void CheckAlerts(UsageSnapshot snapshot)
     {
-        var evaluation = _alerts.Evaluate(snapshot, _plugin.Info.DisplayName);
+        var evaluation = _alerts.Evaluate(snapshot, _plugin.Info.DisplayName, _plugin.Info.Id);
         foreach (var notification in evaluation.Notifications)
             AlertRaised?.Invoke(notification.Title, notification.Message, notification.Severity);
         if (evaluation.StateChanged) SaveSettings();

@@ -13,6 +13,8 @@ internal sealed class UnixDesktopHost(
     UsageCoordinator coordinator,
     MonitorSettings settings,
     IAgentDiscovery discovery,
+    IStartupService startup,
+    IDesktopNotificationService notifications,
     CancellationTokenSource shutdown) : IDesktopHost, IDisposable
 {
     private DispatcherTimer? _limitsTimer;
@@ -26,6 +28,8 @@ internal sealed class UnixDesktopHost(
             throw new InvalidOperationException("A desktop lifetime is required.");
 
         desktop.MainWindow = window;
+        // Without a tray provider, closing the window must terminate the app.
+        window.Closed += (_, _) => Quit(desktop);
         _lastAgentScanAt = DateTimeOffset.UtcNow;
 
         window.RefreshRequested += (_, _) => _ = coordinator.RefreshLimitsAsync();
@@ -38,17 +42,22 @@ internal sealed class UnixDesktopHost(
         {
             tray.Install(window.ShowNearCursor, ShowAgents,
                 () => _ = ShowSettingsAsync(), () => Quit(desktop));
+            window.SetTrayAvailable(true);
         }
         catch (Exception ex) when (ex is PlatformNotSupportedException or NotSupportedException or InvalidOperationException)
         {
-            // The window is still the main entry point on Wayland, bare GNOME,
-            // or desktops without StatusNotifierItem/AppIndicator integration.
-            window.SetMessage($"System tray is unavailable: {ex.Message}");
+            // Never leave a permanently running app with no window or tray.
+            window.SetTrayAvailable(false);
+            window.SetMessage($"System tray unavailable: {ex.Message}");
         }
         tray.Changed += RefreshView;
         tray.ErrorOccurred += ShowStatus;
         coordinator.Changed += RefreshView;
-        coordinator.AlertRaised += (title, message, _) => ShowStatus($"{title}: {message}");
+        coordinator.AlertRaised += (title, message, _) =>
+        {
+            ShowStatus($"{title}: {message}");
+            _ = notifications.NotifyAsync(title, message, shutdown.Token);
+        };
 
         _limitsTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(settings.LimitsRefreshMinutes) };
         _limitsTimer.Tick += (_, _) => _ = coordinator.RefreshLimitsAsync();
@@ -97,7 +106,8 @@ internal sealed class UnixDesktopHost(
 
     private async Task ShowSettingsAsync()
     {
-        var dialog = new UnixSettingsWindow(settings);
+        window.ShowNearCursor();
+        var dialog = new UnixSettingsWindow(settings, startup);
         var saved = await dialog.ShowDialog<bool>(window);
         if (!saved || _disposed) return;
         if (_limitsTimer is not null)
@@ -108,6 +118,7 @@ internal sealed class UnixDesktopHost(
 
     private void ShowAgents()
     {
+        window.ShowNearCursor();
         var agents = discovery.Scan();
         _lastAgentScanAt = DateTimeOffset.UtcNow;
         var rows = new StackPanel { Margin = new Avalonia.Thickness(16), Spacing = 10 };

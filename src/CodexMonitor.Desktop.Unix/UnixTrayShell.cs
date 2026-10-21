@@ -64,7 +64,8 @@ internal sealed class UnixTrayShell(IStartupService startup, MonitorSettings set
         menu.Add(new NativeMenuItemSeparator());
         Add(menu, "Exit", quit);
 
-        using var image = new MemoryStream(Convert.FromBase64String(IconPng));
+        using var image = typeof(UnixTrayShell).Assembly.GetManifestResourceStream("CodexMonitor.Tray.png")
+            ?? throw new InvalidOperationException("Embedded tray icon is missing.");
         _icon = new TrayIcon
         {
             Icon = new WindowIcon(image),
@@ -129,7 +130,4 @@ internal sealed class UnixTrayShell(IStartupService startup, MonitorSettings set
         _icon = null;
     }
 
-    // Built-in 32px glyph avoids asset-resolution differences when published
-    // as a self-contained or single-file desktop application.
-    private const string IconPng = "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAxklEQVR42mNgGOmAkZCC4PMH/lNiwVpDB0ayHECpxcQ6hJGQ5SdD8yiy2Hz1JLyOYMRlOaUW43IIuiOY6GE5spnoUcs00LmAiR6+xxcKLOQa9vj2RRS+rKo+WeawUGoxujipDmGihuVUSQPUsJycaCA7DZAb52SFALUSHMVpgKblwKgDSElw1MyOVCsJyU2cTNTMduSEDNNA5H2KogDmiAGrjGhWEsKaSshtOGoDbM2ywVUO0DIUcDVKB1+zfFB0TOjZNRsFAJ42YCCbC2UsAAAAAElFTkSuQmCC";
 }

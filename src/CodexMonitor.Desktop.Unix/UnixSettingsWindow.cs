@@ -9,6 +9,7 @@ internal sealed class UnixSettingsWindow : Window
 {
     private readonly CheckBox _alerts;
     private readonly CheckBox _autoTokens;
+    private readonly CheckBox _startup;
     private readonly ComboBox _limits;
     private readonly ComboBox _tokens;
     private readonly ComboBox _agents;
@@ -16,15 +17,21 @@ internal sealed class UnixSettingsWindow : Window
     private readonly TextBox _critical;
     private readonly TextBlock _error = new();
 
-    public UnixSettingsWindow(MonitorSettings settings)
+    public UnixSettingsWindow(MonitorSettings settings, IStartupService startup)
     {
         Title = "Codex Monitor settings";
         Width = 370;
-        Height = 465;
+        Height = 510;
         CanResize = false;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         _alerts = new CheckBox { Content = "Usage alerts", IsChecked = settings.AlertsEnabled };
         _autoTokens = new CheckBox { Content = "Auto-refresh tokens while viewing", IsChecked = settings.AutoRefreshTokens };
+        _startup = new CheckBox
+        {
+            Content = startup.MenuLabel,
+            IsEnabled = startup.CanConfigure,
+            IsChecked = startup.CanConfigure && startup.Enabled
+        };
         _warning = new TextBox { Text = settings.WarningThreshold.ToString(), Watermark = "Warning %" };
         _critical = new TextBox { Text = settings.CriticalThreshold.ToString(), Watermark = "Critical %" };
         _limits = Interval(settings.LimitsRefreshMinutes, [1, 5, 10, 15, 30, 60]);
@@ -44,6 +51,7 @@ internal sealed class UnixSettingsWindow : Window
         form.Children.Add(new TextBlock { Text = "Agent scan (minutes; 0 = disabled)" });
         form.Children.Add(_agents);
         form.Children.Add(_autoTokens);
+        form.Children.Add(_startup);
         form.Children.Add(_error);
         var save = new Button { Content = "Save", HorizontalAlignment = HorizontalAlignment.Right };
         save.Click += (_, _) =>
@@ -64,10 +72,12 @@ internal sealed class UnixSettingsWindow : Window
             settings.AgentScanMinutes = (int)(_agents.SelectedItem ?? 30);
             try
             {
+                if (startup.CanConfigure && startup.Enabled != (_startup.IsChecked == true))
+                    startup.Enabled = _startup.IsChecked == true;
                 settings.Save();
                 Close(true);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (Exception ex)
             {
                 _error.Text = ex.Message;
             }

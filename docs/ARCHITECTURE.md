@@ -75,8 +75,8 @@ monitoring functionality.
   `history.json`) retain their schema and Windows locations.
 - Linux/macOS now have an **experimental**, shared Avalonia desktop host with
   a real window and tray menu. It has not been compiled or validated on target
-  systems and must not yet be presented as supported. Native notifications,
-  packaging and feature parity with Windows charts are unfinished.
+  systems and must not yet be presented as supported. Native notifications use optional Linux/macOS adapters with an in-window
+  fallback. Packaging validation and full visual parity with Windows remain unfinished.
   Wayland/X11 and macOS menu bar behavior can differ even if the popup UI is shared.
 - Before enabling a second provider, scope persisted history and alert states
   by plugin ID and provide selection in the UI.

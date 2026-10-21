@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using CodexMonitor.Platform.Unix;
 using CodexMonitor.Composition;
@@ -30,18 +31,23 @@ internal static class Program
         {
             services.AddSingleton<IAppPaths, MacOsAppPaths>();
             services.AddSingleton<IStartupService, MacOsStartupService>();
+            services.AddSingleton<IWindowClosePolicy, MacOsWindowClosePolicy>();
+            services.AddSingleton<IDesktopNotificationService, MacOsDesktopNotificationService>();
         }
         else
         {
             services.AddSingleton<IAppPaths, LinuxAppPaths>();
             services.AddSingleton<IStartupService, LinuxStartupService>();
+            services.AddSingleton<IWindowClosePolicy, LinuxWindowClosePolicy>();
+            services.AddSingleton<IDesktopNotificationService, LinuxDesktopNotificationService>();
         }
 
         services.AddCodexMonitor();
 
 
         services.AddSingleton(sp => new UnixDashboardWindow(
-            sp.GetRequiredService<AgentSelection>().Plugin.Info));
+            sp.GetRequiredService<AgentSelection>().Plugin.Info,
+            sp.GetRequiredService<IWindowClosePolicy>()));
         services.AddSingleton<IDashboardView>(sp => sp.GetRequiredService<UnixDashboardWindow>());
         services.AddSingleton<UnixTrayShell>();
         services.AddSingleton<IDesktopHost, UnixDesktopHost>();
