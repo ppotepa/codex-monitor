@@ -1,0 +1,84 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:vm="using:CodexMonitor.UI.ViewModels" x:Class="CodexMonitor.UI.Views.SettingsWindow"
+ x:DataType="vm:SettingsViewModel" x:CompileBindings="True" Title="Codex Monitor settings"
+ Width="480" Height="720" MinWidth="400" MinHeight="420" WindowStartupLocation="CenterOwner">
+ <Window.Resources><vm:IntervalLabelConverter x:Key="IntervalLabel"/></Window.Resources>
+ <Grid RowDefinitions="Auto,*,Auto" Margin="{StaticResource PagePadding}">
+  <StackPanel Spacing="4" Margin="0,0,0,16">
+   <TextBlock Text="Settings" FontSize="24" FontWeight="SemiBold"/>
+   <TextBlock Text="Make monitoring work for you." Classes="caption"/>
+  </StackPanel>
+  <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+   <StackPanel Spacing="12">
+    <Border Classes="card" Padding="14">
+     <StackPanel Spacing="12">
+      <StackPanel Spacing="4">
+       <TextBlock Text="Refresh &amp; discovery" Classes="section"/>
+       <TextBlock Text="Choose how often your data is updated." Classes="caption" TextWrapping="Wrap"/>
+      </StackPanel>
+      <Grid ColumnDefinitions="*,128" RowDefinitions="Auto,Auto,Auto" RowSpacing="10" ColumnSpacing="12">
+       <TextBlock Text="Usage limits" VerticalAlignment="Center"/>
+       <ComboBox Grid.Column="1" ItemsSource="{Binding LimitIntervals}" SelectedItem="{Binding LimitsInterval, Mode=TwoWay}"
+        HorizontalAlignment="Stretch" AutomationProperties.Name="Usage limits refresh interval">
+        <ComboBox.ItemTemplate><DataTemplate x:DataType="x:Int32"><TextBlock Text="{Binding Converter={StaticResource IntervalLabel}}"/></DataTemplate></ComboBox.ItemTemplate>
+       </ComboBox>
+       <TextBlock Grid.Row="1" Text="Token activity" VerticalAlignment="Center"/>
+       <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding TokenIntervals}" SelectedItem="{Binding TokensInterval, Mode=TwoWay}"
+        HorizontalAlignment="Stretch" AutomationProperties.Name="Token activity refresh interval">
+        <ComboBox.ItemTemplate><DataTemplate x:DataType="x:Int32"><TextBlock Text="{Binding Converter={StaticResource IntervalLabel}}"/></DataTemplate></ComboBox.ItemTemplate>
+       </ComboBox>
+       <TextBlock Grid.Row="2" Text="Discover agents" VerticalAlignment="Center"/>
+       <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding AgentIntervals}" SelectedItem="{Binding AgentsInterval, Mode=TwoWay}"
+        HorizontalAlignment="Stretch" AutomationProperties.Name="Agent discovery interval">
+        <ComboBox.ItemTemplate><DataTemplate x:DataType="x:Int32"><TextBlock Text="{Binding Converter={StaticResource IntervalLabel}}"/></DataTemplate></ComboBox.ItemTemplate>
+       </ComboBox>
+      </Grid>
+      <TextBlock Text="Manual discovery runs only when you request a scan." Classes="caption" TextWrapping="Wrap"/>
+      <CheckBox IsChecked="{Binding AutoRefreshTokens, Mode=TwoWay}">
+       <TextBlock Text="Auto-refresh tokens while viewing" TextWrapping="Wrap"/>
+      </CheckBox>
+     </StackPanel>
+    </Border>
+    <Border Classes="card" Padding="14">
+     <StackPanel Spacing="12">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+       <StackPanel Spacing="4">
+        <TextBlock Text="Usage alerts" Classes="section"/>
+        <TextBlock Text="Know when you're approaching a limit." Classes="caption" TextWrapping="Wrap"/>
+       </StackPanel>
+       <ToggleSwitch Grid.Column="1" IsChecked="{Binding AlertsEnabled, Mode=TwoWay}" OnContent="" OffContent=""
+        VerticalAlignment="Center" AutomationProperties.Name="Enable usage alerts"/>
+      </Grid>
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="12" IsEnabled="{Binding AlertsEnabled}">
+       <StackPanel Spacing="6">
+        <TextBlock Text="Warning (%)" Classes="caption"/>
+        <TextBox Text="{Binding WarningText, Mode=TwoWay}" MaxLength="3" AutomationProperties.Name="Warning threshold percent"/>
+       </StackPanel>
+       <StackPanel Grid.Column="1" Spacing="6">
+        <TextBlock Text="Critical (%)" Classes="caption"/>
+        <TextBox Text="{Binding CriticalText, Mode=TwoWay}" MaxLength="3" AutomationProperties.Name="Critical threshold percent"/>
+       </StackPanel>
+      </Grid>
+      <TextBlock Text="Warning must be lower than critical." Classes="caption"/>
+     </StackPanel>
+    </Border>
+    <Border Classes="card" Padding="14">
+     <StackPanel Spacing="8">
+      <TextBlock Text="Startup" Classes="section"/>
+      <CheckBox IsChecked="{Binding StartAtLogin, Mode=TwoWay}" IsEnabled="{Binding CanConfigureStartup}">
+       <TextBlock Text="{Binding StartupLabel}" TextWrapping="Wrap"/>
+      </CheckBox>
+      <TextBlock Text="{Binding StartupDescription}" Classes="caption" TextWrapping="Wrap"/>
+     </StackPanel>
+    </Border>
+   </StackPanel>
+  </ScrollViewer>
+  <StackPanel Grid.Row="2" Spacing="12" Margin="0,16,0,0">
+   <TextBlock Text="{Binding ErrorText}" IsVisible="{Binding HasError}" TextWrapping="Wrap" Foreground="{DynamicResource ErrorBrush}" FontSize="12"/>
+   <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+    <Button Grid.Column="1" Content="Cancel" MinWidth="80" Click="CancelClicked"/>
+    <Button Grid.Column="2" Content="Save changes" Classes="primary" MinWidth="120" Command="{Binding SaveCommand}"/>
+   </Grid>
+  </StackPanel>
+ </Grid>
+</Window>

@@ -4,14 +4,14 @@
 
 ```mermaid
 flowchart TB
-    Desktop[CodexMonitor.Desktop<br/>Avalonia host and tray] --> UI[CodexMonitor.UI<br/>AXAML, ViewModels, charts]
-    Desktop --> Composition[CodexMonitor.Composition<br/>shared DI]
+    Desktop[CodexMonitor.Desktop<br/>composition root, Avalonia host and tray] --> UI[CodexMonitor.UI<br/>AXAML, ViewModels, charts]
     Desktop --> Windows[Platform.Windows]
     Desktop --> Unix[Platform.Unix]
+    Desktop --> Infrastructure[CodexMonitor.Infrastructure<br/>processes and JSON stores]
+    Desktop --> Provider[CodexMonitor.Providers.Codex]
     UI --> Core[CodexMonitor.Core]
-    Composition --> Core
-    Composition --> Codex[CodexMonitor.Plugins.Codex]
-    Codex --> Core
+    Infrastructure --> Core
+    Provider --> Core
     Windows --> Core
     Unix --> Core
 ```
@@ -26,24 +26,44 @@ No renderer-per-OS code or user-defined layout language is maintained.
 
 | Project | Owns |
 | --- | --- |
-| `Core` | Domain models, `UsageCoordinator`, `UsageAlertService`, JSON store, contracts, agent selection |
-| `Plugins.Codex` | Codex usage CLI, app-server protocol and parsing |
-| `Composition` | Singleton services, one settings instance, one database/history pair, plugin registrations |
+| `Core` | Domain models, application services, settings/history ports, contracts and agent selection |
+| `Infrastructure` | Process execution, JSON settings repository and `monitor.db.json` adapter |
+| `Providers.Codex` | Codex usage CLI, app-server protocol, parsing and `AddCodexProvider()` |
 | `UI` | Shared `DashboardWindow`, `LimitsView`, `TokensView`, `SettingsWindow`, `AgentStatusWindow`, AXAML styles, `UsageRing`, history chart and ViewModels |
-| `Desktop` | One `AppBuilder`, `DesktopApp`, `DesktopHost`, `DesktopTrayShell`; the composition root chooses platform implementations |
+| `Desktop` | One `AppBuilder`, `DesktopApp`, `DesktopHost`, `DesktopTrayShell` and composition root |
 | `Platform.Windows` | Registry startup, Windows PATH discovery, Windows process launching and notification adapter |
 | `Platform.Unix` | Executable lookup, process launching; separate XDG/LaunchAgent, notification and window-close policies |
 
-Platform selection is confined to `Desktop/Program.cs`. Shared UI and Core
+Platform selection is confined to `src/Desktop/Host/Program.cs`. Shared UI and Core
 do not contain large OS-specific conditionals. Platform-specific menu bar
 behavior and tray limitations remain host concerns.
+
+The solution contains seven production projects. `Core` has no dependency on
+the UI, host, Infrastructure or a concrete provider. Infrastructure, provider,
+platform and UI adapters point inward to Core; Desktop composes them.
+
+## Source folders and namespace roots
+
+Each project file sits directly in its architectural folder. The folder path
+does not repeat the project name; C# namespaces use the product and project
+name as their root, then follow source subfolders:
+
+| Source folder | Project file | Namespace root |
+| --- | --- | --- |
+| `src/Core/` | `CodexMonitor.Core.csproj` | `CodexMonitor.Core` |
+| `src/Infrastructure/` | `CodexMonitor.Infrastructure.csproj` | `CodexMonitor.Infrastructure` |
+| `src/Providers/Codex/` | `CodexMonitor.Providers.Codex.csproj` | `CodexMonitor.Providers.Codex` |
+| `src/Platform/Windows/` | `CodexMonitor.Platform.Windows.csproj` | `CodexMonitor.Platform.Windows` |
+| `src/Platform/Unix/` | `CodexMonitor.Platform.Unix.csproj` | `CodexMonitor.Platform.Unix` |
+| `src/Desktop/UI/` | `CodexMonitor.UI.csproj` | `CodexMonitor.UI` |
+| `src/Desktop/Host/` | `CodexMonitor.Desktop.csproj` | `CodexMonitor.Desktop` |
 
 ## Interaction flow
 
 ```text
 Operating system host / tray menu
     -> UsageCoordinator, IAgentManager
-    -> current provider capability interfaces (IUsagePlugin, ITokenUsagePlugin)
+    -> current provider capability interfaces (IUsageProvider, ITokenUsageProvider)
     -> DashboardState (domain)
     -> DashboardViewModel (presentation)
     -> DashboardWindow / LimitsView / TokensView (single AXAML tree)
@@ -57,17 +77,20 @@ The GUI never installs or repairs a CLI automatically.
 ## Persistence
 
 Only `monitor.db.json` schema `v1` and `settings.json` are supported.
-Every history item includes an explicit plugin ID; alert keys are namespaced.
+Every history item includes an explicit provider ID; alert keys are namespaced.
+The C# model uses `ProviderId`, while serialization retains the existing
+`pluginId` JSON property to keep `monitor.db.json` compatible.
 No old-file migration or fallback writer exists. Atomic updates, current
 format recovery copies and persistence diagnostics remain.
 
-## Plugin extension
+## Provider registration
 
-`[UsagePlugin]` annotates stable identity and executable names. Optional
-`ITokenUsagePlugin` and `IRepairableUsagePlugin` describe actual capabilities;
-new adapters are registered explicitly with dependency injection.
+`[UsageProvider]` annotates stable identity and executable names. Optional
+`ITokenUsageProvider` and `IRepairableUsageProvider` describe capabilities;
+the Codex adapter is registered explicitly through `AddCodexProvider()`.
 `AgentCatalog` reports other installed CLIs without pretending they are
-supported providers.
+supported providers. Windows, Linux and macOS adapters expose their own
+registration methods, keeping platform implementations internal to their projects.
 
 ## Build/release limitations
 

@@ -1,0 +1,175 @@
+using Avalonia;
+using Avalonia.Controls;
+using CodexMonitor.UI;
+
+namespace CodexMonitor.Desktop;
+
+// The only tray menu implementation. Its content is shared across all hosts.
+internal sealed class DesktopTrayShell(
+    IStartupService startup, MonitorSettings settings, IMonitorSettingsRepository settingsRepository,
+    UsageCoordinator coordinator) : IDisposable
+{
+    private ProviderInfo _provider = coordinator.ProviderInfo;
+    private TrayIcon? _icon;
+    private double? _lastIconPercent;
+    private bool _lastIconError;
+    private bool _hasRenderedIcon;
+    private readonly NativeMenu _windowMenu = new();
+    private readonly NativeMenuItem _refreshTokensItem = new("Refresh tokens");
+    private readonly NativeMenuItem _alertsItem = new();
+    private readonly NativeMenuItem _startupItem = new();
+    private readonly NativeMenuItem _repairItem = new();
+    private readonly NativeMenuItem _snoozeItem = new();
+
+    public event Action<string>? ErrorOccurred;
+    public event Action? Changed;
+
+    public void Install(Action show, Action agents, Action settingsAction, Action quit)
+    {
+        var menu = new NativeMenu();
+        Add(menu, "Show usage", show);
+        Add(menu, "Refresh limits", () => _ = coordinator.RefreshLimitsAsync());
+        _refreshTokensItem.Click += (_, _) => _ = coordinator.RefreshTokensAsync(force: true);
+        menu.Add(_refreshTokensItem);
+        menu.Add(new NativeMenuItemSeparator());
+
+        menu.Add(new NativeMenuItem("Tray limit") { Menu = _windowMenu });
+        RebuildLimitChoices();
+
+        Add(menu, "AI agents...", agents);
+        Add(menu, "Settings...", settingsAction);
+
+        _alertsItem.Click += (_, _) =>
+        {
+            settings.AlertsEnabled = !settings.AlertsEnabled;
+            SaveSettings();
+            Update(coordinator.Dashboard);
+        };
+        menu.Add(_alertsItem);
+
+        _snoozeItem.Click += (_, _) =>
+        {
+            coordinator.ToggleSnooze();
+            SaveSettings();
+            Update(coordinator.Dashboard);
+        };
+        menu.Add(_snoozeItem);
+
+        _repairItem.Click += (_, _) => _ = coordinator.RepairAsync();
+        menu.Add(_repairItem);
+
+        _startupItem.Click += (_, _) =>
+        {
+            try { startup.Enabled = !startup.Enabled; }
+            catch (Exception ex) { ErrorOccurred?.Invoke(ex.Message); }
+            Update(coordinator.Dashboard);
+        };
+        menu.Add(_startupItem);
+        menu.Add(new NativeMenuItemSeparator());
+        Add(menu, "Exit", quit);
+
+        menu.NeedsUpdate += (_, _) => Update(coordinator.Dashboard);
+        var resourceName = OperatingSystem.IsWindows()
+            ? "CodexMonitor.Tray.ico" : "CodexMonitor.Tray.png";
+        using var image = typeof(DesktopTrayShell).Assembly.GetManifestResourceStream(resourceName)
+            ?? throw new InvalidOperationException("Embedded tray icon is missing: " + resourceName);
+        _icon = new TrayIcon
+        {
+            Icon = new WindowIcon(image),
+            ToolTipText = "Codex Monitor",
+            Menu = menu,
+            IsVisible = true
+        };
+        _icon.Clicked += (_, _) => show();
+        TrayIcon.SetIcons(Application.Current
+            ?? throw new InvalidOperationException("Avalonia application is not initialized."),
+            new TrayIcons { _icon });
+        Update(coordinator.Dashboard);
+    }
+
+    private static void Add(NativeMenu menu, string title, Action callback)
+    {
+        var item = new NativeMenuItem(title);
+        item.Click += (_, _) => callback();
+        menu.Add(item);
+    }
+
+    private void RebuildLimitChoices()
+    {
+        _windowMenu.Items.Clear();
+        Add(_windowMenu, "Automatic", () => SelectLimit("auto"));
+        foreach (var choice in _provider.WindowOptions)
+        {
+            var key = choice.Key;
+            Add(_windowMenu, choice.Label, () => SelectLimit(key));
+        }
+    }
+
+    private void SelectLimit(string key)
+    {
+        coordinator.SetTrayWindow(key);
+        SaveSettings();
+        Changed?.Invoke();
+        Update(coordinator.Dashboard);
+    }
+
+    public void SetProvider(ProviderInfo provider)
+    {
+        _provider = provider;
+        RebuildLimitChoices();
+        Update(coordinator.Dashboard);
+    }
+
+    public void Update(DashboardState state)
+    {
+        if (_icon is null) return;
+        var selected = state.SelectedLimit;
+        var tooltip = selected is null ? $"{_provider.DisplayName}: no data"
+            : $"{_provider.DisplayName}: {selected.UsedPercent:0}% used · {UsageDisplayText.WindowName(selected.Name)}";
+        _icon.ToolTipText = tooltip.Length > 110 ? tooltip[..110] : tooltip;
+        var percent = selected?.UsedPercent;
+        var hasError = state.LimitError is not null;
+        if (!_hasRenderedIcon || percent != _lastIconPercent || hasError != _lastIconError)
+        {
+            try
+            {
+                _icon.Icon = TrayIconRenderer.Create(percent, hasError);
+                _lastIconPercent = percent;
+                _lastIconError = hasError;
+                _hasRenderedIcon = true;
+            }
+            catch (Exception ex)
+            {
+                // Keep the built-in static icon if rendering fails on a target OS.
+                ErrorOccurred?.Invoke($"Could not render usage tray icon: {ex.Message}");
+                _hasRenderedIcon = true;
+            }
+        }
+        _refreshTokensItem.IsVisible = _provider.SupportsTokens;
+        _repairItem.IsVisible = _provider.CanRepair && state.DependencyProblem != DependencyProblem.None;
+        _repairItem.Header = state.DependencyProblem == DependencyProblem.Broken
+            ? "Repair CLI" : "Install CLI";
+        _alertsItem.Header = settings.AlertsEnabled ? "Disable usage alerts" : "Enable usage alerts";
+        _startupItem.IsEnabled = startup.CanConfigure;
+        _startupItem.Header = startup.Enabled ? "Disable login startup" : "Enable login startup";
+        _snoozeItem.IsEnabled = settings.AlertsEnabled && selected?.ResetsAt is not null;
+        _snoozeItem.Header = coordinator.IsSnoozed() ? "Resume usage alerts" : "Snooze until reset";
+    }
+
+    private void SaveSettings()
+    {
+        try { settingsRepository.Save(settings); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ErrorOccurred?.Invoke(ex.Message);
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_icon is null) return;
+        if (Application.Current is { } app) TrayIcon.SetIcons(app, null);
+        _icon.Dispose();
+        _icon = null;
+    }
+}

@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>CodexMonitor.Core</AssemblyName>
+    <RootNamespace>CodexMonitor.Core</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="CodexMonitor" />
+    <InternalsVisibleTo Include="ParserChecks" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,53 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:vm="using:CodexMonitor.UI.ViewModels"
+ x:Class="CodexMonitor.UI.Views.TokensView" x:DataType="vm:DashboardViewModel" x:CompileBindings="True">
+ <Grid RowDefinitions="*,Auto" RowSpacing="12">
+ <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+ <StackPanel Spacing="12">
+  <Border Classes="card" Padding="16,12">
+   <StackPanel Spacing="6">
+    <TextBlock Text="{Binding TokenDate}" Classes="caption"/>
+    <TextBlock Text="{Binding LatestTokens}" FontSize="32" FontWeight="SemiBold"/>
+    <TextBlock Text="Total tokens reported by your account" Foreground="{DynamicResource MutedBrush}" FontSize="12"/>
+   </StackPanel>
+  </Border>
+  <Border Classes="card" Padding="14,12">
+   <Grid ColumnDefinitions="*,*">
+    <StackPanel Spacing="5">
+     <TextBlock Text="Lifetime" Classes="caption"/>
+     <TextBlock Text="{Binding Lifetime}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Lifetime}"/>
+    </StackPanel>
+    <StackPanel Grid.Column="1" Spacing="5" Margin="12,0,0,0">
+     <TextBlock Text="Peak day" Classes="caption"/>
+     <TextBlock Text="{Binding Peak}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Peak}"/>
+    </StackPanel>
+   </Grid>
+  </Border>
+  <TextBlock Text="Daily tokens · recent 7 days" Classes="caption" Margin="0,4,0,0"/>
+  <Border Classes="card" Padding="8,14,8,10" MinHeight="158">
+   <Grid>
+    <TextBlock Text="No daily token history reported yet" IsVisible="{Binding NoTokenDays}" Foreground="{DynamicResource MutedBrush}" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    <ItemsControl ItemsSource="{Binding RecentDays}" IsVisible="{Binding HasTokenDays}">
+     <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+     <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:TokenDayItem">
+      <Border Padding="2,0" ToolTip.Tip="{Binding CountText}" Focusable="True" AutomationProperties.Name="{Binding CountText}">
+       <Grid RowDefinitions="112,Auto" RowSpacing="6">
+        <StackPanel VerticalAlignment="Bottom" Spacing="5">
+         <TextBlock Text="{Binding ShortCount}" FontSize="12" HorizontalAlignment="Center" Foreground="#C6D6E7"/>
+         <Border Background="{DynamicResource AccentBrush}" CornerRadius="4,4,0,0" Width="26" Height="{Binding BarHeight}" HorizontalAlignment="Center"/>
+        </StackPanel>
+        <TextBlock Grid.Row="1" Text="{Binding DateText}" FontSize="12" Foreground="{DynamicResource MutedBrush}" HorizontalAlignment="Center"/>
+       </Grid>
+      </Border>
+     </DataTemplate></ItemsControl.ItemTemplate>
+    </ItemsControl>
+   </Grid>
+  </Border>
+ </StackPanel>
+ </ScrollViewer>
+ <StackPanel Grid.Row="1" Spacing="8">
+  <TextBlock Text="{Binding TokenError}" IsVisible="{Binding HasTokenError}" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" FontSize="12"/>
+  <Button Classes="primary" Content="Refresh token activity" HorizontalAlignment="Left" Margin="0,2,0,0" Command="{Binding RefreshTokensCommand}" IsEnabled="{Binding CanRefreshTokens}"/>
+ </StackPanel>
+ </Grid>
+</UserControl>

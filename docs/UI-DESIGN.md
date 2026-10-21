@@ -1,6 +1,6 @@
 # UI design — Avalonia 11
 
-All current desktop presentation is declared once in `CodexMonitor.UI/`.
+All current desktop presentation is declared once in `src/Desktop/UI/`.
 The same layout runs on Windows, Linux and macOS. Avalonia scales logical
 pixels according to the target platform; views use Grid, StackPanel,
 ItemsControl, ScrollViewer and binding rather than fixed WinForms coordinates.
@@ -25,7 +25,7 @@ An OS switch never requires rewriting these AXAML files. `UsageRing` and
 Avalonia rendering. Missing readings are gaps, never synthetic zeroes.
 
 The AXAML layout has a scroll container for short displays and the Tokens
-tab is hidden if the active plugin does not support it.
+tab is hidden if the active provider does not support it.
 
 ## Interaction
 
@@ -47,9 +47,8 @@ dashboard at startup to avoid an unopenable window on Wayland environments
 with no visible StatusNotifierItem. Window placement is managed by the
 compositor where necessary.
 
-The icons and earlier screenshots under `docs/images/` depict the
-**historical WinForms UI**, not a validated screenshot of this AXAML version.
-The old WinForms screenshot generator was removed. Visual confirmation
-requires real builds on the three target platforms.
+The screenshots under `docs/images/` show this AXAML version with synthetic
+data. The `tools/Preview` renderer can regenerate them. Native visual and
+keyboard checks still require builds on the three target platforms.
 
 No public release should claim UI parity before those checks pass.

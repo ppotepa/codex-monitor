@@ -4,23 +4,42 @@
 
 ![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)
 ![Avalonia 11](https://img.shields.io/badge/UI-Avalonia_11-53CFC0)
-![Codex adapter](https://img.shields.io/badge/plugin-Codex_only-666666)
+![Codex provider](https://img.shields.io/badge/provider-Codex_only-666666)
 
 Codex Monitor shows signed-in Codex CLI usage limits, reset countdowns,
 seven-day token activity and local limit history from the desktop tray.
 
-**Source version 0.5.2, cross-platform UI refactor (unreleased).** The
+**Source version 0.5.3, Windows installer refreshed.** The
 previously published Windows installers use an earlier implementation; do
 not assume a GitHub Release contains these unverified changes.
 
 ## Shared presentation
 
+The compact dashboard uses a custom draggable header, full-width tabs,
+usage ring and seven daily token bars. Both views fit in a 420 × 610 window;
+smaller windows and longer error messages scroll. Escape or the close button
+follows the platform's existing close-to-tray policy.
+
+The shared compact Fluent theme uses a graphite palette, mint accent and
+minimum caption size of 12 Avalonia logical units. Dashboard actions
+stay visible while content scrolls. Settings groups refresh intervals, alerts
+and startup into cards, with a fixed Save/Cancel footer and inline validation.
+Escape or Cancel discards the settings draft. Theme resources live in
+`src/Desktop/UI/Styles/Theme.axaml` and `Palette.axaml`.
+
+![Compact Avalonia limits dashboard with illustrative data](docs/images/avalonia-limits.png)
+![Compact Avalonia token dashboard with illustrative data](docs/images/avalonia-tokens.png)
+![Avalonia settings with grouped controls](docs/images/avalonia-settings.png)
+
+These previews render actual controls with synthetic data. Regenerate them
+with `dotnet run --project tools/Preview/Preview.csproj -c Release`.
+
 The dashboard, Limits/Tokens tabs, settings, agent diagnostics, status text,
 24-hour sparkline, token bars and usage ring are defined **once** in
-`src/CodexMonitor.UI/` using AXAML, Avalonia controls and ViewModels.
+`src/Desktop/UI/` using AXAML, Avalonia controls and ViewModels.
 Windows and Unix no longer have separate form trees.
 
-The host in `src/CodexMonitor.Desktop/` also shares tray menu actions, timers
+The host in `src/Desktop/Host/` also shares tray menu actions, timers
 and notification delivery. Only OS-specific services vary: executable
 discovery, command launching, local data directories, login autostart,
 notifications and close-to-tray behavior.
@@ -59,7 +78,7 @@ validated by builds or smoke runs on each target OS.
 
 ```sh
 dotnet build CodexMonitor.slnx -c Release
-dotnet run --project src/CodexMonitor.Desktop/CodexMonitor.Desktop.csproj
+dotnet run --project src/Desktop/Host/CodexMonitor.Desktop.csproj
 ```
 
 The shared executable is named `CodexMonitor` on Unix and
@@ -81,19 +100,21 @@ dependencies, not just its executable. See [release gate](docs/RELEASE-GATE.md).
 
 ```text
 src/
-├── CodexMonitor.Core/              Models, state, alerts, persistence and contracts
-├── CodexMonitor.Composition/       Shared dependency injection
-├── CodexMonitor.Plugins.Codex/     Codex CLI transports and parsing
-├── CodexMonitor.UI/                Shared AXAML, ViewModels, styles and charts
-├── CodexMonitor.Desktop/           One Avalonia application/tray host
-├── CodexMonitor.Platform.Windows/  Windows executable, registry, notification services
-└── CodexMonitor.Platform.Unix/     Linux/macOS executable, XDG/LaunchAgent services
+├── Core/                         CodexMonitor.Core.csproj, domain and application modules
+├── Infrastructure/               CodexMonitor.Infrastructure.csproj, process and JSON adapters
+├── Providers/Codex/               CodexMonitor.Providers.Codex.csproj, limits and token transports
+├── Platform/
+│   ├── Windows/                   CodexMonitor.Platform.Windows.csproj, Windows adapters
+│   └── Unix/                      CodexMonitor.Platform.Unix.csproj, Linux/macOS adapters
+└── Desktop/
+    ├── UI/                        CodexMonitor.UI.csproj, AXAML and presentation
+    └── Host/                      CodexMonitor.Desktop.csproj, composition root
 ```
 
-`tests/` holds the older parser checks, which are not run by the current
-build-only workflow. The former WinForms screenshot generator was removed
-with the duplicate UI. Images in `docs/images/` illustrate the **older
-Windows UI**, not the new AXAML layout.
+`tests/ParserChecks.csproj` is a standalone legacy check project and is not
+part of the production solution or the build-only workflow. The images in
+`docs/images/` show the current Avalonia layout with synthetic data. Regenerate
+them with `tools/Preview/Preview.csproj`.
 
 ## Data and privacy
 

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>CodexMonitor.Preview</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Core/CodexMonitor.Core.csproj" />
+    <ProjectReference Include="../../src/Desktop/UI/CodexMonitor.UI.csproj" />
+    <PackageReference Include="Avalonia.Headless"/>
+    <PackageReference Include="Avalonia.Skia"/>
+  </ItemGroup>
+</Project>

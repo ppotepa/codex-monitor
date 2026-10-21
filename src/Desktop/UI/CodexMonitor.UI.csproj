@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>CodexMonitor.UI</AssemblyName>
+    <RootNamespace>CodexMonitor.UI</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="CodexMonitor.Preview" />
+    <InternalsVisibleTo Include="CodexMonitor" />
+    <ProjectReference Include="../../Core/CodexMonitor.Core.csproj" />
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+  </ItemGroup>
+</Project>

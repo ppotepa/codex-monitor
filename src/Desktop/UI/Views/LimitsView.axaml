@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:vm="using:CodexMonitor.UI.ViewModels" xmlns:controls="using:CodexMonitor.UI.Controls"
+ x:Class="CodexMonitor.UI.Views.LimitsView" x:DataType="vm:DashboardViewModel" x:CompileBindings="True">
+ <Grid RowDefinitions="*,Auto" RowSpacing="12">
+ <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+ <StackPanel Spacing="12">
+  <Border Classes="card" Padding="12">
+   <Grid ColumnDefinitions="120,*" MinHeight="112">
+    <Grid Width="112" Height="112" HorizontalAlignment="Left">
+     <controls:UsageRing UsedPercent="{Binding UsedPercent}"/>
+     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="3">
+      <TextBlock Text="{Binding UsedText}" FontSize="28" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+      <TextBlock Text="USED" Classes="caption" FontSize="12" HorizontalAlignment="Center"/>
+     </StackPanel>
+    </Grid>
+    <StackPanel Grid.Column="1" Spacing="5" VerticalAlignment="Center" Margin="8,0,0,0">
+     <TextBlock Text="{Binding LimitTitle}" FontSize="15" FontWeight="SemiBold"/>
+     <TextBlock Text="{Binding RemainingText}" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+     <TextBlock Text="{Binding ResetText}" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"/>
+    </StackPanel>
+   </Grid>
+  </Border>
+  <ItemsControl ItemsSource="{Binding OtherLimits}">
+   <ItemsControl.ItemTemplate><DataTemplate x:DataType="vm:LimitWindowItem">
+    <Border Classes="card" Padding="16,12">
+     <StackPanel Spacing="6">
+      <Grid ColumnDefinitions="*,Auto">
+       <TextBlock Text="{Binding Label}" FontSize="14" FontWeight="SemiBold"/>
+       <TextBlock Grid.Column="1" Text="{Binding UsedPercent, StringFormat={}{0:0}% used}" Foreground="{DynamicResource AccentBrush}" FontSize="12"/>
+      </Grid>
+      <ProgressBar Minimum="0" Maximum="100" Value="{Binding UsedPercent}" Height="5"/>
+      <TextBlock Text="{Binding ResetText}" FontSize="12" Foreground="{DynamicResource MutedBrush}"/>
+     </StackPanel>
+    </Border>
+   </DataTemplate></ItemsControl.ItemTemplate>
+  </ItemsControl>
+  <TextBlock Text="Usage history · 24 hours" Classes="caption"/>
+  <Border Classes="card" Padding="10,8">
+   <StackPanel Spacing="2">
+    <TextBlock Text="100%" Classes="caption" FontSize="12"/>
+    <controls:UsageHistoryChart Points="{Binding History}" Height="72"/>
+    <Grid ColumnDefinitions="*,Auto">
+     <TextBlock Text="24h ago" Classes="caption"/><TextBlock Grid.Column="1" Text="Now" Classes="caption"/>
+    </Grid>
+   </StackPanel>
+  </Border>
+ </StackPanel>
+ </ScrollViewer>
+ <StackPanel Grid.Row="1" Spacing="8">
+  <TextBlock Text="{Binding LimitError}" IsVisible="{Binding HasLimitError}" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" FontSize="12"/>
+  <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
+   <Button Classes="primary" Content="Refresh limits" Command="{Binding RefreshLimitsCommand}" IsEnabled="{Binding CanRefreshLimits}"/>
+   <Button Content="{Binding RepairLabel}" Command="{Binding RepairCommand}" IsEnabled="{Binding CanRefreshLimits}" IsVisible="{Binding ShowRepair}"/>
+  </StackPanel>
+ </StackPanel>
+ </Grid>
+</UserControl>

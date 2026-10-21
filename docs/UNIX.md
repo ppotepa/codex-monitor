@@ -1,7 +1,7 @@
 # Linux / macOS desktop
 
 Windows, Linux and macOS now run the **same Avalonia 11 presentation** from
-`src/CodexMonitor.UI`, hosted by `src/CodexMonitor.Desktop`.
+`src/Desktop/UI`, hosted by `src/Desktop/Host`.
 
 The Unix module supplies only platform services: executable lookup,
 process startup, data directory, autostart, notifications and window behavior.
@@ -11,7 +11,7 @@ Linux and macOS differ in autostart and storage, not dashboard layout.
 
 ```sh
 dotnet build CodexMonitor.slnx -c Release
-dotnet run --project src/CodexMonitor.Desktop/CodexMonitor.Desktop.csproj
+dotnet run --project src/Desktop/Host/CodexMonitor.Desktop.csproj
 
 bash scripts/publish-unix.sh linux-x64
 bash scripts/publish-unix.sh linux-arm64

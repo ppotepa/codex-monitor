@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <OutputType Condition="'$(OS)' == 'Windows_NT' Or '$(RuntimeIdentifier)' == 'win-x64' Or '$(RuntimeIdentifier)' == 'win-arm64'">WinExe</OutputType>
+    <AssemblyName>CodexMonitor</AssemblyName>
+    <RootNamespace>CodexMonitor.Desktop</RootNamespace>
+    <Version>0.5.3</Version>
+    <Product>Codex Monitor</Product>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Core/CodexMonitor.Core.csproj" />
+    <ProjectReference Include="../../Infrastructure/CodexMonitor.Infrastructure.csproj" />
+    <ProjectReference Include="../../Platform/Windows/CodexMonitor.Platform.Windows.csproj" />
+    <ProjectReference Include="../../Platform/Unix/CodexMonitor.Platform.Unix.csproj" />
+    <ProjectReference Include="../../Providers/Codex/CodexMonitor.Providers.Codex.csproj" />
+    <ProjectReference Include="../UI/CodexMonitor.UI.csproj" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <EmbeddedResource Include="../../../assets/tray.png" LogicalName="CodexMonitor.Tray.png" />
+    <EmbeddedResource Include="../../../assets/tray.ico" LogicalName="CodexMonitor.Tray.ico" />
+  </ItemGroup>
+</Project>

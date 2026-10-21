@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>CodexMonitor.Infrastructure</AssemblyName>
+    <RootNamespace>CodexMonitor.Infrastructure</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Core/CodexMonitor.Core.csproj" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <InternalsVisibleTo Include="ParserChecks" />
+  </ItemGroup>
+</Project>

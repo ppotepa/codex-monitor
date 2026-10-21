@@ -1,9 +1,9 @@
 <Solution>
-  <Project Path="src/CodexMonitor.Core/CodexMonitor.Core.csproj" />
-  <Project Path="src/CodexMonitor.Plugins.Codex/CodexMonitor.Plugins.Codex.csproj" />
-  <Project Path="src/CodexMonitor.Composition/CodexMonitor.Composition.csproj" />
-  <Project Path="src/CodexMonitor.Platform.Windows/CodexMonitor.Platform.Windows.csproj" />
-  <Project Path="src/CodexMonitor.Platform.Unix/CodexMonitor.Platform.Unix.csproj" />
-  <Project Path="src/CodexMonitor.UI/CodexMonitor.UI.csproj" />
-  <Project Path="src/CodexMonitor.Desktop/CodexMonitor.Desktop.csproj" />
+  <Project Path="src/Core/CodexMonitor.Core.csproj" />
+  <Project Path="src/Infrastructure/CodexMonitor.Infrastructure.csproj" />
+  <Project Path="src/Providers/Codex/CodexMonitor.Providers.Codex.csproj" />
+  <Project Path="src/Platform/Windows/CodexMonitor.Platform.Windows.csproj" />
+  <Project Path="src/Platform/Unix/CodexMonitor.Platform.Unix.csproj" />
+  <Project Path="src/Desktop/UI/CodexMonitor.UI.csproj" />
+  <Project Path="src/Desktop/Host/CodexMonitor.Desktop.csproj" />
 </Solution>

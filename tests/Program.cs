@@ -1,5 +1,7 @@
-using CodexMonitor;
-using CodexMonitor.Plugins.Codex;
+using CodexMonitor.Infrastructure;
+using CodexMonitor.Infrastructure.Persistence;
+using CodexMonitor.Infrastructure.Processes;
+using CodexMonitor.Providers.Codex;
 
 const string actualShape = """
 {
@@ -48,7 +50,7 @@ Assert(!history.Add(weekly, now.AddMinutes(1), "codex"), "Avoid duplicate readin
 Assert(history.Add(weekly, now.AddMinutes(5), "codex"), "Sample after five minutes");
 Assert(history.Recent("weekly", now.AddMinutes(5), "codex").Count == 2, "Two chart samples");
 
-var registry = new PluginCatalog([new CodexPlugin(new NullExecutableLocator(), new NullCommandLaunchStrategy(),
+var registry = new ProviderCatalog([new CodexProvider(new NullExecutableLocator(), new NullCommandLaunchStrategy(),
     new ProcessRunner(new NullCommandLaunchStrategy()))]);
 Assert(registry.All.Count == 1 && registry.All[0].Info.Id == "codex", "Only Codex is registered");
 Assert(registry.Get("CODEX").Info.SupportsTokens, "Codex advertises token support");
@@ -58,7 +60,7 @@ var detectedAgents = new AgentCatalogSnapshot(DateTimeOffset.UtcNow, [
     new DetectedAgent(AgentCatalog.Definitions(registry.All).Single(agent => agent.Id == "codex"), "C:\\tools\\codex.cmd")
 ]);
 var selectedAgent = AgentCatalog.Select(detectedAgents, registry.All, "auto");
-Assert(selectedAgent.Plugin.Info.Id == "codex" && selectedAgent.DetectedAgent?.Definition.Id == "codex",
+Assert(selectedAgent.Provider.Info.Id == "codex" && selectedAgent.DetectedAgent?.Definition.Id == "codex",
     "Select the installed supported agent over an unsupported detected agent");
 var preferredSelection = AgentCatalog.Select(detectedAgents, registry.All, "codex");
 Assert(preferredSelection.Reason == "Preferred agent", "Honor preferred agent selection");
@@ -66,7 +68,7 @@ var unsupportedOnly = new AgentCatalogSnapshot(DateTimeOffset.UtcNow, [
     new DetectedAgent(AgentCatalog.Definitions(registry.All).Single(agent => agent.Id == "claude"), "C:\\tools\\claude.cmd")
 ]);
 var fallbackSelection = AgentCatalog.Select(unsupportedOnly, registry.All, "auto");
-Assert(fallbackSelection.Plugin.Info.Id == "codex" && fallbackSelection.DetectedAgent is null,
+Assert(fallbackSelection.Provider.Info.Id == "codex" && fallbackSelection.DetectedAgent is null,
     "Keep Codex repair adapter when only unsupported agents are installed");
 var defaultSettings = new MonitorSettings();
 Assert(defaultSettings.LimitsRefreshMinutes == 5 && defaultSettings.TokenRefreshMinutes == 30,
@@ -100,7 +102,7 @@ var cached = reloadedDatabase.ReadTokenUsage("CODEX");
 Assert(cached?.Snapshot.LifetimeTokens == 12345 && cached.CachedAt == now, "Persist and reload token cache");
 File.Delete(databasePath);
 
-Console.WriteLine("Parser and plugin checks passed.");
+Console.WriteLine("Parser and provider checks passed.");
 
 static void Assert(bool condition, string message)
 {

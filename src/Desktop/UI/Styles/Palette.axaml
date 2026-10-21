@@ -1,0 +1,121 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Styles.Resources>
+    <SolidColorBrush x:Key="WindowBrush">#15191F</SolidColorBrush>
+    <SolidColorBrush x:Key="SurfaceBrush">#20262E</SolidColorBrush>
+    <SolidColorBrush x:Key="RaisedBrush">#2C3540</SolidColorBrush>
+    <SolidColorBrush x:Key="OutlineBrush">#39434F</SolidColorBrush>
+    <SolidColorBrush x:Key="TextBrush">#F1F4F8</SolidColorBrush>
+    <SolidColorBrush x:Key="MutedBrush">#B0BCCB</SolidColorBrush>
+    <SolidColorBrush x:Key="AccentBrush">#63D9C6</SolidColorBrush>
+    <SolidColorBrush x:Key="SelectedBrush">#29453F</SolidColorBrush>
+    <SolidColorBrush x:Key="ErrorBrush">#FFABAB</SolidColorBrush>
+    <Thickness x:Key="PagePadding">16</Thickness>
+    <CornerRadius x:Key="CardRadius">8</CornerRadius>
+    <x:Double x:Key="BodySize">14</x:Double>
+    <x:Double x:Key="CaptionSize">12</x:Double>
+  </Styles.Resources>
+  <Style Selector="Window">
+    <Setter Property="RequestedThemeVariant" Value="Dark"/>
+    <Setter Property="Background" Value="{DynamicResource WindowBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+    <Setter Property="FontSize" Value="{StaticResource BodySize}"/>
+    <Setter Property="FontFamily" Value="Segoe UI, Inter, Noto Sans, sans-serif"/>
+    <Setter Property="UseLayoutRounding" Value="True"/>
+  </Style>
+  <Style Selector="Border.card">
+    <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+    <Setter Property="CornerRadius" Value="{StaticResource CardRadius}"/>
+  </Style>
+  <Style Selector="TextBlock.caption">
+    <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+    <Setter Property="FontSize" Value="{StaticResource CaptionSize}"/>
+  </Style>
+  <Style Selector="TextBlock.section">
+    <Setter Property="FontSize" Value="16"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <Style Selector="Button">
+    <Setter Property="Background" Value="{DynamicResource RaisedBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+    <Setter Property="Padding" Value="12,6"/>
+    <Setter Property="CornerRadius" Value="6"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="MinHeight" Value="34"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <Style Selector="Button.primary">
+    <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="Foreground" Value="#102B26"/>
+  </Style>
+  <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="#3C4B59"/>
+    <Setter Property="Foreground" Value="White"/>
+  </Style>
+  <Style Selector="Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="#233D38"/>
+    <Setter Property="Foreground" Value="White"/>
+  </Style>
+  <Style Selector="Button:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="BorderThickness" Value="2"/>
+  </Style>
+  <Style Selector="Button.icon">
+    <Setter Property="Width" Value="32"/>
+    <Setter Property="MinHeight" Value="32"/>
+    <Setter Property="Padding" Value="8"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+  </Style>
+  <Style Selector="TextBox, ComboBox">
+    <Setter Property="MinHeight" Value="34"/>
+    <Setter Property="CornerRadius" Value="6"/>
+  </Style>
+  <Style Selector="TabControl.dashboard">
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Grid RowDefinitions="Auto,*" RowSpacing="12">
+          <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="4">
+            <ItemsPresenter Name="PART_ItemsPresenter" ItemsPanel="{TemplateBinding ItemsPanel}"/>
+          </Border>
+          <ContentPresenter Grid.Row="1" Name="PART_SelectedContentHost" Content="{TemplateBinding SelectedContent}"
+            ContentTemplate="{TemplateBinding SelectedContentTemplate}" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+        </Grid>
+      </ControlTemplate>
+    </Setter>
+    <Setter Property="ItemsPanel"><ItemsPanelTemplate><UniformGrid Rows="1"/></ItemsPanelTemplate></Setter>
+  </Style>
+  <Style Selector="TabControl.dashboard TabItem">
+    <Setter Property="MinHeight" Value="34"/>
+    <Setter Property="Padding" Value="8,6"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderBrush" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+          BorderThickness="1" CornerRadius="5" Padding="{TemplateBinding Padding}">
+          <ContentPresenter Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}"
+            Foreground="{TemplateBinding Foreground}" FontSize="14" FontWeight="SemiBold"
+            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="TabControl.dashboard TabItem:pointerover">
+    <Setter Property="Background" Value="{DynamicResource RaisedBrush}"/>
+  </Style>
+  <Style Selector="TabControl.dashboard TabItem:selected">
+    <Setter Property="Background" Value="{DynamicResource SelectedBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+  </Style>
+  <Style Selector="TabControl.dashboard TabItem:focus-visible">
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+  </Style>
+  <Style Selector="TabControl.dashboard TabItem:disabled">
+    <Setter Property="Opacity" Value="0.45"/>
+  </Style>
+  <Style Selector="ProgressBar">
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource OutlineBrush}"/>
+  </Style>
+</Styles>

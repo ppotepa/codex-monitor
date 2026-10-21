@@ -1,7 +1,7 @@
 # Release gate — unified Avalonia source
 
 This branch refactors the **source**, not the GitHub Release assets. The
-source version is 0.5.2; a published tag or installer version must be
+source version is 0.5.3; a published tag or installer version must be
 verified separately.
 
 Before releasing:

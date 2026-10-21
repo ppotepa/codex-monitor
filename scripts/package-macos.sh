@@ -21,7 +21,7 @@ fi
 output="$root/build/$rid"
 bundle="$root/dist/$rid/Codex Monitor.app"
 mkdir -p "$output"
-dotnet publish "$root/src/CodexMonitor.Desktop/CodexMonitor.Desktop.csproj" \
+dotnet publish "$root/src/Desktop/Host/CodexMonitor.Desktop.csproj" \
   --configuration Release --runtime "$rid" --self-contained true \
   -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
   --output "$output"

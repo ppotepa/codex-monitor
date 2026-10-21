@@ -26,16 +26,21 @@
   failure recovery, not migration.
 - CLI installation/repair is explicit; provider fallbacks are for runtime
   failures, not application-version compatibility.
-- Plugin-switch refresh, short error backoff and per-store persistence errors
+- Provider-switch refresh, short error backoff and per-store persistence errors
   remain provider-neutral.
 
 ## Scope and release
 
-Seven source projects: `Core`, `Composition`, `Plugins.Codex`, `UI`,
-`Desktop`, `Platform.Windows` and `Platform.Unix`. The original native
-WinForms host and old Unix code-only host are removed, as is the WinForms
-screenshot tool. Prior screenshots and release notes remain historical.
+The production solution contains seven projects: Core, Infrastructure,
+Providers.Codex, Platform.Windows, Platform.Unix, Desktop.UI and Desktop.Host.
+Core is divided into Agents, Usage, Notifications/Alerts, Settings and
+Application modules. Infrastructure owns process execution and local JSON
+persistence. Desktop.Host is the composition root; platform projects register
+their own internal implementations through explicit service extensions.
+
+There is one Avalonia UI for all target systems. The old WinForms host and
+code-only Unix host are historical only; screenshots and release notes from
+those versions stay as historical documentation.
 
 Automated tests are deferred. Only a real three-OS compilation followed by
 platform smoke checks and packaging validation can clear the next release.
-The current refactor stays on a feature branch until those checks pass.

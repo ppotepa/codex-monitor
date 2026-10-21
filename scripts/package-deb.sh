@@ -17,7 +17,7 @@ esac
 command -v dotnet >/dev/null || { echo ".NET 10 SDK is required" >&2; exit 1; }
 command -v dpkg-deb >/dev/null || { echo "Install dpkg-deb to build a Debian package" >&2; exit 1; }
 
-version=0.5.2
+version=0.5.3
 staging="$(mktemp -d)"
 trap 'rm -rf "$staging"' EXIT
 appdir="$staging/usr/lib/codex-monitor"
@@ -25,7 +25,7 @@ mkdir -p "$appdir" "$staging/usr/bin" "$staging/usr/share/applications" \
   "$staging/usr/share/icons/hicolor/32x32/apps" "$staging/DEBIAN"
 
 rm -rf "$root/build/linux-$arch"
-dotnet publish "$root/src/CodexMonitor.Desktop/CodexMonitor.Desktop.csproj" \
+dotnet publish "$root/src/Desktop/Host/CodexMonitor.Desktop.csproj" \
   --configuration Release --runtime "$rid" --self-contained true \
   -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
   --output "$root/build/linux-$arch"
