@@ -2,5 +2,7 @@
   <Project Path="src/CodexMonitor.Core/CodexMonitor.Core.csproj" />
   <Project Path="src/CodexMonitor.Plugins.Codex/CodexMonitor.Plugins.Codex.csproj" />
   <Project Path="src/CodexMonitor.Platform.Unix/CodexMonitor.Platform.Unix.csproj" />
+  <Project Path="src/CodexMonitor.Composition/CodexMonitor.Composition.csproj" />
+  <Project Path="src/CodexMonitor.Desktop.Unix/CodexMonitor.Desktop.Unix.csproj" />
   <Project Path="src/CodexMonitor.Desktop.Windows/CodexMonitor.Desktop.Windows.csproj" />
 </Solution>

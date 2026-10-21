@@ -29,26 +29,34 @@ and different AI providers are the actual sources of variation.
 
 ## Implemented in this migration
 
-1. Four source projects: Core, Codex plugin, Windows desktop host and Unix OS services.
-2. OS-independent `DashboardState` and `IDashboardView` contract; WinForms stays behind the Windows host.
-3. `UsagePopup` reduced by extracting `LimitsDashboardView` and `TokensDashboardView`.
-   `MonitorTrayMenu` owns menu commands; `MonitorContext` owns only the host lifetime and event wiring.
-4. `UsageAlertService` owns alert states separately from refresh and error transitions.
-5. Plugin identity and executable metadata from `[UsagePlugin]`; optional capabilities from interfaces.
-6. Explicit singleton registrations for settings, database, history and coordinator via Microsoft DI.
-7. OS seams for paths, process launching, executable lookup and autostart; Linux/macOS share Unix process rules but have separate startup and app data paths.
-8. Shared usage formatting in `Core/Presentation`; settings now save atomically.
-9. Build-only GitHub workflow, switched to manual trigger because hosted runners fail before job allocation.
+1. Six source projects: Core, Codex plugin, shared DI composition, WinForms
+   desktop, Unix platform services, and experimental Avalonia Unix desktop.
+2. Shared `DashboardState` / `IDashboardView` contract; all application
+   state and plugin transports stay outside concrete desktop frameworks.
+3. WinForms popup split into Limits/Tokens views, with a separate tray menu.
+4. Avalonia Linux/macOS app with one shared dashboard, tray, settings and
+   agent diagnostics; no OS-specific conditionals in application services.
+5. Shared `UsageAlertService`, `UsageDisplayText`, `IProcessRunner`,
+   explicit plugin capabilities and metadata, atomic settings writes.
+6. Single DI registrations for coordinator, database/history, settings,
+   discovery and Codex via `CodexMonitor.Composition`. Each host supplies
+   only its platform services and views.
+7. GitHub build workflow remains manually triggered: hosted jobs have failed
+   before runner allocation; no compiler output is available.
 
 ## Remaining work
 
-1. Implement the actual Linux/macOS dashboard and tray host, likely with a shared Avalonia presentation and OS-specific tray lifecycle. This is the largest incomplete item.
-2. Verify that all Windows projects compile, that existing tray/settings behavior is unchanged,
-   and that published binaries and Inno Setup install correctly.
-3. Compile and package Linux and macOS hosts on actual target environments.
-4. Improve the Codex app-server/protocol handling and address reset timestamp drift if needed.
-5. Before adding a second active plugin, scope alert states and historical limits to the plugin ID.
-6. No automated behavioral tests are added in this phase.
+1. **Verify a real compile of the full solution and published binaries.** This
+   is not completed because .NET SDK is unavailable in the working environment.
+2. Check Windows WinForms behavior after the refactor, especially tray menus,
+   settings persistence, installer and app-server process handling.
+3. Check Avalonia Linux (X11/Wayland) and macOS menu bar/tray operation on
+   real target desktops, including fallbacks without AppIndicator.
+4. Make Unix native installers/packages and OS-specific notifications. The
+   Unix dashboard currently uses a compact text-based usage representation
+   rather than the richer Windows charts.
+5. Add provider-namespaced alert state/history when a second plugin exists.
+6. Automated behavioral tests remain deliberately deferred.
 
 ## Merge policy
 

@@ -1,13 +1,14 @@
 # Codex Monitor
 
-**Your Codex limits and token activity, one click from the Windows clock.**
+**Your Codex limits and token activity, from the desktop tray.**
 
 ![Windows x64](https://img.shields.io/badge/platform-Windows_x64-0078D4)
+![Unix preview](https://img.shields.io/badge/Linux%2FmacOS-Avalonia_preview-666666)
 ![Codex plugin](https://img.shields.io/badge/plugin-Codex_only-53CFC0)
 ![Native WinForms](https://img.shields.io/badge/UI-native_WinForms-512BD4)
 ![.NET 10](https://img.shields.io/badge/runtime-.NET_10-512BD4)
 
-A small native tray app with a readable usage ring, reset countdowns and daily token totals. **Codex is the only supported plugin. Windows is the only supported operating system.**
+A small tray app with reset countdowns and daily token totals. **Codex is the only supported plugin. Windows is the only released operating system; Linux and macOS have an unverified source-build preview.**
 
 ![Codex Monitor: Limits and Tokens views with illustrative data](docs/images/overview.png)
 
@@ -46,12 +47,13 @@ Installation and data refresh need network access through these dependencies. Co
 | Windows 10/11 x64 | Supported |
 | Codex plugin | Built in; limits, token activity, dependency repair |
 | Other providers | Not implemented |
-| macOS / Linux / Windows ARM64 package | Not supported (Unix executable locator prepared) |
+| Linux and macOS | Experimental Avalonia host available in source; not released or verified |
+| Windows ARM64 package | Not supported |
 | External plugin installation | Not implemented; plugins are compiled into the app |
 
 Detection is intentionally broader than support. The catalog can find a known executable without reading or launching it. Selection first honors a saved preferred supported agent, then chooses the first installed supported adapter. If none is installed, the Codex adapter remains selected so its repair flow can install the missing dependency. An installed agent without an adapter is displayed as detected but is never used as a data source.
 
-The core and plugin now compile as OS-neutral .NET libraries. Windows remains the only complete UI host; Linux/macOS need a tray/UI host and packaging before they become supported.
+The core and plugin are designed as OS-neutral .NET libraries. Linux/macOS now share an experimental Avalonia dashboard and tray host; validation, native notifications and packaging remain before support can be announced.
 
 ## Project layout
 
@@ -60,10 +62,12 @@ The solution is divided into small buildable projects under `src/`:
 - `src/CodexMonitor.Core/` — shared snapshots, immutable dashboard state, alert/refresh services, presentation text, agent catalog, persistence and platform contracts. No Windows Forms dependency.
 - `src/CodexMonitor.Plugins.Codex/` — Codex CLI and app-server implementation; receives OS services through interfaces.
 - `src/CodexMonitor.Desktop.Windows/` — the native WinForms host. The injected dashboard view has separate Limits and Tokens components; tray menu state and OS integrations are isolated.
-- `src/CodexMonitor.Platform.Unix/` — executable lookup shared by future Linux and macOS desktop hosts (not a complete UI).
+- `src/CodexMonitor.Platform.Unix/` — Unix executable lookup and process running, with separate XDG/LaunchAgent integrations.
+- `src/CodexMonitor.Desktop.Unix/` — experimental code-only Avalonia application shared by Linux and macOS.
+- `src/CodexMonitor.Composition/` — common DI registration of the plugin, coordinator, settings and persistence shared by Windows and Unix.
 
 Provider metadata is declared with `[UsagePlugin]` on its implementation. Additional abilities are declared by `ITokenUsagePlugin` and `IRepairableUsagePlugin`, rather than magic booleans.
-The Windows host uses `Microsoft.Extensions.DependencyInjection` to assemble the coordinator, plugin and OS services.
+Both desktop hosts use `Microsoft.Extensions.DependencyInjection` with a shared composition module and separate OS-specific registrations.
 `tests/` and `tools/` remain separate development tools.
 
 ## Build and verify
@@ -87,10 +91,31 @@ The screenshot tool uses actual WinForms views and synthetic snapshots. It creat
 
 GitHub Actions has an optional manual three-OS compile workflow. GitHub-hosted jobs currently fail before any build step starts (no runner allocated), so no automated build result is available. The source migration requires local Windows compilation and a UI smoke check before fast-forwarding to `main`.
 
+### Experimental Linux/macOS desktop
+
+A shared Avalonia 11 window is available for developers. It has a working
+application lifecycle in source, a Limits/Tokens view, a native tray menu,
+settings, agent diagnostics and startup integration. It is intentionally
+**not a release claim**: this source has not been compiled or exercised on
+target machines, and Linux tray visibility depends on the desktop environment.
+Unix has a simpler text-based history/tokens view than Windows.
+
+```sh
+# Run on Linux or macOS with the .NET 10 SDK
+dotnet run --project src/CodexMonitor.Desktop.Unix/CodexMonitor.Desktop.Unix.csproj
+
+# Publish for the current target architecture
+bash scripts/publish-unix.sh linux-x64
+# Other accepted RIDs: linux-arm64, osx-x64, osx-arm64
+```
+
+Read [Linux/macOS preview notes](docs/UNIX.md) for installation prerequisites,
+platform differences and known limitations. No .app/.deb/.rpm packages exist yet.
+
 ## Data and privacy
 
 The default refresh policy is deliberately gentle: limits every five minutes, token activity every 30 minutes while the Tokens view is open, and agent detection every 30 minutes. These intervals are configurable in **Settings...**. You can choose a faster limits cadence for active monitoring, keep token reads manual to reduce CLI wake-ups, or scan agents only at startup. A failed request retains the last successful values and displays an error; missing data is never shown as zero.
 
-Preferences and alert state live in `%LOCALAPPDATA%\CodexMonitor\settings.json`. The local micro-store at `monitor.db.json` keeps limit samples and the last token snapshot in one atomic file. A cached token snapshot is shown immediately after startup and is reused until the configured token refresh interval expires; **Refresh token activity** bypasses that TTL. Existing `history.json` files are migrated automatically. Samples older than seven days are removed. The chart shows the last 24 hours with gaps when observations are missing. Codex Monitor does not persist credentials, prompts or conversations. The external CLIs manage their own authentication and caches.
+On Windows, preferences and alert state live in `%LOCALAPPDATA%\CodexMonitor\settings.json`; on Linux and macOS the experimental host uses XDG data directories and Application Support respectively. The local micro-store at `monitor.db.json` keeps limit samples and the last token snapshot in one atomic file. A cached token snapshot is shown immediately after startup and is reused until the configured token refresh interval expires; **Refresh token activity** bypasses that TTL. Existing `history.json` files are migrated automatically. Samples older than seven days are removed. The chart shows the last 24 hours with gaps when observations are missing. Codex Monitor does not persist credentials, prompts or conversations. The external CLIs manage their own authentication and caches.
 
 See [architecture](docs/ARCHITECTURE.md) for the plugin boundary and [UI design](docs/UI-DESIGN.md) for layout and state behavior. Repository topics are declared in [.github/repository.json](.github/repository.json); applying them to GitHub is a separate publishing step.

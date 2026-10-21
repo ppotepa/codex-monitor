@@ -6,8 +6,10 @@
 | --- | --- |
 | `src/CodexMonitor.Core/` | OS-neutral models, settings, history, alert policy, application coordinator, platform and desktop contracts |
 | `src/CodexMonitor.Plugins.Codex/` | Codex CLI/app-server integration, parsing and dependency repair, with injected executable lookup |
-| `src/CodexMonitor.Desktop.Windows/` | WinForms tray and dialogs, Windows executable locator, Windows startup integration and Microsoft DI composition root |
-| `src/CodexMonitor.Platform.Unix/` | Reusable Linux/macOS PATH and executable discovery; no finished Unix graphical host yet |
+| `src/CodexMonitor.Desktop.Windows/` | Native WinForms tray, settings, dashboard, Windows autostart and executable discovery |
+| `src/CodexMonitor.Composition/` | Common DI registrations for plugin, coordinator, history, settings and persistence |
+| `src/CodexMonitor.Platform.Unix/` | Linux/macOS executable lookup and command launch, separate storage paths and login startup |
+| `src/CodexMonitor.Desktop.Unix/` | Experimental Avalonia 11 tray, dashboard, settings, diagnostics and desktop lifecycle |
 
 All source projects are under `src/`. Top-level development folders stay lowercase:
 `docs/`, `packaging/`, `scripts/`, `tests/` and `tools/`.
@@ -16,14 +18,17 @@ All source projects are under `src/`. Top-level development folders stay lowerca
 
 ```mermaid
 flowchart TB
-    Windows[Windows desktop host / DI] --> Core[Core and application services]
-    Windows --> Codex[Codex plugin]
+    Windows[Windows WinForms desktop] --> Composition[Shared DI composition]
+    UnixApp[Unix Avalonia desktop] --> Composition
+    UnixApp --> UnixOs[Unix OS integrations]
+    Windows --> WindowsOs[Windows OS integrations]
+    Composition --> Core[Core models, services and contracts]
+    Composition --> Codex[Codex plugin]
     Codex --> Core
-    Unix[Unix platform services] --> Core
-    Host[Future Linux or macOS desktop host] --> Unix
-    Host --> Codex
-    Host --> Core
+    UnixOs --> Core
+    WindowsOs --> Core
 ```
+
 
 The application raises `UsageAlertSeverity`, not WinForms `ToolTipIcon`.
 The `UsageCoordinator` exposes an immutable `DashboardState`; host-specific
@@ -42,9 +47,10 @@ from provider parsing.
 form small platform boundaries. The Windows host owns the WinForms `ApplicationContext`;
 it is not exposed as a shared abstraction.
 
-The composition root provides exactly one `MonitorSettings`, `MonitorDatabase`,
-`UsageHistory`, `UsageCoordinator` and cancellation source. The host merely
-connects user actions to the coordinator and translates notifications.
+The composition module provides exactly one `MonitorSettings`, `MonitorDatabase`,
+`UsageHistory`, `UsageCoordinator` and cancellation source in both desktop
+hosts. Windows and Unix register their own `IAppPaths`, `IStartupService`,
+`ICommandLaunchStrategy`, `IExecutableLocator` and UI services.
 
 ## Plugin contract
 
@@ -67,9 +73,10 @@ monitoring functionality.
   controls, refresh cadence or persisted formats.
 - Persisted files (`settings.json`, `monitor.db.json` and legacy
   `history.json`) retain their schema and Windows locations.
-- Linux and macOS are **not yet supported as running desktop applications**.
-  They need a shared cross-platform UI (e.g. Avalonia) with platform-specific
-  tray integration, startup implementations, packaging and validation.
+- Linux/macOS now have an **experimental**, shared Avalonia desktop host with
+  a real window and tray menu. It has not been compiled or validated on target
+  systems and must not yet be presented as supported. Native notifications,
+  packaging and feature parity with Windows charts are unfinished.
   Wayland/X11 and macOS menu bar behavior can differ even if the popup UI is shared.
 - Before enabling a second provider, scope persisted history and alert states
   by plugin ID and provide selection in the UI.

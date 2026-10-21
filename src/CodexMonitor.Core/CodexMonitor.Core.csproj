@@ -9,6 +9,8 @@
   <ItemGroup>
     <InternalsVisibleTo Include="CodexMonitor.Plugins.Codex" />
     <InternalsVisibleTo Include="CodexMonitor.Desktop.Windows" />
+    <InternalsVisibleTo Include="CodexMonitor.Desktop.Unix" />
+    <InternalsVisibleTo Include="CodexMonitor.Composition" />
     <InternalsVisibleTo Include="CodexMonitor.Platform.Unix" />
     <InternalsVisibleTo Include="ParserChecks" />
     <InternalsVisibleTo Include="CodexMonitor.Screenshots" />

@@ -1,5 +1,5 @@
 using CodexMonitor.Infrastructure.Windows;
-using CodexMonitor.Plugins.Codex;
+using CodexMonitor.Composition;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CodexMonitor;
@@ -19,29 +19,9 @@ internal static class Program
         services.AddSingleton<ICommandLaunchStrategy, WindowsCommandLaunchStrategy>();
         services.AddSingleton<IProcessRunner, ProcessRunner>();
         services.AddSingleton<IAppPaths, WindowsAppPaths>();
-        services.AddSingleton<IUsagePlugin, CodexPlugin>();
-        services.AddSingleton<IPluginCatalog>(sp => new PluginCatalog(sp.GetServices<IUsagePlugin>()));
-        services.AddSingleton<IAgentDiscovery, AgentDiscovery>();
         services.AddSingleton<IStartupService, WindowsStartupService>();
-        services.AddSingleton(sp => MonitorSettings.Load(Path.Combine(
-            sp.GetRequiredService<IAppPaths>().DataDirectory, "settings.json")));
-        services.AddSingleton(sp => MonitorDatabase.Load(Path.Combine(
-            sp.GetRequiredService<IAppPaths>().DataDirectory, "monitor.db.json")));
-        services.AddSingleton(sp => UsageHistory.Load(sp.GetRequiredService<MonitorDatabase>()));
-        services.AddSingleton<CancellationTokenSource>();
-        services.AddSingleton<UsageAlertService>();
-        services.AddSingleton(sp => sp.GetRequiredService<IAgentDiscovery>().Scan());
-        services.AddSingleton(sp => AgentCatalog.Select(
-            sp.GetRequiredService<AgentCatalogSnapshot>(),
-            sp.GetRequiredService<IPluginCatalog>().All,
-            sp.GetRequiredService<MonitorSettings>().PreferredAgentId));
-        services.AddSingleton(sp => new UsageCoordinator(
-            sp.GetRequiredService<AgentSelection>().Plugin,
-            sp.GetRequiredService<MonitorSettings>(),
-            sp.GetRequiredService<UsageHistory>(),
-            sp.GetRequiredService<MonitorDatabase>(),
-            sp.GetRequiredService<CancellationTokenSource>().Token,
-            sp.GetRequiredService<UsageAlertService>()));
+        services.AddCodexMonitor();
+
         services.AddSingleton<IDashboardView>(sp => new UsagePopup(
             sp.GetRequiredService<AgentSelection>().Plugin.Info));
         services.AddSingleton<MonitorContext>();
@@ -50,3 +30,4 @@ internal static class Program
         using var provider = services.BuildServiceProvider();
         provider.GetRequiredService<IDesktopHost>().Run();
     }
+}
