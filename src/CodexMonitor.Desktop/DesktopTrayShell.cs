@@ -9,6 +9,9 @@ internal sealed class DesktopTrayShell(
 {
     private PluginInfo _plugin = coordinator.PluginInfo;
     private TrayIcon? _icon;
+    private double? _lastIconPercent;
+    private bool _lastIconError;
+    private bool _hasRenderedIcon;
     private readonly NativeMenu _windowMenu = new();
     private readonly NativeMenuItem _refreshTokensItem = new("Refresh tokens");
     private readonly NativeMenuItem _alertsItem = new();
@@ -122,6 +125,24 @@ internal sealed class DesktopTrayShell(
         var tooltip = selected is null ? $"{_plugin.DisplayName}: no data"
             : $"{_plugin.DisplayName}: {selected.UsedPercent:0}% used · {UsageDisplayText.WindowName(selected.Name)}";
         _icon.ToolTipText = tooltip.Length > 110 ? tooltip[..110] : tooltip;
+        var percent = selected?.UsedPercent;
+        var hasError = state.LimitError is not null;
+        if (!_hasRenderedIcon || percent != _lastIconPercent || hasError != _lastIconError)
+        {
+            try
+            {
+                _icon.Icon = TrayIconRenderer.Create(percent, hasError);
+                _lastIconPercent = percent;
+                _lastIconError = hasError;
+                _hasRenderedIcon = true;
+            }
+            catch (Exception ex)
+            {
+                // Keep the built-in static icon if rendering fails on a target OS.
+                ErrorOccurred?.Invoke($"Could not render usage tray icon: {ex.Message}");
+                _hasRenderedIcon = true;
+            }
+        }
         _refreshTokensItem.IsVisible = _plugin.SupportsTokens;
         _repairItem.IsVisible = _plugin.CanRepair && state.DependencyProblem != DependencyProblem.None;
         _repairItem.Header = state.DependencyProblem == DependencyProblem.Broken
