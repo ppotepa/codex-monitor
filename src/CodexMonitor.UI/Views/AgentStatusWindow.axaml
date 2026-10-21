@@ -1,0 +1,34 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CodexMonitor.UI.ViewModels"
+        x:Class="CodexMonitor.UI.Views.AgentStatusWindow"
+        x:DataType="vm:AgentStatusViewModel"
+        x:CompileBindings="True"
+        Title="AI agents"
+        Width="435" Height="480" MinWidth="320"
+        WindowStartupLocation="CenterOwner"
+        Background="#161B23">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="16" RowSpacing="12">
+    <TextBlock Grid.Row="0" Text="DETECTED AGENTS" FontSize="16"
+               FontWeight="Bold" />
+    <ScrollViewer Grid.Row="1">
+      <ItemsControl ItemsSource="{Binding Agents}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:AgentStatusItem">
+            <Border Background="#202732" CornerRadius="8"
+                    Padding="10" Margin="0,0,0,8">
+              <StackPanel Spacing="4">
+                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding State}" FontSize="11" Foreground="#53CFC0" />
+                <TextBlock Text="{Binding Source}" FontSize="11"
+                           TextWrapping="Wrap" Foreground="#9CA9BA" />
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+    <Button Grid.Row="2" Content="Close" HorizontalAlignment="Right"
+            Command="{Binding CloseCommand}" />
+  </Grid>
+</Window>

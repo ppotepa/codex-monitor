@@ -1,0 +1,39 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CodexMonitor.UI.ViewModels"
+        x:Class="CodexMonitor.UI.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        x:CompileBindings="True"
+        Title="Codex Monitor settings"
+        Width="385" Height="550" MinWidth="320"
+        CanResize="False" WindowStartupLocation="CenterOwner"
+        Background="#161B23">
+  <ScrollViewer>
+    <StackPanel Margin="20" Spacing="8">
+      <TextBlock Text="SETTINGS" FontSize="17" FontWeight="Bold" />
+      <CheckBox Content="Usage alerts" IsChecked="{Binding AlertsEnabled, Mode=TwoWay}" />
+      <TextBlock Text="Warning threshold (%)" />
+      <TextBox Text="{Binding WarningText, Mode=TwoWay}" />
+      <TextBlock Text="Critical threshold (%)" />
+      <TextBox Text="{Binding CriticalText, Mode=TwoWay}" />
+      <TextBlock Text="Limits refresh (minutes)" />
+      <ComboBox ItemsSource="{Binding LimitIntervals}"
+                SelectedItem="{Binding LimitsInterval, Mode=TwoWay}" />
+      <TextBlock Text="Token refresh (minutes)" />
+      <ComboBox ItemsSource="{Binding TokenIntervals}"
+                SelectedItem="{Binding TokensInterval, Mode=TwoWay}" />
+      <TextBlock Text="Agent scan (0 = disabled)" />
+      <ComboBox ItemsSource="{Binding AgentIntervals}"
+                SelectedItem="{Binding AgentsInterval, Mode=TwoWay}" />
+      <CheckBox Content="Auto-refresh tokens while viewing"
+                IsChecked="{Binding AutoRefreshTokens, Mode=TwoWay}" />
+      <CheckBox Content="{Binding StartupLabel}"
+                IsChecked="{Binding StartAtLogin, Mode=TwoWay}"
+                IsEnabled="{Binding CanConfigureStartup}" />
+      <TextBlock Text="{Binding ErrorText}" IsVisible="{Binding HasError}"
+                 TextWrapping="Wrap" Foreground="#F58B8B" FontSize="11" />
+      <Button Content="Save" HorizontalAlignment="Right" MinWidth="100"
+              Command="{Binding SaveCommand}" />
+    </StackPanel>
+  </ScrollViewer>
+</Window>

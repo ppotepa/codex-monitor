@@ -1,0 +1,20 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Style Selector="Window">
+    <Setter Property="Foreground" Value="#F3F6FB" />
+    <Setter Property="FontFamily" Value="Segoe UI, Inter, Noto Sans, sans-serif" />
+  </Style>
+  <Style Selector="Button">
+    <Setter Property="Background" Value="#283544" />
+    <Setter Property="Foreground" Value="#F5F7FB" />
+    <Setter Property="Padding" Value="12,8" />
+    <Setter Property="MinHeight" Value="32" />
+  </Style>
+  <Style Selector="ProgressBar">
+    <Setter Property="Foreground" Value="#53CFC0" />
+    <Setter Property="Background" Value="#394658" />
+  </Style>
+  <Style Selector="TextBlock">
+    <Setter Property="Foreground" Value="#F5F7FB" />
+  </Style>
+</Styles>

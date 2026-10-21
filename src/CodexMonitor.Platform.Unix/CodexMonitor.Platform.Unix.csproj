@@ -8,6 +8,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../CodexMonitor.Core/CodexMonitor.Core.csproj" />
-    <InternalsVisibleTo Include="CodexMonitor.Desktop.Unix" />
+    <InternalsVisibleTo Include="CodexMonitor" />
   </ItemGroup>
 </Project>

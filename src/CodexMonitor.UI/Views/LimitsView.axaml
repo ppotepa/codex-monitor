@@ -1,0 +1,56 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CodexMonitor.UI.ViewModels"
+             xmlns:controls="using:CodexMonitor.UI.Controls"
+             x:Class="CodexMonitor.UI.Views.LimitsView"
+             x:DataType="vm:DashboardViewModel"
+             x:CompileBindings="True">
+  <StackPanel Spacing="12" Margin="0,12,0,0">
+    <Border Background="#202732" CornerRadius="12" Padding="12">
+      <Grid ColumnDefinitions="132,*">
+        <Grid Grid.Column="0" Width="122" Height="122">
+          <controls:UsageRing UsedPercent="{Binding UsedPercent}" />
+          <TextBlock Text="{Binding UsedText}" FontSize="21"
+                     FontWeight="Bold" HorizontalAlignment="Center"
+                     VerticalAlignment="Center" />
+        </Grid>
+        <StackPanel Grid.Column="1" Spacing="8"
+                    VerticalAlignment="Center" Margin="12,0,0,0">
+          <TextBlock Text="{Binding LimitTitle}" FontSize="14"
+                     FontWeight="Bold" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding RemainingText}" FontSize="26"
+                     FontWeight="Bold" Foreground="#53CFC0" />
+          <TextBlock Text="{Binding ResetText}" FontSize="11"
+                     TextWrapping="Wrap" Foreground="#9CA9BA" />
+        </StackPanel>
+      </Grid>
+    </Border>
+    <ItemsControl ItemsSource="{Binding OtherLimits}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="vm:LimitWindowItem">
+          <Border Background="#202732" CornerRadius="9"
+                  Padding="12" Margin="0,0,0,8">
+            <StackPanel Spacing="5">
+              <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+              <ProgressBar Minimum="0" Maximum="100"
+                           Value="{Binding UsedPercent}" Height="9" />
+              <TextBlock Text="{Binding ResetText}" FontSize="11"
+                         Foreground="#9CA9BA" />
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    <TextBlock Text="USAGE HISTORY · 24 HOURS" FontWeight="Bold"
+               FontSize="11" Foreground="#9CA9BA" />
+    <controls:UsageHistoryChart Points="{Binding History}" Height="96" />
+    <TextBlock Text="{Binding LimitError}" IsVisible="{Binding HasLimitError}"
+               Foreground="#F58B8B" TextWrapping="Wrap" FontSize="11" />
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Content="Refresh limits" Command="{Binding RefreshLimitsCommand}"
+              IsEnabled="{Binding CanRefreshLimits}" />
+      <Button Content="{Binding RepairLabel}" Command="{Binding RepairCommand}"
+              IsEnabled="{Binding CanRefreshLimits}" IsVisible="{Binding ShowRepair}" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

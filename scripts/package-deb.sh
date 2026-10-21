@@ -25,14 +25,14 @@ mkdir -p "$appdir" "$staging/usr/bin" "$staging/usr/share/applications" \
   "$staging/usr/share/icons/hicolor/32x32/apps" "$staging/DEBIAN"
 
 rm -rf "$root/build/linux-$arch"
-dotnet publish "$root/src/CodexMonitor.Desktop.Unix/CodexMonitor.Desktop.Unix.csproj" \
+dotnet publish "$root/src/CodexMonitor.Desktop/CodexMonitor.Desktop.csproj" \
   --configuration Release --runtime "$rid" --self-contained true \
   -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
   --output "$root/build/linux-$arch"
 
 cp -a "$root/build/linux-$arch/." "$appdir/"
-chmod 755 "$appdir/CodexMonitor.Desktop.Unix"
-ln -s ../lib/codex-monitor/CodexMonitor.Desktop.Unix "$staging/usr/bin/codex-monitor"
+chmod 755 "$appdir/CodexMonitor"
+ln -s ../lib/codex-monitor/CodexMonitor "$staging/usr/bin/codex-monitor"
 install -m 644 "$root/packaging/linux/codex-monitor.desktop" \
   "$staging/usr/share/applications/codex-monitor.desktop"
 install -m 644 "$root/assets/tray.png" \

@@ -8,11 +8,8 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../CodexMonitor.Core/CodexMonitor.Core.csproj" />
-    <InternalsVisibleTo Include="CodexMonitor.Desktop.Windows" />
     <InternalsVisibleTo Include="CodexMonitor" />
-    <InternalsVisibleTo Include="CodexMonitor.Desktop.Unix" />
     <InternalsVisibleTo Include="CodexMonitor.Composition" />
-    <InternalsVisibleTo Include="CodexMonitor.Screenshots" />
     <InternalsVisibleTo Include="ParserChecks" />
   </ItemGroup>
 </Project>

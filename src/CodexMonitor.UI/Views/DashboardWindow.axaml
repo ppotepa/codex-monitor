@@ -1,0 +1,38 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CodexMonitor.UI.ViewModels"
+        xmlns:views="using:CodexMonitor.UI.Views"
+        x:Class="CodexMonitor.UI.Views.DashboardWindow"
+        x:DataType="vm:DashboardViewModel"
+        x:CompileBindings="True"
+        Title="Codex Monitor"
+        Width="420" Height="654" MinWidth="320" MinHeight="380"
+        Background="#161B23">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="16" Spacing="12">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Grid.Column="0" Text="Codex Monitor" FontSize="21"
+                   FontWeight="Bold" VerticalAlignment="Center" />
+        <Button Grid.Column="1" Content="Settings"
+                Command="{Binding SettingsCommand}" />
+      </Grid>
+      <TextBlock Text="{Binding StatusText}" FontSize="12"
+                 Foreground="#9CA9BA" TextWrapping="Wrap" />
+      <Border Background="#443926" CornerRadius="8" Padding="10"
+              IsVisible="{Binding HasNotice}">
+        <TextBlock Text="{Binding Notice}" Foreground="#F6C160"
+                   TextWrapping="Wrap" />
+      </Border>
+      <TabControl x:Name="MainTabs" SelectedIndex="0">
+        <TabItem Header="Limits">
+          <views:LimitsView />
+        </TabItem>
+        <TabItem x:Name="TokenTab" Header="Tokens"
+                 IsVisible="{Binding SupportsTokens}"
+                 IsEnabled="{Binding SupportsTokens}">
+          <views:TokensView />
+        </TabItem>
+      </TabControl>
+    </StackPanel>
+  </ScrollViewer>
+</Window>

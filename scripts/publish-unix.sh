@@ -11,7 +11,7 @@ case "$rid" in
     ;;
 esac
 
-dotnet publish "$root/src/CodexMonitor.Desktop.Unix/CodexMonitor.Desktop.Unix.csproj" \
+dotnet publish "$root/src/CodexMonitor.Desktop/CodexMonitor.Desktop.csproj" \
   --configuration Release \
   --runtime "$rid" \
   --self-contained false \
@@ -19,4 +19,4 @@ dotnet publish "$root/src/CodexMonitor.Desktop.Unix/CodexMonitor.Desktop.Unix.cs
   -p:UseAppHost=true \
   --output "$root/dist/$rid"
 
-echo "Published: $root/dist/$rid/CodexMonitor.Desktop.Unix"
+echo "Published: $root/dist/$rid/CodexMonitor"

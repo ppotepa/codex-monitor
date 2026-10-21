@@ -8,12 +8,11 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="CodexMonitor.Plugins.Codex" />
-    <InternalsVisibleTo Include="CodexMonitor.Desktop.Windows" />
     <InternalsVisibleTo Include="CodexMonitor" />
-    <InternalsVisibleTo Include="CodexMonitor.Desktop.Unix" />
     <InternalsVisibleTo Include="CodexMonitor.Composition" />
+    <InternalsVisibleTo Include="CodexMonitor.UI" />
+    <InternalsVisibleTo Include="CodexMonitor.Platform.Windows" />
     <InternalsVisibleTo Include="CodexMonitor.Platform.Unix" />
     <InternalsVisibleTo Include="ParserChecks" />
-    <InternalsVisibleTo Include="CodexMonitor.Screenshots" />
   </ItemGroup>
 </Project>

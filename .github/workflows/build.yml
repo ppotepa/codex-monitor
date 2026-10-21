@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - cleanup/fresh-baseline-no-migrations
+      - refactor/unified-avalonia-ui
   pull_request:
   workflow_dispatch:
 

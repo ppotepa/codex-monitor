@@ -21,7 +21,7 @@ fi
 output="$root/build/$rid"
 bundle="$root/dist/$rid/Codex Monitor.app"
 mkdir -p "$output"
-dotnet publish "$root/src/CodexMonitor.Desktop.Unix/CodexMonitor.Desktop.Unix.csproj" \
+dotnet publish "$root/src/CodexMonitor.Desktop/CodexMonitor.Desktop.csproj" \
   --configuration Release --runtime "$rid" --self-contained true \
   -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
   --output "$output"
@@ -29,7 +29,7 @@ dotnet publish "$root/src/CodexMonitor.Desktop.Unix/CodexMonitor.Desktop.Unix.cs
 rm -rf "$bundle"
 mkdir -p "$bundle/Contents/MacOS" "$bundle/Contents/Resources"
 cp -a "$output/." "$bundle/Contents/MacOS/"
-chmod 755 "$bundle/Contents/MacOS/CodexMonitor.Desktop.Unix"
+chmod 755 "$bundle/Contents/MacOS/CodexMonitor"
 cp "$root/packaging/macos/Info.plist" "$bundle/Contents/Info.plist"
 cp "$root/assets/tray.png" "$bundle/Contents/Resources/tray.png"
 

@@ -1,127 +1,79 @@
-# Codex Monitor architecture
-
-## Project boundaries
-
-| Project | Responsibility |
-| --- | --- |
-| `src/CodexMonitor.Core/` | OS-neutral models, settings, history, alert policy, application coordinator, platform and desktop contracts |
-| `src/CodexMonitor.Plugins.Codex/` | Codex CLI/app-server integration, parsing and dependency repair, with injected executable lookup |
-| `src/CodexMonitor.Desktop.Windows/` | Native WinForms tray, settings, dashboard, Windows autostart and executable discovery |
-| `src/CodexMonitor.Composition/` | Common DI registrations for plugin, coordinator, history, settings and persistence |
-| `src/CodexMonitor.Platform.Unix/` | Linux/macOS executable lookup and command launch, separate storage paths and login startup |
-| `src/CodexMonitor.Desktop.Unix/` | Experimental Avalonia 11 tray, dashboard, settings, diagnostics and desktop lifecycle |
-
-All source projects are under `src/`. Top-level development folders stay lowercase:
-`docs/`, `packaging/`, `scripts/`, `tests/` and `tools/`.
+# Architecture — shared Avalonia desktop
 
 ## Dependency direction
 
 ```mermaid
 flowchart TB
-    Windows[Windows WinForms desktop] --> Composition[Shared DI composition]
-    UnixApp[Unix Avalonia desktop] --> Composition
-    UnixApp --> UnixOs[Unix OS integrations]
-    Windows --> WindowsOs[Windows OS integrations]
-    Composition --> Core[Core models, services and contracts]
-    Composition --> Codex[Codex plugin]
+    Desktop[CodexMonitor.Desktop<br/>Avalonia host and tray] --> UI[CodexMonitor.UI<br/>AXAML, ViewModels, charts]
+    Desktop --> Composition[CodexMonitor.Composition<br/>shared DI]
+    Desktop --> Windows[Platform.Windows]
+    Desktop --> Unix[Platform.Unix]
+    UI --> Core[CodexMonitor.Core]
+    Composition --> Core
+    Composition --> Codex[CodexMonitor.Plugins.Codex]
     Codex --> Core
-    UnixOs --> Core
-    WindowsOs --> Core
+    Windows --> Core
+    Unix --> Core
 ```
 
+The **only** graphical implementation is Avalonia. The Windows and Unix
+WinForms/code-only dashboard projects have been removed. A single
+`DashboardViewModel` translates `DashboardState` into values for AXAML.
+The same controls render via Avalonia's cross-platform drawing backend.
+No renderer-per-OS code or user-defined layout language is maintained.
 
-The application raises `UsageAlertSeverity`, not WinForms `ToolTipIcon`.
-The `UsageCoordinator` exposes an immutable `DashboardState`; host-specific
-`IDashboardView` implementations receive that state without needing to know
-the plugin transport. `UsageDisplayText` provides OS-independent labels and
-time/number formatting; actual fonts, layout, colors and tray integration
-remain inside platform projects.
+## Responsibilities
 
-The Windows presentation contains `UsagePopup` (window and navigation),
-`LimitsDashboardView`, `TokensDashboardView` and `MonitorTrayMenu`.
-Alert state transitions are handled by `UsageAlertService`, while
-`IProcessRunner` and `ICommandLaunchStrategy` isolate CLI execution
-from provider parsing.
+| Project | Owns |
+| --- | --- |
+| `Core` | Domain models, `UsageCoordinator`, `UsageAlertService`, JSON store, contracts, agent selection |
+| `Plugins.Codex` | Codex usage CLI, app-server protocol and parsing |
+| `Composition` | Singleton services, one settings instance, one database/history pair, plugin registrations |
+| `UI` | Shared `DashboardWindow`, `LimitsView`, `TokensView`, `SettingsWindow`, `AgentStatusWindow`, AXAML styles, `UsageRing`, history chart and ViewModels |
+| `Desktop` | One `AppBuilder`, `DesktopApp`, `DesktopHost`, `DesktopTrayShell`; the composition root chooses platform implementations |
+| `Platform.Windows` | Registry startup, Windows PATH discovery, Windows process launching and notification adapter |
+| `Platform.Unix` | Executable lookup, process launching; separate XDG/LaunchAgent, notification and window-close policies |
 
-`IDesktopHost`, `IAgentDiscovery`, `IExecutableLocator` and `IStartupService`
-form small platform boundaries. The Windows host owns the WinForms `ApplicationContext`;
-it is not exposed as a shared abstraction.
+Platform selection is confined to `Desktop/Program.cs`. Shared UI and Core
+do not contain large OS-specific conditionals. Platform-specific menu bar
+behavior and tray limitations remain host concerns.
 
-The composition module provides exactly one `MonitorSettings`, `MonitorDatabase`,
-`UsageHistory`, `UsageCoordinator` and cancellation source in both desktop
-hosts. Windows and Unix register their own `IAppPaths`, `IStartupService`,
-`ICommandLaunchStrategy`, `IExecutableLocator` and UI services.
+## Interaction flow
 
-## Plugin contract
+```text
+Operating system host / tray menu
+    -> UsageCoordinator, IAgentManager
+    -> current provider capability interfaces (IUsagePlugin, ITokenUsagePlugin)
+    -> DashboardState (domain)
+    -> DashboardViewModel (presentation)
+    -> DashboardWindow / LimitsView / TokensView (single AXAML tree)
+```
 
-`[UsagePlugin]` supplies identity, display name, description and CLI
-executable names. Capability flags are derived from the implemented interfaces:
-`IUsagePlugin` (limits), `ITokenUsagePlugin` (tokens) and
-`IRepairableUsagePlugin` (dependency repair).
+The UI emits commands (refresh, repair, settings, token selection) through
+an observable ViewModel. The host orchestrates operations, schedules timers,
+shows dialogs and sends notifications via `IDesktopNotificationService`.
+The GUI never installs or repairs a CLI automatically.
 
-`IPluginCatalog` is populated by explicit DI registrations rather than a
-global `PluginRegistry` or assembly-scanning magic. The list of known but
-unsupported agents remains informational; discovering a CLI does not grant
-monitoring functionality.
+## Persistence
 
-## Baseline storage and remaining work
+Only `monitor.db.json` schema `v1` and `settings.json` are supported.
+Every history item includes an explicit plugin ID; alert keys are namespaced.
+No old-file migration or fallback writer exists. Atomic updates, current
+format recovery copies and persistence diagnostics remain.
 
-- Release 0.5.1 keeps the Windows executable name `CodexMonitor.exe` and is built by
-  `scripts/build-installer.ps1` using the new Windows project path.
-- The native WinForms interface remains on Windows. Its large popup and tray
-  shell are now split into smaller components without changing their intended
-  controls, refresh cadence or persisted formats.
-- Storage starts from a single baseline: `settings.json` and `monitor.db.json`
-  (database schema `v1`) in the OS-specific data directory.
-  There is no `history.json` importer or backwards-compatibility lookup.
-  History records and alert keys must always include a plugin ID.
-  Unknown or incomplete database schemas are not converted.
-  Error recovery through `.bak` and atomic file replacement is retained.
-- Linux/macOS now have an **experimental**, shared Avalonia desktop host with
-  a real window and tray menu. It has not been compiled or validated on target
-  systems and must not yet be presented as supported. Native notifications use optional Linux/macOS adapters with an in-window
-  fallback. Packaging validation and full visual parity with Windows remain unfinished.
-  Wayland/X11 and macOS menu bar behavior can differ even if the popup UI is shared.
-- Persisted history and alert states are scoped by plugin ID. The internal
-  agent manager can replace the active adapter after a later scan; a user
-  facing preferred-agent picker remains future work when a second supported
-  provider is added.
-- A failed automatic read never installs or replaces a dependency. Repair is an
-  explicit user action, while provider fallback is limited to process,
-  protocol and schema failures that are safe to retry with the alternate CLI.
-  Both the PyPI package and the Git fallback are pinned to reproducible
-  versions (the Git source uses the v0.4.1 commit hash).
+## Plugin extension
 
-The `AgentManager` owns the current discovery snapshot and selected adapter.
-Hosts refresh that manager on their configured scan interval; a changed
-selection is propagated to the coordinator and dashboard without restarting
-the process. The built-in catalog is still compiled into the application, so
-this is an internal extension point rather than a public DLL loader.
+`[UsagePlugin]` annotates stable identity and executable names. Optional
+`ITokenUsagePlugin` and `IRepairableUsagePlugin` describe actual capabilities;
+new adapters are registered explicitly with dependency injection.
+`AgentCatalog` reports other installed CLIs without pretending they are
+supported providers.
 
-`MonitorDatabase` preserves unreadable JSON as a timestamped `.corrupt.*`
-copy, recovers a valid `.bak` when possible, and commits candidate documents
-only after the atomic file replacement succeeds. Persistence failures remain
-visible in the dashboard while the last good in-memory values stay available.
+## Build/release limitations
 
-The goal is to isolate concrete variations, not to wrap every control or
-single-use data record in an interface.
-
-## Build validation
-
-`dotnet build CodexMonitor.slnx -c Release` must pass before merging. For
-0.5.1 it passes on Windows together with the parser checks and native
-screenshot checks. `scripts/build-installer.ps1` also produces the 0.5.1 Inno
-Setup package locally. GitHub Actions is configured for build-only validation across the three target operating systems. New changes must compile and pass manual platform checks before release.
-
-## Refresh and persistence reliability
-
-`UsageCoordinator` ties asynchronous results and failures to the active
-plugin generation. An agent change queues a refresh behind in-flight work,
-without a polling loop. Successful token reads use the selected refresh
-interval; transient failures retry with bounded backoff. Alert cycles require
-an elapsed deadline followed by a later reported deadline.
-
-Database and settings persistence diagnostics are independent. Corrupt
-settings are preserved as timestamped files before defaults can be saved,
-and saving is blocked when preservation fails. Database recovery accepts
-only the single supported baseline schema, not prior application formats.
+This migration changes the Windows presentation from WinForms to Avalonia.
+No matching public release should be announced until the Windows tray,
+installer, Linux X11/Wayland behavior and macOS menu bar/bundle are built
+and checked on their corresponding targets. GitHub-hosted build jobs have
+previously failed before runner allocation; those failures do not validate
+or invalidate the source. See `docs/RELEASE-GATE.md`.
