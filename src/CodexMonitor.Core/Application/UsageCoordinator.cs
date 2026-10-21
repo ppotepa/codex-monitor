@@ -16,7 +16,9 @@ internal sealed class UsageCoordinator : IDisposable
     private DateTimeOffset? _tokenLastAttemptAt;
     private int _tokenConsecutiveFailures;
     private int _pluginGeneration;
-    private string? _databaseWriteError;
+    private string? _historyWriteError;
+    private string? _tokenCacheWriteError;
+    private bool _historyHasPendingChanges;
 
     public UsageSnapshot? Snapshot { get; private set; }
     public TokenUsageSnapshot? TokenUsage { get; private set; }
@@ -38,7 +40,8 @@ internal sealed class UsageCoordinator : IDisposable
         {
             var messages = new[]
             {
-                _database.PersistenceError, _databaseWriteError, _settings.PersistenceError
+                _database.PersistenceError, _historyWriteError, _tokenCacheWriteError,
+                _settings.PersistenceError
             }.Where(message => !string.IsNullOrWhiteSpace(message)).Distinct().ToArray();
             return messages.Length == 0 ? null : string.Join(Environment.NewLine, messages);
         }
@@ -214,11 +217,11 @@ internal sealed class UsageCoordinator : IDisposable
                 try
                 {
                     _database.SaveTokenUsage(plugin.Info.Id, snapshot, DateTimeOffset.UtcNow);
-                    _databaseWriteError = null;
+                    _tokenCacheWriteError = null;
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    SetDatabaseError(ex);
+                    _tokenCacheWriteError = $"Token cache could not be saved: {ex.Message}";
                 }
             }
             catch (OperationCanceledException) when (_shutdown.IsCancellationRequested) { }
@@ -258,15 +261,18 @@ internal sealed class UsageCoordinator : IDisposable
 
         if (snapshot.Status == "stale") return;
         if (_history.Add(snapshot, DateTimeOffset.UtcNow, plugin.Info.Id))
+            _historyHasPendingChanges = true;
+        if (_historyHasPendingChanges)
         {
             try
             {
                 _history.Save();
-                _databaseWriteError = null;
+                _historyHasPendingChanges = false;
+                _historyWriteError = null;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                SetDatabaseError(ex);
+                _historyWriteError = $"Usage history could not be saved: {ex.Message}";
             }
         }
         CheckAlerts(snapshot, plugin);
@@ -309,9 +315,6 @@ internal sealed class UsageCoordinator : IDisposable
         try { _settings.Save(); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
-
-    private void SetDatabaseError(Exception exception) =>
-        _databaseWriteError = $"Local database could not be saved: {exception.Message}";
 
     private void NotifyChanged() => Changed?.Invoke();
 
