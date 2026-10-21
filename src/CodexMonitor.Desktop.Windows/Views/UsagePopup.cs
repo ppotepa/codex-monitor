@@ -20,26 +20,8 @@ internal sealed class UsagePopup : Form, IDashboardView
     private readonly Button _settings = new();
     private readonly Button _limitsTab = new();
     private readonly Button _tokensTab = new();
-    private readonly Panel _limitsPanel = new();
-    private readonly Panel _tokensPanel = new();
-    private readonly Label _windowName = new();
-    private readonly Label _remaining = new();
-    private readonly Label _reset = new();
-    private readonly Label _limitError = new();
-    private readonly Label _tokenError = new();
-    private readonly Label _latestDay = new();
-    private readonly Label _latestCount = new();
-    private readonly Label _lifetime = new();
-    private readonly Label _peak = new();
-    private readonly Label _tokenUnavailable = new();
-    private readonly Button _refreshLimits = new();
-    private readonly Button _install = new();
-    private readonly Button _refreshTokens = new();
-    private readonly UsageRing _ring = new();
-    private readonly UsageSparkline _sparkline = new();
-    private readonly Label _historyHeading = new() { Text = "USAGE HISTORY · 24 HOURS" };
-    private readonly TokenUsageChart _tokenChart = new();
-    private readonly UsageLimitRow[] _otherRows = [new(), new()];
+    private readonly LimitsDashboardView _limitsPanel;
+    private readonly TokensDashboardView _tokensPanel;
     private readonly ToolTip _errorTip = new();
     private bool _showingTokens;
 
@@ -55,6 +37,12 @@ internal sealed class UsagePopup : Form, IDashboardView
     public UsagePopup(PluginInfo plugin)
     {
         _plugin = plugin;
+        _limitsPanel = new LimitsDashboardView(plugin);
+        _tokensPanel = new TokensDashboardView(plugin);
+        _limitsPanel.RefreshRequested += (_, _) => RefreshRequested?.Invoke(this, EventArgs.Empty);
+        _limitsPanel.InstallRequested += (_, _) => InstallRequested?.Invoke(this, EventArgs.Empty);
+        _tokensPanel.RefreshRequested += (_, _) => TokenRefreshRequested?.Invoke(this, EventArgs.Empty);
+
         Text = "Codex Monitor";
         FormBorderStyle = FormBorderStyle.None;
         ShowInTaskbar = false;
@@ -104,15 +92,8 @@ internal sealed class UsagePopup : Form, IDashboardView
         _tokensTab.Click += (_, _) => SelectView(true);
         Controls.AddRange([_limitsTab, _tokensTab]);
 
-        _limitsPanel.SetBounds(18, 124, 384, 520);
-        _limitsPanel.BackColor = Background;
         Controls.Add(_limitsPanel);
-        BuildLimitsPanel();
-
-        _tokensPanel.SetBounds(18, 124, 384, 520);
-        _tokensPanel.BackColor = Background;
         Controls.Add(_tokensPanel);
-        BuildTokensPanel();
         SelectView(false);
 
         Deactivate += (_, _) => Hide();
@@ -123,13 +104,8 @@ internal sealed class UsagePopup : Form, IDashboardView
     public void ShowSnapshot(DashboardState state)
     {
         var snapshot = state.Limits;
-        var selected = state.SelectedLimit;
-        var history = state.RecentHistory;
-        var error = state.LimitError;
         var busy = state.LimitsBusy;
-        var cliProblem = state.DependencyProblem;
         var tokenUsage = state.Tokens;
-        var tokenError = state.TokenError;
         var tokenBusy = state.TokensBusy;
         var status = state.PluginStatus;
         var statusText = UsageDisplayText.StatusText(status.Health);
@@ -150,39 +126,8 @@ internal sealed class UsagePopup : Form, IDashboardView
         _tokensSubtitle = UsageDisplayText.TokenUpdatedText(tokenUsage?.RetrievedAt, tokenBusy);
         _subtitle.Text = _showingTokens ? _tokensSubtitle : _limitsSubtitle;
 
-        _windowName.Text = selected is null ? "Usage" : UsageDisplayText.WindowName(selected.Name);
-        _windowName.AccessibleName = _windowName.Text;
-        _ring.UsedPercent = selected?.UsedPercent;
-        _remaining.Text = selected is null ? "No data" : $"{100 - selected.UsedPercent:0}% left";
-        _remaining.ForeColor = UsageColor.For(selected?.UsedPercent);
-        _reset.Text = selected is null ? $"Connect {_plugin.DisplayName} to view your limits." : UsageDisplayText.ResetText(selected.ResetsAt);
-        _reset.AccessibleName = _reset.Text.Replace("\n", ", ");
-        _sparkline.SetPoints(history);
-        _sparkline.AccessibleName = $"{UsageDisplayText.WindowName(selected?.Name ?? "limit")} usage history for the last 24 hours";
-
-        var otherWindows = snapshot?.Windows.Where(w => !ReferenceEquals(w, selected)).Take(2).ToArray() ?? [];
-        for (var i = 0; i < _otherRows.Length; i++)
-        {
-            _otherRows[i].SetWindow(i < otherWindows.Length ? otherWindows[i] : null);
-            _otherRows[i].Visible = i < Math.Max(1, otherWindows.Length);
-        }
-        var historyTop = LogicalToDeviceUnits(178 + Math.Max(1, otherWindows.Length) * 70);
-        _historyHeading.Top = historyTop;
-        _sparkline.Top = historyTop + LogicalToDeviceUnits(24);
-        _sparkline.Height = LogicalToDeviceUnits(415) - _sparkline.Top;
-
-        _limitError.Text = error ?? "";
-        _limitError.Visible = error is not null;
-        _errorTip.SetToolTip(_limitError, error);
-        _refreshLimits.Enabled = !busy;
-        _install.Visible = _plugin.CanRepair && cliProblem != DependencyProblem.None;
-        _install.Text = cliProblem == DependencyProblem.Broken ? "Repair CLI" : "Install CLI";
-        _install.Enabled = !busy;
-
-        UpdateTokenView(tokenUsage, tokenError, tokenBusy);
-        _subtitle.Text = _showingTokens
-            ? UsageDisplayText.TokenUpdatedText(tokenUsage?.RetrievedAt, tokenBusy)
-            : _subtitle.Text;
+        _limitsPanel.ShowSnapshot(state);
+        _tokensPanel.ShowSnapshot(state);
     }
 
     public void ShowNearCursor()
@@ -221,76 +166,6 @@ internal sealed class UsagePopup : Form, IDashboardView
         FitToWorkingArea(Screen.FromRectangle(e.SuggestedRectangle).WorkingArea);
     }
 
-    private void BuildLimitsPanel()
-    {
-        var card = new Panel { Bounds = new Rectangle(0, 0, 384, 164), BackColor = Card, AccessibleName = "Primary Codex usage limit" };
-        _limitsPanel.Controls.Add(card);
-        _ring.SetBounds(8, 11, 142, 142);
-        _ring.BackColor = Card;
-        card.Controls.Add(_ring);
-        ConfigureLabel(_windowName, 164, 25, 205, 24, 13, FontStyle.Bold, Card, Color.White, card);
-        ConfigureLabel(_remaining, 164, 61, 205, 38, 22, FontStyle.Bold, Card, Color.White, card);
-        ConfigureLabel(_reset, 164, 105, 205, 48, 9.5f, backColor: Card, color: Muted, parent: card);
-
-        for (var i = 0; i < _otherRows.Length; i++)
-        {
-            _otherRows[i].SetBounds(0, 174 + i * 70, 384, 62);
-            _limitsPanel.Controls.Add(_otherRows[i]);
-        }
-
-        ConfigureLabel(_historyHeading, 0, 318, 384, 19, 9, FontStyle.Bold, color: Muted, parent: _limitsPanel);
-        _sparkline.SetBounds(0, 316, 384, 78);
-        _limitsPanel.Controls.Add(_sparkline);
-        ConfigureLabel(_limitError, 0, 423, 384, 43, 9.5f, color: Color.FromArgb(245, 139, 139), parent: _limitsPanel);
-        StyleButton(_refreshLimits, "Refresh limits", 0, 475, 132, _limitsPanel);
-        _refreshLimits.Click += (_, _) => RefreshRequested?.Invoke(this, EventArgs.Empty);
-        StyleButton(_install, "Install CLI", 140, 475, 126, _limitsPanel);
-        _install.Click += (_, _) => InstallRequested?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void BuildTokensPanel()
-    {
-        var latestCard = new Panel { Bounds = new Rectangle(0, 0, 384, 126), BackColor = Card, AccessibleName = "Latest daily token activity" };
-        _tokensPanel.Controls.Add(latestCard);
-        ConfigureLabel(_latestDay, 15, 15, 354, 19, 9.5f, FontStyle.Bold, Card, Muted, latestCard);
-        ConfigureLabel(_latestCount, 14, 42, 356, 51, 28, FontStyle.Bold, Card, Color.White, latestCard);
-        ConfigureLabel(_tokenUnavailable, 15, 94, 354, 24, 9.5f, backColor: Card, color: Muted, parent: latestCard);
-
-        var totals = new Panel { Bounds = new Rectangle(0, 136, 384, 76), BackColor = Card, AccessibleName = "Token usage totals" };
-        _tokensPanel.Controls.Add(totals);
-        ConfigureLabel(_lifetime, 14, 13, 174, 50, 11, FontStyle.Bold, Card, Color.White, totals);
-        ConfigureLabel(_peak, 197, 13, 174, 50, 11, FontStyle.Bold, Card, Color.White, totals);
-
-        var chartTitle = new Label { Text = "DAILY TOKENS · 7-DAY WINDOW" };
-        ConfigureLabel(chartTitle, 0, 230, 384, 19, 8.5f, FontStyle.Bold, color: Muted, parent: _tokensPanel);
-        _tokenChart.SetBounds(0, 253, 384, 162);
-        _tokensPanel.Controls.Add(_tokenChart);
-        ConfigureLabel(_tokenError, 0, 423, 384, 43, 9.5f, color: Color.FromArgb(245, 139, 139), parent: _tokensPanel);
-        StyleButton(_refreshTokens, "Refresh token activity", 0, 475, 196, _tokensPanel);
-        _refreshTokens.Click += (_, _) => TokenRefreshRequested?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void UpdateTokenView(TokenUsageSnapshot? usage, string? error, bool busy)
-    {
-        var latest = usage?.DailyBuckets.LastOrDefault();
-        _latestDay.Text = latest is null ? "LATEST REPORTED DAY" : latest.Date.ToDateTime(TimeOnly.MinValue).ToString("dddd, MMM d", CultureInfo.CurrentCulture).ToUpperInvariant();
-        _latestCount.Text = latest is null ? "--" : latest.Tokens.ToString("N0", CultureInfo.CurrentCulture);
-        _latestCount.AccessibleName = latest is null ? "No daily token total reported" : $"{latest.Tokens.ToString("N0", CultureInfo.CurrentCulture)} tokens on {latest.Date}";
-        _tokenUnavailable.Text = usage is null
-            ? busy ? "Loading account activity..." : "Refresh to load account activity"
-            : latest is null ? "No daily totals reported for this account." : $"Total tokens reported by {_plugin.DisplayName}";
-        _lifetime.Text = $"LIFETIME\n{UsageDisplayText.FormatTokenCount(usage?.LifetimeTokens)}";
-        _peak.Text = $"PEAK DAY\n{UsageDisplayText.FormatTokenCount(usage?.PeakDailyTokens)}";
-        _lifetime.AccessibleName = $"Lifetime tokens: {UsageDisplayText.FormatTokenCount(usage?.LifetimeTokens)}";
-        _peak.AccessibleName = $"Peak daily tokens: {UsageDisplayText.FormatTokenCount(usage?.PeakDailyTokens)}";
-        _tokenChart.SetBuckets(usage?.DailyBuckets ?? []);
-        _tokenChart.AccessibleName = "Daily token totals: seven calendar days ending on the latest reported day; focus or hover a bar for exact values";
-        _tokenError.Text = error ?? "";
-        _tokenError.Visible = error is not null;
-        _errorTip.SetToolTip(_tokenError, error);
-        _refreshTokens.Enabled = !busy;
-    }
-
     internal void SelectView(bool tokens)
     {
         tokens &= _plugin.SupportsTokens;
@@ -326,18 +201,6 @@ internal sealed class UsagePopup : Form, IDashboardView
         button.ForeColor = selected ? Color.White : Muted;
         button.FlatAppearance.BorderColor = selected ? Accent : Color.FromArgb(64, 76, 91);
         button.AccessibleDescription = selected ? "Selected" : "Not selected";
-    }
-
-    private void StyleButton(Button button, string text, int x, int y, int width, Control parent)
-    {
-        button.Text = text;
-        button.SetBounds(x, y, width, 32);
-        button.FlatStyle = FlatStyle.Flat;
-        button.FlatAppearance.BorderColor = Color.FromArgb(77, 95, 113);
-        button.BackColor = Card;
-        button.ForeColor = Color.White;
-        button.Cursor = Cursors.Hand;
-        parent.Controls.Add(button);
     }
 
     private void ConfigureLabel(Label label, int x, int y, int width, int height, float size = 9,
