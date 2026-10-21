@@ -6,6 +6,13 @@ namespace CodexMonitor;
 // Presentation colors, fonts and layout stay in each platform's UI.
 internal static class UsageDisplayText
 {
+    public static string? CombineErrors(params string?[] errors)
+    {
+        var messages = errors.Where(error => !string.IsNullOrWhiteSpace(error))
+            .Distinct().ToArray();
+        return messages.Length == 0 ? null : string.Join(Environment.NewLine, messages);
+    }
+
     public static string WindowName(string? name) => name?.ToLowerInvariant() switch
     {
         "5-hour" or "5h" => "5-hour limit",

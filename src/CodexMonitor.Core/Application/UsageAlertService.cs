@@ -54,8 +54,8 @@ internal sealed class UsageAlertService(MonitorSettings settings)
                 notifications.Add(new UsageNotification($"{pluginName} limit reset",
                     $"{window.Name} usage window has reset.", UsageAlertSeverity.Info));
 
-            var forNotification = newCycle ? null : previous is null ? null : previous with { ResetAt = resetAt };
-            if (settings.AlertsEnabled && AlertPolicy.ShouldNotify(level, forNotification, resetAt))
+            if (settings.AlertsEnabled &&
+                AlertPolicy.ShouldNotify(level, newCycle ? null : previous))
                 notifications.Add(new UsageNotification($"{pluginName} usage alert",
                     $"{window.Name} limit is {window.UsedPercent:0}% used.", UsageAlertSeverity.Warning));
 

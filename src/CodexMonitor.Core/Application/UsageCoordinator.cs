@@ -1,8 +1,7 @@
 namespace CodexMonitor;
 
-// Application-layer coordinator. It knows when data should be read and how a
-// provider failure is represented, but it does not know anything about forms,
-// tray menus or controls.
+// Shared application state: provider operations and errors never depend on
+// either desktop host. Only the active plugin generation may update the UI.
 internal sealed class UsageCoordinator : IDisposable
 {
     private IUsagePlugin _plugin;
@@ -15,6 +14,9 @@ internal sealed class UsageCoordinator : IDisposable
     private readonly SemaphoreSlim _limitsGate = new(1, 1);
     private readonly SemaphoreSlim _tokensGate = new(1, 1);
     private DateTimeOffset? _tokenLastAttemptAt;
+    private int _tokenConsecutiveFailures;
+    private int _pluginGeneration;
+    private string? _databaseWriteError;
 
     public UsageSnapshot? Snapshot { get; private set; }
     public TokenUsageSnapshot? TokenUsage { get; private set; }
@@ -24,16 +26,30 @@ internal sealed class UsageCoordinator : IDisposable
     public bool IsBusy { get; private set; }
     public bool IsTokenBusy { get; private set; }
     public PluginStatus PluginStatus { get; private set; } = new(PluginHealth.Unknown);
-    public string? PersistenceError { get; private set; }
     public PluginInfo PluginInfo => _plugin.Info;
     public bool ShowingFreshLimits => Snapshot is not null &&
         Snapshot.Status != "stale" && PluginStatus.Health == PluginHealth.Ready;
 
+    // Each store reports its own failures. A settings write cannot clear a
+    // database error, and neither hides a failed baseline-data recovery.
+    public string? PersistenceError
+    {
+        get
+        {
+            var messages = new[]
+            {
+                _database.PersistenceError, _databaseWriteError, _settings.PersistenceError
+            }.Where(message => !string.IsNullOrWhiteSpace(message)).Distinct().ToArray();
+            return messages.Length == 0 ? null : string.Join(Environment.NewLine, messages);
+        }
+    }
+
     public event Action? Changed;
     public event Action<string, string, UsageAlertSeverity>? AlertRaised;
 
-    public UsageCoordinator(IAgentManager agentManager, MonitorSettings settings, UsageHistory history,
-        MonitorDatabase database, CancellationToken shutdown, UsageAlertService alerts)
+    public UsageCoordinator(IAgentManager agentManager, MonitorSettings settings,
+        UsageHistory history, MonitorDatabase database, CancellationToken shutdown,
+        UsageAlertService alerts)
     {
         _agentManager = agentManager;
         _plugin = agentManager.Selection.Plugin;
@@ -42,14 +58,8 @@ internal sealed class UsageCoordinator : IDisposable
         _database = database;
         _shutdown = shutdown;
         _alerts = alerts;
-        PersistenceError = _database.PersistenceError;
+        TokenUsage = _database.ReadTokenUsage(_plugin.Info.Id)?.Snapshot;
         _agentManager.Changed += OnAgentChanged;
-        var cachedTokens = _database.ReadTokenUsage(_plugin.Info.Id);
-        if (cachedTokens is not null)
-        {
-            TokenUsage = cachedTokens.Snapshot;
-            // The cached snapshot is displayed immediately, but does not defer the first live read.
-        }
     }
 
     public UsageWindow? SelectedWindow => Snapshot?.Windows.FirstOrDefault(window =>
@@ -64,137 +74,206 @@ internal sealed class UsageCoordinator : IDisposable
         DependencyProblem, TokenUsage, TokenError, IsTokenBusy, PluginStatus, PersistenceError);
 
     public void SetTrayWindow(string key) => _settings.TrayWindow = key;
-
     public void ToggleSnooze() => _alerts.ToggleSnooze(SelectedWindow, _plugin.Info.Id);
-
     public bool IsSnoozed() => _alerts.IsSnoozed(SelectedWindow, _plugin.Info.Id);
 
-    public async Task RefreshLimitsAsync()
+    public Task RefreshLimitsAsync() => RefreshLimitsCoreAsync(waitForTurn: false);
+
+    private async Task RefreshLimitsCoreAsync(bool waitForTurn, int? expectedGeneration = null)
     {
-        if (_shutdown.IsCancellationRequested || !await _limitsGate.WaitAsync(0)) return;
-        var plugin = _plugin;
-        IsBusy = true;
-        LimitError = null;
-        DependencyProblem = DependencyProblem.None;
-        PluginStatus = PluginStatus with { Health = PluginHealth.Refreshing, Detail = null };
-        NotifyChanged();
+        if (_shutdown.IsCancellationRequested) return;
+        bool acquired;
         try
         {
-            await ReadLimitsAsync(plugin);
+            acquired = await _limitsGate.WaitAsync(
+                waitForTurn ? Timeout.InfiniteTimeSpan : TimeSpan.Zero, _shutdown);
         }
-        catch (PluginDependencyException ex)
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested) { return; }
+        if (!acquired) return;
+
+        try
         {
-            if (ReferenceEquals(_plugin, plugin)) SetDependencyError(ex);
-        }
-        catch (Exception ex)
-        {
-            if (ReferenceEquals(_plugin, plugin)) SetReadError(ex.Message);
+            if (expectedGeneration is int requested && requested != _pluginGeneration) return;
+            var plugin = _plugin;
+            var generation = _pluginGeneration;
+            IsBusy = true;
+            LimitError = null;
+            DependencyProblem = DependencyProblem.None;
+            PluginStatus = PluginStatus with { Health = PluginHealth.Refreshing, Detail = null };
+            NotifyChanged();
+            try
+            {
+                await ReadLimitsAsync(plugin, generation);
+            }
+            catch (OperationCanceledException) when (_shutdown.IsCancellationRequested) { }
+            catch (PluginDependencyException ex)
+            {
+                if (IsCurrent(plugin, generation)) SetDependencyError(ex);
+            }
+            catch (Exception ex)
+            {
+                if (IsCurrent(plugin, generation)) SetReadError(ex.Message);
+            }
+            finally
+            {
+                IsBusy = false;
+                if (!_shutdown.IsCancellationRequested) NotifyChanged();
+            }
         }
         finally
         {
-            IsBusy = false;
-            NotifyChanged();
             _limitsGate.Release();
         }
     }
 
     public async Task RepairAsync()
     {
-        if (_shutdown.IsCancellationRequested || _plugin is not IRepairableUsagePlugin repairable ||
-            !await _limitsGate.WaitAsync(0)) return;
-        var plugin = _plugin;
-        IsBusy = true;
-        LimitError = null;
-        PluginStatus = PluginStatus with { Health = PluginHealth.Refreshing, Detail = null };
-        NotifyChanged();
+        if (_shutdown.IsCancellationRequested) return;
+        bool acquired;
+        try { acquired = await _limitsGate.WaitAsync(0, _shutdown); }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested) { return; }
+        if (!acquired) return;
+
         try
         {
-            await repairable.RepairAsync(_shutdown);
-            await ReadLimitsAsync(plugin);
-        }
-        catch (PluginDependencyException ex)
-        {
-            if (ReferenceEquals(_plugin, plugin)) SetDependencyError(ex);
-        }
-        catch (Exception ex)
-        {
-            if (ReferenceEquals(_plugin, plugin)) SetReadError(ex.Message);
-        }
-        finally
-        {
-            IsBusy = false;
+            // Resolve the optional capability only after the gate is acquired.
+            var plugin = _plugin;
+            var generation = _pluginGeneration;
+            if (plugin is not IRepairableUsagePlugin repairable) return;
+
+            IsBusy = true;
+            LimitError = null;
+            PluginStatus = PluginStatus with { Health = PluginHealth.Refreshing, Detail = null };
             NotifyChanged();
-            _limitsGate.Release();
+            try
+            {
+                await repairable.RepairAsync(_shutdown);
+                if (IsCurrent(plugin, generation))
+                    await ReadLimitsAsync(plugin, generation);
+            }
+            catch (OperationCanceledException) when (_shutdown.IsCancellationRequested) { }
+            catch (PluginDependencyException ex)
+            {
+                if (IsCurrent(plugin, generation)) SetDependencyError(ex);
+            }
+            catch (Exception ex)
+            {
+                if (IsCurrent(plugin, generation)) SetReadError(ex.Message);
+            }
+            finally
+            {
+                IsBusy = false;
+                if (!_shutdown.IsCancellationRequested) NotifyChanged();
+            }
         }
+        finally { _limitsGate.Release(); }
     }
 
-    public async Task RefreshTokensAsync(bool force)
-    {
-        if (_shutdown.IsCancellationRequested || _plugin is not ITokenUsagePlugin tokenProvider ||
-            !await _tokensGate.WaitAsync(0)) return;
-        var plugin = _plugin;
-        var now = DateTimeOffset.UtcNow;
-        if (!force && _tokenLastAttemptAt is { } attempt &&
-            now - attempt < TimeSpan.FromMinutes(_settings.TokenRefreshMinutes))
-        {
-            _tokensGate.Release();
-            return;
-        }
+    public Task RefreshTokensAsync(bool force) =>
+        RefreshTokensCoreAsync(force, waitForTurn: false);
 
-        IsTokenBusy = true;
-        TokenError = null;
-        _tokenLastAttemptAt = now;
-        NotifyChanged();
+    private async Task RefreshTokensCoreAsync(
+        bool force, bool waitForTurn, int? expectedGeneration = null)
+    {
+        if (_shutdown.IsCancellationRequested) return;
+        bool acquired;
         try
         {
-            var snapshot = await tokenProvider.ReadTokensAsync(_shutdown);
-            if (!ReferenceEquals(_plugin, plugin)) return;
-            TokenUsage = snapshot;
-            try { _database.SaveTokenUsage(plugin.Info.Id, TokenUsage, DateTimeOffset.UtcNow); ClearPersistenceError(); }
-            catch (IOException ex) { SetPersistenceError(ex); }
-            catch (UnauthorizedAccessException ex) { SetPersistenceError(ex); }
-            TokenError = null;
+            acquired = await _tokensGate.WaitAsync(
+                waitForTurn ? Timeout.InfiniteTimeSpan : TimeSpan.Zero, _shutdown);
         }
         catch (OperationCanceledException) when (_shutdown.IsCancellationRequested) { return; }
-        catch (Exception ex)
+        if (!acquired) return;
+
+        try
         {
-            if (ReferenceEquals(_plugin, plugin)) TokenError = ex.Message;
+            if (expectedGeneration is int requested && requested != _pluginGeneration) return;
+            var plugin = _plugin;
+            var generation = _pluginGeneration;
+            if (plugin is not ITokenUsagePlugin tokenProvider) return;
+
+            var now = DateTimeOffset.UtcNow;
+            // Failed reads use bounded 1/2/4/5-minute backoff; successful
+            // reads retain the user-selected normal refresh cadence.
+            var wait = _tokenConsecutiveFailures == 0
+                ? TimeSpan.FromMinutes(_settings.TokenRefreshMinutes)
+                : TimeSpan.FromMinutes(Math.Min(5, 1 << Math.Min(3, _tokenConsecutiveFailures - 1)));
+            if (!force && _tokenLastAttemptAt is { } last && now - last < wait)
+                return;
+
+            IsTokenBusy = true;
+            TokenError = null;
+            _tokenLastAttemptAt = now;
+            NotifyChanged();
+            try
+            {
+                var snapshot = await tokenProvider.ReadTokensAsync(_shutdown);
+                if (!IsCurrent(plugin, generation)) return;
+                TokenUsage = snapshot;
+                _tokenConsecutiveFailures = 0;
+                try
+                {
+                    _database.SaveTokenUsage(plugin.Info.Id, snapshot, DateTimeOffset.UtcNow);
+                    _databaseWriteError = null;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    SetDatabaseError(ex);
+                }
+            }
+            catch (OperationCanceledException) when (_shutdown.IsCancellationRequested) { }
+            catch (Exception ex)
+            {
+                if (!IsCurrent(plugin, generation)) return;
+                _tokenConsecutiveFailures = Math.Min(4, _tokenConsecutiveFailures + 1);
+                TokenError = ex.Message;
+            }
+            finally
+            {
+                IsTokenBusy = false;
+                if (!_shutdown.IsCancellationRequested) NotifyChanged();
+            }
         }
-        finally
-        {
-            IsTokenBusy = false;
-            if (!_shutdown.IsCancellationRequested) NotifyChanged();
-            _tokensGate.Release();
-        }
+        finally { _tokensGate.Release(); }
     }
 
-    private async Task ReadLimitsAsync(IUsagePlugin plugin)
+    private async Task ReadLimitsAsync(IUsagePlugin plugin, int generation)
     {
         var snapshot = await plugin.ReadLimitsAsync(_shutdown);
-        if (!ReferenceEquals(_plugin, plugin)) return;
+        if (!IsCurrent(plugin, generation)) return;
+
         Snapshot = snapshot;
-        LimitError = Snapshot.Status == "stale"
+        LimitError = snapshot.Status == "stale"
             ? "Usage data is stale; the CLI could not fetch a fresh result."
             : null;
         DependencyProblem = DependencyProblem.None;
         PluginStatus = PluginStatus with
         {
-            Health = Snapshot.Status == "stale" ? PluginHealth.Stale : PluginHealth.Ready,
+            Health = snapshot.Status == "stale" ? PluginHealth.Stale : PluginHealth.Ready,
             Detail = LimitError,
-            LastSuccessfulAt = Snapshot.Status == "stale"
-                ? PluginStatus.LastSuccessfulAt ?? Snapshot.RetrievedAt
-                : Snapshot.RetrievedAt
+            LastSuccessfulAt = snapshot.Status == "stale"
+                ? PluginStatus.LastSuccessfulAt ?? snapshot.RetrievedAt
+                : snapshot.RetrievedAt
         };
 
-        if (Snapshot.Status == "stale") return;
-        if (_history.Add(Snapshot, DateTimeOffset.UtcNow, _plugin.Info.Id))
+        if (snapshot.Status == "stale") return;
+        if (_history.Add(snapshot, DateTimeOffset.UtcNow, plugin.Info.Id))
         {
-            try { _history.Save(); ClearPersistenceError(); }
-            catch (IOException ex) { SetPersistenceError(ex); }
-            catch (UnauthorizedAccessException ex) { SetPersistenceError(ex); }
+            try
+            {
+                _history.Save();
+                _databaseWriteError = null;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                SetDatabaseError(ex);
+            }
         }
-        CheckAlerts(Snapshot);
+        CheckAlerts(snapshot, plugin);
     }
+
+    private bool IsCurrent(IUsagePlugin plugin, int generation) =>
+        ReferenceEquals(_plugin, plugin) && generation == _pluginGeneration;
 
     private void SetDependencyError(PluginDependencyException exception)
     {
@@ -202,7 +281,8 @@ internal sealed class UsageCoordinator : IDisposable
         DependencyProblem = exception.Problem;
         PluginStatus = PluginStatus with
         {
-            Health = exception.Problem == DependencyProblem.Missing ? PluginHealth.Missing : PluginHealth.Broken,
+            Health = exception.Problem == DependencyProblem.Missing
+                ? PluginHealth.Missing : PluginHealth.Broken,
             Detail = exception.Message
         };
     }
@@ -215,9 +295,9 @@ internal sealed class UsageCoordinator : IDisposable
         PluginStatus = PluginStatus with { Health = PluginHealth.Error, Detail = message };
     }
 
-    private void CheckAlerts(UsageSnapshot snapshot)
+    private void CheckAlerts(UsageSnapshot snapshot, IUsagePlugin plugin)
     {
-        var evaluation = _alerts.Evaluate(snapshot, _plugin.Info.DisplayName, _plugin.Info.Id);
+        var evaluation = _alerts.Evaluate(snapshot, plugin.Info.DisplayName, plugin.Info.Id);
         foreach (var notification in evaluation.Notifications)
             AlertRaised?.Invoke(notification.Title, notification.Message, notification.Severity);
         if (evaluation.StateChanged) SaveSettings();
@@ -225,31 +305,42 @@ internal sealed class UsageCoordinator : IDisposable
 
     private void SaveSettings()
     {
-        try { _settings.Save(); ClearPersistenceError(); }
-        catch (IOException ex) { SetPersistenceError(ex); }
-        catch (UnauthorizedAccessException ex) { SetPersistenceError(ex); }
+        // MonitorSettings maintains its own error until that store is written.
+        try { _settings.Save(); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
-    private void SetPersistenceError(Exception exception) =>
-        PersistenceError = $"Local data could not be saved: {exception.Message}";
-
-    private void ClearPersistenceError() => PersistenceError = _database.PersistenceError;
+    private void SetDatabaseError(Exception exception) =>
+        _databaseWriteError = $"Local database could not be saved: {exception.Message}";
 
     private void NotifyChanged() => Changed?.Invoke();
 
     private void OnAgentChanged()
     {
         var selected = _agentManager.Selection.Plugin;
-        if (string.Equals(_plugin.Info.Id, selected.Info.Id, StringComparison.OrdinalIgnoreCase)) return;
+        var changedProvider = !string.Equals(
+            _plugin.Info.Id, selected.Info.Id, StringComparison.OrdinalIgnoreCase);
         _plugin = selected;
-        Snapshot = null;
-        TokenUsage = null;
-        LimitError = null;
-        TokenError = null;
-        DependencyProblem = DependencyProblem.None;
-        PluginStatus = new PluginStatus(PluginHealth.Unknown);
-        _tokenLastAttemptAt = null;
+        var generation = ++_pluginGeneration;
+
+        if (changedProvider)
+        {
+            Snapshot = null;
+            TokenUsage = _database.ReadTokenUsage(selected.Info.Id)?.Snapshot;
+            LimitError = null;
+            TokenError = null;
+            DependencyProblem = DependencyProblem.None;
+            PluginStatus = new PluginStatus(PluginHealth.Unknown);
+            _tokenLastAttemptAt = null;
+            _tokenConsecutiveFailures = 0;
+        }
+
         NotifyChanged();
+        // Unlike timer/manual refresh, agent changes wait for an older read to
+        // release the gate. Stale generations are skipped without a poll loop.
+        _ = RefreshLimitsCoreAsync(waitForTurn: true, expectedGeneration: generation);
+        if (changedProvider && selected is ITokenUsagePlugin)
+            _ = RefreshTokensCoreAsync(force: true, waitForTurn: true, expectedGeneration: generation);
     }
 
     public void Dispose()
@@ -257,10 +348,6 @@ internal sealed class UsageCoordinator : IDisposable
         Changed = null;
         AlertRaised = null;
         _agentManager.Changed -= OnAgentChanged;
-        // The host cancels the shared shutdown token before disposing the
-        // coordinator. In-flight reads still need to reach their finally
-        // blocks and release these gates, so they are intentionally left for
-        // the GC rather than disposed underneath an active operation.
+        // In-flight tasks still need to release the semaphores on shutdown.
     }
 }
-

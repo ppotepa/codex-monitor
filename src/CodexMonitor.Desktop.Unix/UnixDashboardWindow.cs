@@ -185,7 +185,7 @@ internal sealed class UnixDashboardWindow : Window, IDashboardView
             }
         }
 
-        var limitError = state.LimitError ?? state.PersistenceError;
+        var limitError = UsageDisplayText.CombineErrors(state.LimitError, state.PersistenceError);
         _limitError.Text = limitError ?? "";
         _limitError.IsVisible = !string.IsNullOrWhiteSpace(limitError);
         _refreshLimits.IsEnabled = !state.LimitsBusy;
@@ -218,7 +218,7 @@ internal sealed class UnixDashboardWindow : Window, IDashboardView
                 }
             });
         }
-        var tokenError = state.TokenError ?? state.PersistenceError;
+        var tokenError = UsageDisplayText.CombineErrors(state.TokenError, state.PersistenceError);
         _tokenError.Text = tokenError ?? "";
         _tokenError.IsVisible = !string.IsNullOrWhiteSpace(tokenError);
         _refreshTokens.IsEnabled = !state.TokensBusy;

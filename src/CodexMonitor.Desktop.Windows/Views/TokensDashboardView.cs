@@ -64,7 +64,7 @@ internal sealed class TokensDashboardView : DashboardSection
         _peak.AccessibleName = $"Peak daily tokens: {UsageDisplayText.FormatTokenCount(usage?.PeakDailyTokens)}";
         _chart.SetBuckets(usage?.DailyBuckets ?? []);
         _chart.AccessibleName = "Daily token totals: seven calendar days ending on the latest reported day; focus or hover a bar for exact values";
-        var error = state.TokenError ?? state.PersistenceError;
+        var error = UsageDisplayText.CombineErrors(state.TokenError, state.PersistenceError);
         _tokenError.Text = error ?? "";
         _tokenError.Visible = error is not null;
         _errors.SetToolTip(_tokenError, error);

@@ -75,7 +75,7 @@ internal sealed class LimitsDashboardView : DashboardSection
         _sparkline.Top = historyTop + LogicalToDeviceUnits(24);
         _sparkline.Height = LogicalToDeviceUnits(415) - _sparkline.Top;
 
-        var error = state.LimitError ?? state.PersistenceError;
+        var error = UsageDisplayText.CombineErrors(state.LimitError, state.PersistenceError);
         _limitError.Text = error ?? "";
         _limitError.Visible = error is not null;
         _errors.SetToolTip(_limitError, error);

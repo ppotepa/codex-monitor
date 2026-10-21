@@ -34,8 +34,8 @@ Assert(!CodexCliService.IsBrokenLauncherError("authentication failed"), "Authent
 Assert(AlertPolicy.Level(79.9, 80, 95) == 0, "Below warning");
 Assert(AlertPolicy.Level(80, 80, 95) == 1, "At warning");
 Assert(AlertPolicy.Level(95, 80, 95) == 2, "At critical");
-Assert(!AlertPolicy.ShouldNotify(2, new WindowAlertState(10, 1, true), 10), "Snoozed alert");
-Assert(AlertPolicy.ShouldNotify(2, new WindowAlertState(10, 1, true), 11), "New window after reset");
+Assert(!AlertPolicy.ShouldNotify(2, new WindowAlertState(10, 1, true)), "Snoozed alert");
+Assert(AlertPolicy.ShouldNotify(2, null), "New alert cycle has no previous state");
 
 var now = DateTimeOffset.UtcNow;
 var historyStore = new MonitorDatabase(Path.Combine(Path.GetTempPath(),
