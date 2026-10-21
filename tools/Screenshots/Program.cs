@@ -39,8 +39,9 @@ internal static class Program
             daily.Select((count, i) => new DailyTokenUsage(DateOnly.FromDateTime(now.Date).AddDays(i - 6), count)).ToArray());
 
         using var popup = new UsagePopup(info);
-        popup.ShowSnapshot(limits, windows[0], history, null, false, DependencyProblem.None, tokens, null, false,
-            new PluginStatus(PluginHealth.Ready, LastSuccessfulAt: now));
+        popup.ShowSnapshot(new DashboardState(limits, windows[0], history, null, false,
+            DependencyProblem.None, tokens, null, false,
+            new PluginStatus(PluginHealth.Ready, LastSuccessfulAt: now)));
         using var limitsImage = Render(popup);
         limitsImage.Save(Path.Combine(destination, "limits.png"), ImageFormat.Png);
         popup.SelectView(true);
@@ -50,9 +51,9 @@ internal static class Program
 
         foreach (var state in new[] { "empty", "loading", "error" })
         {
-            popup.ShowSnapshot(null, null, [], null, false, DependencyProblem.None, null,
+            popup.ShowSnapshot(new DashboardState(null, null, [], null, false, DependencyProblem.None, null,
                 state == "error" ? "Codex account token activity did not respond in time. Try refreshing." : null,
-                state == "loading", new PluginStatus(PluginHealth.Ready, LastSuccessfulAt: now));
+                state == "loading", new PluginStatus(PluginHealth.Ready, LastSuccessfulAt: now)));
             using var frame = Render(popup);
             frame.Save(Path.Combine(checksDirectory, state + ".png"), ImageFormat.Png);
         }

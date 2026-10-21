@@ -3,7 +3,7 @@ using System.Globalization;
 
 namespace CodexMonitor;
 
-internal sealed class UsagePopup : Form
+internal sealed class UsagePopup : Form, IDashboardView
 {
     private static readonly Color Background = Color.FromArgb(22, 27, 35);
     private static readonly Color Card = Color.FromArgb(32, 39, 50);
@@ -44,6 +44,7 @@ internal sealed class UsagePopup : Form
     private bool _showingTokens;
 
     public bool ShowingTokens => _showingTokens;
+    public bool IsOpen => Visible;
 
     public event EventHandler? RefreshRequested;
     public event EventHandler? InstallRequested;
@@ -119,10 +120,18 @@ internal sealed class UsagePopup : Form
         _subtitle.MouseDown += DragWindow;
     }
 
-    public void ShowSnapshot(UsageSnapshot? snapshot, UsageWindow? selected,
-        IReadOnlyList<UsageHistoryPoint> history, string? error, bool busy, DependencyProblem cliProblem,
-        TokenUsageSnapshot? tokenUsage, string? tokenError, bool tokenBusy, PluginStatus status)
+    public void ShowSnapshot(DashboardState state)
     {
+        var snapshot = state.Limits;
+        var selected = state.SelectedLimit;
+        var history = state.RecentHistory;
+        var error = state.LimitError;
+        var busy = state.LimitsBusy;
+        var cliProblem = state.DependencyProblem;
+        var tokenUsage = state.Tokens;
+        var tokenError = state.TokenError;
+        var tokenBusy = state.TokensBusy;
+        var status = state.PluginStatus;
         var statusText = StatusText(status.Health);
         _pluginTag.Text = status.Health switch
         {

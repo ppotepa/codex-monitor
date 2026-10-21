@@ -15,7 +15,7 @@ internal sealed class MonitorContext : ApplicationContext
     private readonly IPluginCatalog _plugins;
     private readonly IStartupService _startup;
     private readonly UsageCoordinator _coordinator;
-    private readonly UsagePopup _popup;
+    private readonly IDashboardView _popup;
     private readonly NotifyIcon _tray;
     private readonly System.Windows.Forms.Timer _refreshTimer;
     private readonly System.Windows.Forms.Timer _displayTimer;
@@ -29,7 +29,8 @@ internal sealed class MonitorContext : ApplicationContext
 
     public MonitorContext(AgentSelection selection, AgentCatalogSnapshot agentCatalog,
         MonitorSettings settings, UsageCoordinator coordinator, IAgentDiscovery discovery,
-        IPluginCatalog plugins, IStartupService startup, CancellationTokenSource shutdown)
+        IPluginCatalog plugins, IStartupService startup, CancellationTokenSource shutdown,
+        IDashboardView popup)
     {
         _selection = selection;
         _agentCatalog = agentCatalog;
@@ -42,7 +43,7 @@ internal sealed class MonitorContext : ApplicationContext
         _shutdown = shutdown;
         _coordinator.Changed += UpdateView;
 
-        _popup = new UsagePopup(_plugin.Info);
+        _popup = popup;
         _popup.RefreshRequested += (_, _) => _ = _coordinator.RefreshLimitsAsync();
         _popup.InstallRequested += (_, _) => _ = _coordinator.RepairAsync();
         _popup.SettingsRequested += (_, _) => ConfigureSettings();
@@ -65,7 +66,7 @@ internal sealed class MonitorContext : ApplicationContext
             UpdateView();
             if (_settings.AgentScanMinutes > 0 && DateTimeOffset.UtcNow - _lastAgentScanAt >= TimeSpan.FromMinutes(_settings.AgentScanMinutes))
                 RefreshAgentCatalog();
-            if (_settings.AutoRefreshTokens && _popup.Visible && _popup.ShowingTokens)
+            if (_settings.AutoRefreshTokens && _popup.IsOpen && _popup.ShowingTokens)
                 _ = _coordinator.RefreshTokensAsync(force: false);
         };
         _displayTimer.Start();
@@ -230,10 +231,7 @@ internal sealed class MonitorContext : ApplicationContext
         UpdatePopup();
     }
 
-    private void UpdatePopup() => _popup.ShowSnapshot(_coordinator.Snapshot, _coordinator.SelectedWindow,
-        _coordinator.RecentHistory, _coordinator.LimitError, _coordinator.IsBusy,
-        _coordinator.DependencyProblem, _coordinator.TokenUsage, _coordinator.TokenError,
-        _coordinator.IsTokenBusy, _coordinator.PluginStatus);
+    private void UpdatePopup() => _popup.ShowSnapshot(_coordinator.Dashboard);
 
     private static int MinutesToMilliseconds(int minutes) =>
         (int)TimeSpan.FromMinutes(Math.Clamp(minutes, 1, 60)).TotalMilliseconds;
@@ -248,7 +246,7 @@ internal sealed class MonitorContext : ApplicationContext
         _tray.Visible = false;
         _tray.Dispose();
         _icon?.Dispose();
-        _popup.Dispose();
+        // The DI container owns the dashboard view's lifetime.
         base.ExitThreadCore();
     }
 }

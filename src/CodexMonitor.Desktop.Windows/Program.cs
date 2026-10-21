@@ -39,6 +39,8 @@ internal static class Program
             sp.GetRequiredService<UsageHistory>(),
             sp.GetRequiredService<MonitorDatabase>(),
             sp.GetRequiredService<CancellationTokenSource>().Token));
+        services.AddSingleton<IDashboardView>(sp => new UsagePopup(
+            sp.GetRequiredService<AgentSelection>().Plugin.Info));
         services.AddSingleton<MonitorContext>();
         services.AddSingleton<IDesktopHost, WindowsDesktopHost>();
 

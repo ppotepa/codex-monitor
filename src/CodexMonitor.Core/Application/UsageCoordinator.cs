@@ -50,6 +50,10 @@ internal sealed class UsageCoordinator : IDisposable
     public IReadOnlyList<UsageHistoryPoint> RecentHistory =>
         _history.Recent(SelectedWindow?.Name, DateTimeOffset.UtcNow);
 
+    public DashboardState Dashboard => new(
+        Snapshot, SelectedWindow, RecentHistory, LimitError, IsBusy,
+        DependencyProblem, TokenUsage, TokenError, IsTokenBusy, PluginStatus);
+
     public void SetTrayWindow(string key) => _settings.TrayWindow = key;
 
     public void ResetAlertLevels()
