@@ -26,6 +26,18 @@ flowchart TB
 ```
 
 The application raises `UsageAlertSeverity`, not WinForms `ToolTipIcon`.
+The `UsageCoordinator` exposes an immutable `DashboardState`; host-specific
+`IDashboardView` implementations receive that state without needing to know
+the plugin transport. `UsageDisplayText` provides OS-independent labels and
+time/number formatting; actual fonts, layout, colors and tray integration
+remain inside platform projects.
+
+The Windows presentation contains `UsagePopup` (window and navigation),
+`LimitsDashboardView`, `TokensDashboardView` and `MonitorTrayMenu`.
+Alert state transitions are handled by `UsageAlertService`, while
+`IProcessRunner` and `ICommandLaunchStrategy` isolate CLI execution
+from provider parsing.
+
 `IDesktopHost`, `IAgentDiscovery`, `IExecutableLocator` and `IStartupService`
 form small platform boundaries. The Windows host owns the WinForms `ApplicationContext`;
 it is not exposed as a shared abstraction.
@@ -50,8 +62,9 @@ monitoring functionality.
 
 - The Windows executable is still `CodexMonitor.exe` and is built by
   `scripts/build-installer.ps1` using the new Windows project path.
-- The native WinForms views, timer cadences, token parsing, history and settings
-  remain the same as before this refactor.
+- The native WinForms interface remains on Windows. Its large popup and tray
+  shell are now split into smaller components without changing their intended
+  controls, refresh cadence or persisted formats.
 - Persisted files (`settings.json`, `monitor.db.json` and legacy
   `history.json`) retain their schema and Windows locations.
 - Linux and macOS are **not yet supported as running desktop applications**.
@@ -63,3 +76,10 @@ monitoring functionality.
 
 The goal is to isolate concrete variations, not to wrap every control or
 single-use data record in an interface.
+
+## Build validation
+
+`dotnet build CodexMonitor.slnx -c Release` must pass before merging.
+GitHub-hosted Actions jobs are not currently allocated runners (jobs fail
+before steps and logs), so the workflow is manual-only until that is resolved.
+No runtime or Windows UI smoke test has been performed by this refactor.

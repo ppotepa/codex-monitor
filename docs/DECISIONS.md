@@ -29,29 +29,26 @@ and different AI providers are the actual sources of variation.
 
 ## Implemented in this migration
 
-1. Four source projects: Core, Codex plugin, Windows desktop host, Unix OS services.
-2. WinForms references removed from Core; native shell remains Windows-only.
-3. Explicit singleton lifetime of coordinator, settings, database and plugin.
-4. Platform executable location, command launching, app data paths and startup
-   contracts extracted. Windows and Unix have separate lookup/startup classes.
-5. Shared agent discovery created from plugin metadata and diagnostics.
-6. Legacy test and screenshot projects point at the new project layout; no new
-   behavioral tests have been added.
+1. Four source projects: Core, Codex plugin, Windows desktop host and Unix OS services.
+2. OS-independent `DashboardState` and `IDashboardView` contract; WinForms stays behind the Windows host.
+3. `UsagePopup` reduced by extracting `LimitsDashboardView` and `TokensDashboardView`.
+   `MonitorTrayMenu` owns menu commands; `MonitorContext` owns only the host lifetime and event wiring.
+4. `UsageAlertService` owns alert states separately from refresh and error transitions.
+5. Plugin identity and executable metadata from `[UsagePlugin]`; optional capabilities from interfaces.
+6. Explicit singleton registrations for settings, database, history and coordinator via Microsoft DI.
+7. OS seams for paths, process launching, executable lookup and autostart; Linux/macOS share Unix process rules but have separate startup and app data paths.
+8. Shared usage formatting in `Core/Presentation`; settings now save atomically.
+9. Build-only GitHub workflow, switched to manual trigger because hosted runners fail before job allocation.
 
-## Deliberately deferred
+## Remaining work
 
-1. Shared Linux/macOS graphical host, popup and tray integration. Select a
-   supported UI toolkit only after validating tray behavior on the target desktops.
-2. Linux/macOS packaging, icons and actual platform smoke runs.
-3. Split the larger Windows presentation classes only when there is a clear
-   ownership boundary: `UsagePopup` (~446 lines), `MonitorContext`
-   (~247 lines) and chart rendering. Avoid an interface per WinForms control.
-4. Migrate persisted agent-specific alert/history keys before adding a second
-   active provider.
-5. Correct the previously identified alert re-triggering and stale token
-   refresh scenarios as focused behavior fixes, separate from this migration.
-6. Introduce normal build validation on Windows and Unix. Automated tests
-   are intentionally deferred at this stage.
+1. Implement the actual Linux/macOS dashboard and tray host, likely with a shared Avalonia presentation and OS-specific tray lifecycle. This is the largest incomplete item.
+2. Verify that all Windows projects compile, that existing tray/settings behavior is unchanged,
+   and that published binaries and Inno Setup install correctly.
+3. Compile and package Linux and macOS hosts on actual target environments.
+4. Improve the Codex app-server/protocol handling and address reset timestamp drift if needed.
+5. Before adding a second active plugin, scope alert states and historical limits to the plugin ID.
+6. No automated behavioral tests are added in this phase.
 
 ## Merge policy
 

@@ -57,9 +57,9 @@ The core and plugin now compile as OS-neutral .NET libraries. Windows remains th
 
 The solution is divided into small buildable projects under `src/`:
 
-- `src/CodexMonitor.Core/` — shared snapshots, alert and refresh logic, agent catalog, persistence and platform contracts. No Windows Forms dependency.
+- `src/CodexMonitor.Core/` — shared snapshots, immutable dashboard state, alert/refresh services, presentation text, agent catalog, persistence and platform contracts. No Windows Forms dependency.
 - `src/CodexMonitor.Plugins.Codex/` — Codex CLI and app-server implementation; receives OS services through interfaces.
-- `src/CodexMonitor.Desktop.Windows/` — the current native WinForms tray, dialogs and Windows-only integrations, wired through dependency injection.
+- `src/CodexMonitor.Desktop.Windows/` — the native WinForms host. The injected dashboard view has separate Limits and Tokens components; tray menu state and OS integrations are isolated.
 - `src/CodexMonitor.Platform.Unix/` — executable lookup shared by future Linux and macOS desktop hosts (not a complete UI).
 
 Provider metadata is declared with `[UsagePlugin]` on its implementation. Additional abilities are declared by `ITokenUsagePlugin` and `IRepairableUsagePlugin`, rather than magic booleans.
@@ -84,6 +84,8 @@ dotnet publish src/CodexMonitor.Desktop.Windows/CodexMonitor.Desktop.Windows.csp
 ```
 
 The screenshot tool uses actual WinForms views and synthetic snapshots. It creates PNGs in `docs/images`, plus empty/loading/error renders in `build/screenshots`, without opening a window or reading account data. It also checks tab capabilities and sizing on short displays. These development tools and images are not included in the installed application.
+
+GitHub Actions has an optional manual three-OS compile workflow. GitHub-hosted jobs currently fail before any build step starts (no runner allocated), so no automated build result is available. The source migration requires local Windows compilation and a UI smoke check before fast-forwarding to `main`.
 
 ## Data and privacy
 
