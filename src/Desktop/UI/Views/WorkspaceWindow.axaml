@@ -279,6 +279,36 @@
           </StackPanel>
         </ScrollViewer>
       </TabItem>
+      <TabItem Header="Doctor">
+        <ScrollViewer>
+          <StackPanel Margin="40,30" Spacing="16" MaxWidth="890" HorizontalAlignment="Left">
+            <TextBlock Text="Agent doctor" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
+            <TextBlock Text="Local diagnostics: detected agents, Git, skills, instructions and event collection."
+                       Foreground="#68767C" FontSize="13" TextWrapping="Wrap"/>
+            <Button Content="Run local checks" Command="{Binding RefreshDoctorCommand}" HorizontalAlignment="Left"/>
+            <TextBlock Text="{Binding DoctorSummary}" Foreground="#68767C" TextWrapping="Wrap" FontSize="12"/>
+            <ItemsControl ItemsSource="{Binding DoctorItems}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:DoctorCheckItem">
+                  <Border BorderBrush="#E4EAE7" BorderThickness="0,0,0,1" Padding="0,12">
+                    <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="5">
+                      <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="{Binding Category}" Foreground="#748188" FontSize="12" Width="90"/>
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#202A30"/>
+                      </StackPanel>
+                      <TextBlock Grid.Column="1" Text="{Binding Status}" Foreground="#347867" FontSize="12"/>
+                      <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Detail}"
+                                 Foreground="#68767C" FontSize="12" TextWrapping="Wrap"/>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="NotImplemented means this agent has no adapter; no login can fix it."
+                       Foreground="#748188" FontSize="12" TextWrapping="Wrap"/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
     </TabControl>
   </Grid>
 </Window>
