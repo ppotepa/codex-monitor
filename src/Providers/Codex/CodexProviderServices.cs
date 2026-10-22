@@ -14,6 +14,12 @@ public static class CodexProviderServices
         services.AddSingleton<IFeature>(sp => sp.GetRequiredService<IInstructionsOptimizer>());
         services.AddSingleton<IFeature>(sp => sp.GetRequiredService<IAgentSessionSource>());
         services.AddSingleton<IFeature>(sp => sp.GetRequiredService<IWorkspaceAiPlanner>());
+        services.AddSingleton<IFeature>(sp => new LimitsFeatureAdapter(
+            sp.GetServices<IUsageProvider>().Single(provider => provider.Info.Id == "codex")));
+        services.AddSingleton<IFeature>(sp => new TokenUsageFeatureAdapter("codex",
+            (ITokenUsageProvider)sp.GetServices<IUsageProvider>().Single(provider => provider.Info.Id == "codex")));
+        services.AddSingleton<IFeature>(sp => new DependencyRepairFeatureAdapter("codex",
+            (IRepairableUsageProvider)sp.GetServices<IUsageProvider>().Single(provider => provider.Info.Id == "codex")));
         return services;
     }
 }
