@@ -85,6 +85,13 @@ public sealed class LocalSkillsService : ILocalSkillsService
                 var dest = Path.Combine(temp, file.RelativePath);
                 Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
                 File.Copy(source, dest, overwrite: false);
+                // A local source may change after preview. Verify the actual staged bytes
+                // before the atomic directory move makes the skill visible.
+                using var staged = File.OpenRead(dest);
+                var copiedHash = Convert.ToHexString(SHA256.HashData(staged));
+                if (!string.Equals(copiedHash, file.Sha256, StringComparison.Ordinal))
+                    throw new InvalidOperationException(
+                        "Skill source changed while installing. Nothing was installed; review again.");
             }
             Directory.Move(temp, review.TargetFolder);
         }
