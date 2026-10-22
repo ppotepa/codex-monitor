@@ -13,17 +13,18 @@ public partial class WorkspaceWindow : Window
     internal WorkspaceWindow(DashboardViewModel usage, IWorkspaceGoalRepository? goals = null, IWorkspaceProjectRepository? projects = null, IWorkspaceInstructionsInspector? inspector = null,
         IGitImpactService? git = null, IWorkspaceActivitySource? activity = null, IWorkspacePlanner? planner = null, ILocalSkillsService? skills = null,
         IInstructionsAuditService? audit = null, IInstructionsOptimizer? optimizer = null,
-        IInstructionsFileEditor? editor = null, IWorkspaceDoctor? doctor = null)
+        IInstructionsFileEditor? editor = null, IWorkspaceDoctor? doctor = null,
+        IEnumerable<IAgentSessionSource>? sessions = null)
     {
         AvaloniaXamlLoader.Load(this);
         var model = new WorkspaceViewModel(usage, goals, projects, inspector, git, activity,
-            planner, skills, audit, optimizer, editor, doctor);
+            planner, skills, audit, optimizer, editor, doctor, sessions);
         DataContext = model;
         Closed += (_, _) => model.Dispose();
     }
 
-    internal void ApplyUsage(CodexMonitor.Core.Usage.UsageSnapshot? snapshot)
+    internal void ApplyUsage(CodexMonitor.Core.Usage.UsageSnapshot? snapshot, string providerId)
     {
-        if (DataContext is WorkspaceViewModel vm) vm.ApplyUsageSnapshot(snapshot);
+        if (DataContext is WorkspaceViewModel vm) vm.ApplyUsageSnapshot(snapshot, providerId);
     }
 }
