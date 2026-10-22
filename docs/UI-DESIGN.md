@@ -5,6 +5,45 @@ The same layout runs on Windows, Linux and macOS. Avalonia scales logical
 pixels according to the target platform; views use Grid, StackPanel,
 ItemsControl, ScrollViewer and binding rather than fixed WinForms coordinates.
 
+## Compact Workspace Overview (October 2026)
+
+The full Workspace is a separate window from the original 420 px tray Quick View.
+It uses the same **Avalonia 11 Fluent Compact** theme and dark palette as
+the rest of CodexMonitor: `#15191F` window, `#20262E` surface,
+`#29323D` subtle border and `#63D9C6` accent. No ornamental
+illustrations, neon gradients or login flow.
+
+The 1120 × 740 window has a narrow icon-labelled navigation rail and a
+small breadcrumb/provider/refresh bar. The Overview itself deliberately has
+only **two attention centres**: (1) tracked local repositories with Git and
+session evidence, and (2) observations that may require action. Above these,
+a slim four-column factual strip presents the allowance, reset, observed
+session IDs and number of saved projects. Below are a secondary planner
+recommendation and an initially collapsed local activity feed.
+
+Source files:
+- `Views/WorkspaceWindow.axaml`: shell, navigation and existing tool tabs.
+- `Views/WorkspaceOverviewView.axaml`: isolated, shared compact Overview UI.
+- `ViewModels/WorkspaceViewModel.Overview.cs`: data projection and commands.
+- `ViewModels/WorkspaceViewModel.cs`: existing tool commands and selected
+  provider/project context; remains the shared ViewModel.
+
+Never present mocked metrics in the running app. A blank or unavailable value
+is shown as such. Git impact is per working tree, not attributed to an agent;
+hook/notify session IDs represent **partial observation**, not proof of active
+processes; stored App Server status is marked as reported rather than claimed
+as universal live state. The Overview does not launch App Server or AI on
+refresh. Local filesystem and Git reads require no new login.
+
+Actions: opening a repository navigates to Projects; Add project selects
+Projects; Inspect attention opens Activity or Sessions according to evidence;
+Open planner selects Planner; Refresh updates local state and requests
+the selected provider's limit refresh. Only local activity feed expansion is
+interactive within Overview.
+
+Manual viewport, font scaling and keyboard checks on Windows/Linux/macOS
+remain part of the release gate. See `docs/AGENT-HANDOFF-WORKSPACE.md`.
+
 ## AXAML views
 
 - `Views/DashboardWindow.axaml`: shared 420×654 dashboard window with
