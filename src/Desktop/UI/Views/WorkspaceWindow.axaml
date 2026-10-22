@@ -97,6 +97,27 @@
           </StackPanel>
         </ScrollViewer>
       </TabItem>
+      <TabItem Header="Goals">
+        <ScrollViewer>
+          <StackPanel Margin="40,30" Spacing="16" MaxWidth="820" HorizontalAlignment="Left">
+            <TextBlock Text="Goal budget" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
+            <TextBlock Text="Plan your next task for the selected project. Goals are stored locally."
+                       TextWrapping="Wrap" Foreground="#68767C"/>
+            <TextBlock Text="{Binding ProjectName}" FontWeight="SemiBold" FontSize="16" Foreground="#202A30"/>
+            <TextBlock Text="Goal" FontSize="12" Foreground="#485A61"/>
+            <TextBox Text="{Binding GoalTitle, Mode=TwoWay}" Watermark="e.g. Finish core refactor"
+                     MinWidth="400"/>
+            <TextBlock Text="Time budget in minutes" FontSize="12" Foreground="#485A61"/>
+            <TextBox Text="{Binding BudgetText, Mode=TwoWay}" Width="120"
+                     HorizontalAlignment="Left"/>
+            <Button Content="Save goal" Command="{Binding SaveGoalCommand}"
+                    HorizontalAlignment="Left"/>
+            <TextBlock Text="{Binding GoalStatus}" TextWrapping="Wrap" Foreground="#68767C"/>
+            <TextBlock Text="A budget is a planned maximum, not a measured completion percentage."
+                       TextWrapping="Wrap" FontSize="12" Foreground="#748188"/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
       <TabItem Header="Skills">
         <ScrollViewer>
           <StackPanel Margin="40,30" Spacing="18" MaxWidth="880" HorizontalAlignment="Left">
