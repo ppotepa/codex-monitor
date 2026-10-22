@@ -1,3 +1,4 @@
+using CodexMonitor.Core.Workspace;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -11,6 +12,10 @@ namespace CodexMonitor.UI.ViewModels;
 // A presentation-only model. Local tools never require an account or network access.
 public sealed class WorkspaceViewModel : BindableBase
 {
+    private readonly IWorkspaceGoalRepository? _goals;
+    private string _goalTitle = "";
+    private string _budgetText = "60";
+    private string _goalStatus = "Select a project to create a goal.";
     private string _projectPath = "";
     private string _projectStatus = "Choose a local Git repository to inspect.";
     private string _projectName = "No project selected";
@@ -25,6 +30,9 @@ public sealed class WorkspaceViewModel : BindableBase
     public ObservableCollection<string> ProjectFiles { get; } = [];
     public ObservableCollection<string> Skills { get; } = [];
     public string ProjectPath { get => _projectPath; set => Set(ref _projectPath, value); }
+    public string GoalTitle { get => _goalTitle; set => Set(ref _goalTitle, value); }
+    public string BudgetText { get => _budgetText; set => Set(ref _budgetText, value); }
+    public string GoalStatus { get => _goalStatus; private set => Set(ref _goalStatus, value); }
     public string ProjectStatus { get => _projectStatus; private set => Set(ref _projectStatus, value); }
     public string ProjectName { get => _projectName; private set => Set(ref _projectName, value); }
     public string GitSummary { get => _gitSummary; private set => Set(ref _gitSummary, value); }
@@ -33,6 +41,7 @@ public sealed class WorkspaceViewModel : BindableBase
     public string AdvisorText { get => _advisorText; private set => Set(ref _advisorText, value); }
     public bool IsLoading { get => _isLoading; private set => Set(ref _isLoading, value); }
     public int SelectedPage { get => _selectedPage; set => Set(ref _selectedPage, value); }
+    public ICommand SaveGoalCommand { get; }
     public ICommand InspectProjectCommand { get; }
     public ICommand RefreshSkillsCommand { get; }
     public ICommand ShowOverviewCommand { get; }
@@ -40,9 +49,11 @@ public sealed class WorkspaceViewModel : BindableBase
     public ICommand ShowSkillsCommand { get; }
     public ICommand ShowInstructionsCommand { get; }
 
-    public WorkspaceViewModel(DashboardViewModel usage)
+    public WorkspaceViewModel(DashboardViewModel usage, IWorkspaceGoalRepository? goals = null)
     {
         Usage = usage;
+        _goals = goals;
+        SaveGoalCommand = new UiCommand(SaveGoal);
         InspectProjectCommand = new UiCommand(() => _ = InspectProjectAsync());
         RefreshSkillsCommand = new UiCommand(RefreshSkills);
         ShowOverviewCommand = new UiCommand(() => SelectedPage = 0);
@@ -90,6 +101,14 @@ public sealed class WorkspaceViewModel : BindableBase
                 ? File.ReadAllText(agents)
                 : "No root AGENTS.md found. Nested instruction files are not inspected yet.";
             RefreshSkills();
+            if (_goals is not null)
+            {
+                var saved = _goals.Find(path);
+                GoalTitle = saved?.Title ?? "";
+                BudgetText = saved?.BudgetMinutes.ToString() ?? "60";
+                GoalStatus = saved is null ? "No goal saved for this repository." :
+                    "Goal saved · " + saved.StartedAtUtc.ToLocalTime().ToString("g");
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or Win32Exception)
         {
@@ -125,6 +144,25 @@ public sealed class WorkspaceViewModel : BindableBase
         if (process.ExitCode != 0) return ("—", "Not a readable Git repository: " + stderr.Trim(), []);
         var files = stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         return (files.Length + " changed/untracked files", "Working tree checked locally. Not attributed to a specific agent.", files.Take(100).ToArray());
+    }
+
+    public void SaveGoal()
+    {
+        if (_goals is null) { GoalStatus = "Goal storage is unavailable."; return; }
+        if (!Directory.Exists(ProjectPath.Trim().Trim('\"')))
+        { GoalStatus = "Select an existing project folder first."; return; }
+        if (string.IsNullOrWhiteSpace(GoalTitle))
+        { GoalStatus = "Enter a goal description."; return; }
+        if (!int.TryParse(BudgetText, out var budget) || budget is < 1 or > 100000)
+        { GoalStatus = "Budget must be an integer between 1 and 100000 minutes."; return; }
+        try
+        {
+            _goals.Save(new WorkspaceGoal(Path.GetFullPath(ProjectPath.Trim().Trim('\"')),
+                GoalTitle.Trim(), budget, DateTimeOffset.UtcNow));
+            GoalStatus = "Goal saved locally. Time spent is not tracked automatically.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        { GoalStatus = "Could not save goal: " + ex.Message; }
     }
 
     public void RefreshSkills()
