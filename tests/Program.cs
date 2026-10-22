@@ -135,7 +135,19 @@ projectStore.Remove(Path.GetTempPath());
 Assert(projectStore.List().Count == 0, "Project removal");
 File.Delete(projectsPath);
 
-Console.WriteLine("Parser, provider, workspace goals and projects checks passed.");
+var instructionsFolder = Path.Combine(Path.GetTempPath(), $"codex-instructions-{Guid.NewGuid():N}");
+Directory.CreateDirectory(Path.Combine(instructionsFolder, "src", "nested"));
+Directory.CreateDirectory(Path.Combine(instructionsFolder, "node_modules"));
+File.WriteAllText(Path.Combine(instructionsFolder, "AGENTS.md"), "Root rules");
+File.WriteAllText(Path.Combine(instructionsFolder, "src", "nested", "AGENTS.override.md"), "Nested rules");
+File.WriteAllText(Path.Combine(instructionsFolder, "node_modules", "AGENTS.md"), "Ignored rules");
+var instructionsInspector = new FileSystemInstructionsInspector();
+var discovered = instructionsInspector.Find(instructionsFolder);
+Assert(discovered.Count == 2, "Root and nested AGENTS instructions discovered without dependency folders");
+Assert(instructionsInspector.Read(discovered[0].Path).Length > 0, "Read safe instruction file");
+Directory.Delete(instructionsFolder, recursive: true);
+
+Console.WriteLine("Parser, provider and workspace checks passed.");
 
 static void Assert(bool condition, string message)
 {
