@@ -59,6 +59,7 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
     private WorkspaceGoal? _currentGoal;
     private CodexMonitor.Core.Usage.UsageSnapshot? _usageSnapshot;
     private string _gitBranch = "—";
+    private string _gitImpactSelection = "Working tree";
     private string _gitDetails = "Select a Git project";
     private string _activityCoverage = "No observation source configured.";
     private string _activityAttention = "No confirmed events requiring attention.";
@@ -100,6 +101,8 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
         set { if (Set(ref _confirmInstructionsApply, value)) OnPropertyChanged(nameof(CanApplyInstructions)); }
     }
     public bool CanApplyInstructions => _pendingInstructions is not null && ConfirmInstructionsApply;
+    public IReadOnlyList<string> GitImpactScopes { get; } = ["Working tree", "Last commit"];
+    public string GitImpactSelection { get => _gitImpactSelection; set => Set(ref _gitImpactSelection, value); }
     public string GitBranch { get => _gitBranch; private set => Set(ref _gitBranch, value); }
     public string GitDetails { get => _gitDetails; private set => Set(ref _gitDetails, value); }
     public string ActivityCoverage { get => _activityCoverage; private set => Set(ref _activityCoverage, value); }
@@ -286,11 +289,13 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
             ProjectFiles.Clear();
             if (_git is not null)
             {
-                var impact = await _git.InspectAsync(path);
+                var scope = GitImpactSelection == "Last commit" ? GitImpactScope.LastCommit : GitImpactScope.WorkingTree;
+                var impact = await _git.InspectRangeAsync(path, scope);
                 GitBranch = impact.Branch + (impact.IsWorktree ? " · worktree" : "");
                 GitSummary = $"+{impact.AddedLines:N0} / -{impact.DeletedLines:N0}";
                 GitDetails = $"{impact.Files.Count} tracked changes · {impact.UntrackedFiles} untracked · {impact.LatestCommit}";
-                ProjectStatus = "Working-tree Git impact; not attributed to any agent.";
+                ProjectStatus = (scope == GitImpactScope.LastCommit ? "Last committed revision" : "Working-tree changes") +
+                    "; not attributed to any agent.";
                 foreach (var file in impact.Files)
                     ProjectFiles.Add($"{file.Path}    +{file.Added} / -{file.Deleted}" +
                         (file.Binary ? " (binary)" : ""));
