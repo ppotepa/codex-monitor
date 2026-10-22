@@ -13,6 +13,7 @@ public static class InfrastructureServices
         services.AddSingleton<IProcessRunner, ProcessRunner>();
         services.AddSingleton<IWorkspaceInstructionsInspector, FileSystemInstructionsInspector>();
         services.AddSingleton<IGitImpactService, GitImpactService>();
+        services.AddSingleton<ILocalSkillsService, LocalSkillsService>();
         services.AddSingleton<IWorkspaceActivitySource>(sp => new JsonlWorkspaceActivitySource(
             Path.Combine(sp.GetRequiredService<IAppPaths>().DataDirectory, "activity.jsonl")));
         services.AddSingleton<IWorkspaceProjectRepository>(sp => new JsonWorkspaceProjectRepository(
