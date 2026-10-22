@@ -11,6 +11,7 @@ public static class InfrastructureServices
     public static IServiceCollection AddCodexMonitorInfrastructure(this IServiceCollection services)
     {
         services.AddSingleton<IProcessRunner, ProcessRunner>();
+        services.AddSingleton<IWorkspaceInstructionsInspector, FileSystemInstructionsInspector>();
         services.AddSingleton<IWorkspaceProjectRepository>(sp => new JsonWorkspaceProjectRepository(
             Path.Combine(sp.GetRequiredService<IAppPaths>().DataDirectory, "workspace-projects.json")));
         services.AddSingleton<IWorkspaceGoalRepository>(sp => new JsonWorkspaceGoalRepository(
