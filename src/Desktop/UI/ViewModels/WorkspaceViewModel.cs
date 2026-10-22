@@ -11,6 +11,7 @@ namespace CodexMonitor.UI.ViewModels;
 
 // A presentation-only model. Local tools never require an account or network access.
 public sealed record DoctorCheckItem(string Category, string Name, string Status, string Detail);
+public sealed record SessionItem(string Name, string State, string Project, string LastUpdated, string Id);
 
 public sealed class WorkspaceViewModel : BindableBase, IDisposable
 {
@@ -25,6 +26,11 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
     private readonly IInstructionsOptimizer? _instructionOptimizer;
     private readonly IInstructionsFileEditor? _instructionEditor;
     private readonly IWorkspaceDoctor? _doctor;
+    private readonly IReadOnlyList<IAgentSessionSource> _sessionSources;
+    private AgentSessionSnapshot? _sessionSnapshot;
+    private string _selectedProviderId = "codex";
+    private string _sessionsStatus = "Select Refresh to list available stored sessions.";
+    private bool _isLoadingSessions;
     private string _doctorSummary = "Run local diagnostics to inspect agents and tools.";
     private readonly CancellationTokenSource _analysisLifetime = new();
     private InstructionsProposal? _pendingInstructions;
@@ -69,6 +75,9 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
     private int _selectedPage;
 
     public DashboardViewModel Usage { get; }
+    public ObservableCollection<SessionItem> SessionItems { get; } = [];
+    public string SessionsStatus { get => _sessionsStatus; private set => Set(ref _sessionsStatus, value); }
+    public bool IsLoadingSessions { get => _isLoadingSessions; private set => Set(ref _isLoadingSessions, value); }
     public ObservableCollection<DoctorCheckItem> DoctorItems { get; } = [];
     public string DoctorSummary { get => _doctorSummary; private set => Set(ref _doctorSummary, value); }
     public ObservableCollection<string> ActivityItems { get; } = [];
@@ -120,6 +129,7 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
     public string AdvisorText { get => _advisorText; private set => Set(ref _advisorText, value); }
     public bool IsLoading { get => _isLoading; private set => Set(ref _isLoading, value); }
     public int SelectedPage { get => _selectedPage; set => Set(ref _selectedPage, value); }
+    public ICommand RefreshSessionsCommand { get; }
     public ICommand RefreshDoctorCommand { get; }
     public ICommand AnalyzeInstructionsCommand { get; }
     public ICommand OptimizeInstructionsCommand { get; }
@@ -143,7 +153,8 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
         IGitImpactService? git = null, IWorkspaceActivitySource? activity = null,
         IWorkspacePlanner? planner = null, ILocalSkillsService? skillsService = null,
         IInstructionsAuditService? instructionAudit = null, IInstructionsOptimizer? instructionOptimizer = null,
-        IInstructionsFileEditor? instructionEditor = null, IWorkspaceDoctor? doctor = null)
+        IInstructionsFileEditor? instructionEditor = null, IWorkspaceDoctor? doctor = null,
+        IEnumerable<IAgentSessionSource>? sessionSources = null)
     {
         Usage = usage;
         _goals = goals;
@@ -157,6 +168,8 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
         _instructionOptimizer = instructionOptimizer;
         _instructionEditor = instructionEditor;
         _doctor = doctor;
+        _sessionSources = sessionSources?.ToArray() ?? [];
+        RefreshSessionsCommand = new UiCommand(() => _ = RefreshSessionsAsync());
         RefreshDoctorCommand = new UiCommand(RefreshDoctor);
         AnalyzeInstructionsCommand = new UiCommand(AnalyzeInstructions);
         OptimizeInstructionsCommand = new UiCommand(() => _ = OptimizeInstructionsAsync());
@@ -204,8 +217,9 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
     }
 
     // Called by the desktop host whenever a new provider snapshot is available.
-    public void ApplyUsageSnapshot(CodexMonitor.Core.Usage.UsageSnapshot? limits)
+    public void ApplyUsageSnapshot(CodexMonitor.Core.Usage.UsageSnapshot? limits, string providerId)
     {
+        _selectedProviderId = providerId;
         _usageSnapshot = limits;
         RefreshAdvice();
     }
@@ -369,6 +383,44 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         { Instructions = "Could not read instructions: " + ex.Message; }
+    }
+
+    public async Task RefreshSessionsAsync()
+    {
+        if (IsLoadingSessions) return;
+        IsLoadingSessions = true;
+        SessionItems.Clear();
+        var source = _sessionSources.FirstOrDefault(item =>
+            item.ProviderId.Equals(_selectedProviderId, StringComparison.OrdinalIgnoreCase));
+        if (source is null)
+        {
+            SessionsStatus = _selectedProviderId + " session integration: NotImplemented.";
+            IsLoadingSessions = false;
+            return;
+        }
+        SessionsStatus = "Reading stored sessions without resuming them…";
+        try
+        {
+            _sessionSnapshot = await source.ListAsync(_analysisLifetime.Token);
+            SessionsStatus = _sessionSnapshot.Sessions.Count + " stored sessions. " + _sessionSnapshot.Coverage;
+            foreach (var session in _sessionSnapshot.Sessions)
+            {
+                var status = session.Status == "notLoaded" ? "Not loaded by this server" : session.Status;
+                SessionItems.Add(new SessionItem(session.DisplayName, status,
+                    session.ProjectDirectory ?? "Project unknown",
+                    session.UpdatedAt?.ToLocalTime().ToString("g") ?? "No timestamp", session.Id));
+            }
+            RefreshAdvice();
+        }
+        catch (OperationCanceledException)
+        {
+            SessionsStatus = "Session read cancelled or timed out.";
+        }
+        catch (Exception ex)
+        {
+            SessionsStatus = "Could not query Codex App Server: " + ex.Message;
+        }
+        finally { IsLoadingSessions = false; }
     }
 
     public void RefreshDoctor()
