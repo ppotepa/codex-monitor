@@ -309,6 +309,35 @@
           </StackPanel>
         </ScrollViewer>
       </TabItem>
+      <TabItem Header="Sessions">
+        <ScrollViewer>
+          <StackPanel Margin="40,30" Spacing="16" MaxWidth="900" HorizontalAlignment="Left">
+            <TextBlock Text="Sessions" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
+            <TextBlock Text="Read-only Codex history from an isolated App Server connection."
+                       Foreground="#68767C" TextWrapping="Wrap" FontSize="13"/>
+            <Button Content="Read saved sessions" Command="{Binding RefreshSessionsCommand}"
+                    IsEnabled="{Binding !IsLoadingSessions}" HorizontalAlignment="Left"/>
+            <TextBlock Text="{Binding SessionsStatus}" TextWrapping="Wrap" Foreground="#68767C" FontSize="12"/>
+            <ItemsControl ItemsSource="{Binding SessionItems}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:SessionItem">
+                  <Border BorderBrush="#E4EAE7" BorderThickness="0,0,0,1" Padding="0,12">
+                    <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="5">
+                      <TextBlock Text="{Binding Name}" Foreground="#202A30" FontSize="15" FontWeight="SemiBold"/>
+                      <TextBlock Grid.Column="1" Text="{Binding State}" Foreground="#347867" FontSize="12"/>
+                      <TextBlock Grid.Row="1" Text="{Binding Project}" Foreground="#68767C"
+                                 TextWrapping="Wrap" FontSize="12"/>
+                      <TextBlock Grid.Row="2" Text="{Binding LastUpdated}" Foreground="#748188" FontSize="11"/>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="notLoaded is not an idle signal. This window never resumes or modifies a session."
+                       Foreground="#748188" TextWrapping="Wrap" FontSize="12"/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
     </TabControl>
   </Grid>
 </Window>
