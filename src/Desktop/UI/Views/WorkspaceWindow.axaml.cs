@@ -10,9 +10,15 @@ public partial class WorkspaceWindow : Window
 {
     public WorkspaceWindow() : this(new DashboardViewModel()) { }
 
-    internal WorkspaceWindow(DashboardViewModel usage, IWorkspaceGoalRepository? goals = null, IWorkspaceProjectRepository? projects = null, IWorkspaceInstructionsInspector? inspector = null)
+    internal WorkspaceWindow(DashboardViewModel usage, IWorkspaceGoalRepository? goals = null, IWorkspaceProjectRepository? projects = null, IWorkspaceInstructionsInspector? inspector = null,
+        IGitImpactService? git = null, IWorkspaceActivitySource? activity = null, IWorkspacePlanner? planner = null)
     {
         AvaloniaXamlLoader.Load(this);
-        DataContext = new WorkspaceViewModel(usage, goals, projects, inspector);
+        DataContext = new WorkspaceViewModel(usage, goals, projects, inspector, git, activity, planner);
+    }
+
+    internal void ApplyUsage(CodexMonitor.Core.Usage.UsageSnapshot? snapshot)
+    {
+        if (DataContext is WorkspaceViewModel vm) vm.ApplyUsageSnapshot(snapshot);
     }
 }
