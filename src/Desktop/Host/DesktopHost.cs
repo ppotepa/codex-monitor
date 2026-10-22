@@ -27,6 +27,7 @@ internal sealed class DesktopHost(
     CodexMonitor.Core.Workspace.IInstructionsOptimizer instructionOptimizer,
     CodexMonitor.Core.Workspace.IInstructionsFileEditor instructionEditor,
     CodexMonitor.Core.Workspace.IWorkspaceDoctor doctor,
+    IEnumerable<CodexMonitor.Core.Workspace.IAgentSessionSource> sessionSources,
     CancellationTokenSource shutdown) : IDisposable
 {
     private WorkspaceWindow? _workspaceWindow;
@@ -117,7 +118,7 @@ internal sealed class DesktopHost(
         }
         var state = coordinator.Dashboard;
         window.ApplyState(state);
-        _workspaceWindow?.ApplyUsage(state.Limits);
+        _workspaceWindow?.ApplyUsage(state.Limits, coordinator.ProviderInfo.Id);
         tray.Update(state);
     }
 
@@ -144,10 +145,10 @@ internal sealed class DesktopHost(
         if (_workspaceWindow is null)
         {
             _workspaceWindow = new WorkspaceWindow(window.WorkspaceUsageModel, goals, projects, inspector, git, activity,
-                planner, skills, instructionAudit, instructionOptimizer, instructionEditor, doctor);
+                planner, skills, instructionAudit, instructionOptimizer, instructionEditor, doctor, sessionSources);
             _workspaceWindow.Closed += (_, _) => _workspaceWindow = null;
         }
-        _workspaceWindow.ApplyUsage(coordinator.Dashboard.Limits);
+        _workspaceWindow.ApplyUsage(coordinator.Dashboard.Limits, coordinator.ProviderInfo.Id);
         _workspaceWindow.Show();
         _workspaceWindow.Activate();
         _ = coordinator.RefreshLimitsAsync();
