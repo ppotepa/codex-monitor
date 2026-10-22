@@ -39,6 +39,16 @@ The dashboard, Limits/Tokens tabs, settings, agent diagnostics, status text,
 `src/Desktop/UI/` using AXAML, Avalonia controls and ViewModels.
 Windows and Unix no longer have separate form trees.
 
+The compact window remains the Quick View. Its **Workspace** action and the
+tray menu's **Open workspace** command open a separate full-size dashboard.
+Workspace persists Global/Agent/Project context and a local project list. Git
+worktrees are grouped by their shared repository directory, while retaining
+separate worktree paths. Project additions, removals and context changes show
+the settings target and effect before saving. Git Impact reads the selected
+worktree's branch, changed paths and line counts without modifying the worktree.
+Other roadmap pages report their explicit availability state while their
+vertical slices are being integrated.
+
 The host in `src/Desktop/Host/` also shares tray menu actions, timers
 and notification delivery. Only OS-specific services vary: executable
 discovery, command launching, local data directories, login autostart,

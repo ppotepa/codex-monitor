@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using CodexMonitor.Infrastructure.Persistence;
 using CodexMonitor.Infrastructure.Processes;
+using CodexMonitor.Infrastructure.Projects;
 
 namespace CodexMonitor.Infrastructure;
 
@@ -9,6 +10,8 @@ public static class InfrastructureServices
     public static IServiceCollection AddCodexMonitorInfrastructure(this IServiceCollection services)
     {
         services.AddSingleton<IProcessRunner, ProcessRunner>();
+        services.AddSingleton<ProjectCatalog>();
+        services.AddSingleton<IGitImpactService, GitImpactService>();
         services.AddSingleton<IMonitorSettingsRepository>(sp => new JsonMonitorSettingsRepository(
             Path.Combine(sp.GetRequiredService<IAppPaths>().DataDirectory, "settings.json")));
         services.AddSingleton(sp => MonitorDatabase.Load(Path.Combine(

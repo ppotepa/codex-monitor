@@ -65,6 +65,7 @@ public partial class DashboardWindow : Window
     public event EventHandler? SettingsRequested;
     public event EventHandler? TokensRequested;
     public event EventHandler? TokenRefreshRequested;
+    public event EventHandler? WorkspaceRequested;
 
     public bool IsOpen => IsVisible;
     public bool ShowingTokens =>
@@ -89,6 +90,9 @@ public partial class DashboardWindow : Window
         _currentProvider = provider;
         SetProvider(provider);
     }
+
+    private void WorkspaceClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
+        WorkspaceRequested?.Invoke(this, EventArgs.Empty);
 
     internal void SetTrayAvailable(bool available)
     {
