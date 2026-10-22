@@ -13,7 +13,7 @@ namespace CodexMonitor.UI.ViewModels;
 public sealed record DoctorCheckItem(string Category, string Name, string Status, string Detail);
 public sealed record SessionItem(string Name, string State, string Project, string LastUpdated, string Id);
 
-public sealed class WorkspaceViewModel : BindableBase, IDisposable
+public sealed partial class WorkspaceViewModel : BindableBase, IDisposable
 {
     private readonly IWorkspaceGoalRepository? _goals;
     private readonly IWorkspaceProjectRepository? _projects;
@@ -149,7 +149,15 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
     public string SkillsSummary { get => _skillsSummary; private set => Set(ref _skillsSummary, value); }
     public string AdvisorText { get => _advisorText; private set => Set(ref _advisorText, value); }
     public bool IsLoading { get => _isLoading; private set => Set(ref _isLoading, value); }
-    public int SelectedPage { get => _selectedPage; set => Set(ref _selectedPage, value); }
+    public int SelectedPage
+    {
+        get => _selectedPage;
+        set
+        {
+            if (Set(ref _selectedPage, value) && value == 0)
+                _ = RefreshOverviewAsync();
+        }
+    }
     public ICommand AskAiPlannerCommand { get; }
     public ICommand RefreshSessionsCommand { get; }
     public ICommand RefreshDoctorCommand { get; }
@@ -222,6 +230,7 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
                 RefreshAdvice();
         };
         RefreshAdvice();
+        InitializeOverview();
     }
 
     private void RefreshAdvice()
@@ -251,6 +260,7 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
         }
         _selectedProviderId = providerId;
         _usageSnapshot = limits;
+        UpdateOverviewAllowance();
         RefreshAdvice();
     }
 
@@ -476,6 +486,7 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
         {
             _sessionSnapshot = await source.ListAsync(_analysisLifetime.Token);
             SessionsStatus = _sessionSnapshot.Sessions.Count + " stored sessions. " + _sessionSnapshot.Coverage;
+            _ = RefreshOverviewAsync();
             if (_sessionSnapshot.Sessions.Any(session => session.Status == "waitingOnApproval"))
                 ActivityAttention = "Observed session reports waiting on approval; verify it in Codex.";
             foreach (var session in _sessionSnapshot.Sessions)
