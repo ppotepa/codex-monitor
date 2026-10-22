@@ -224,7 +224,7 @@ public sealed partial class WorkspaceViewModel
                             added = "+" + git.AddedLines.ToString("N0", CultureInfo.CurrentCulture);
                             removed = "−" + git.DeletedLines.ToString("N0", CultureInfo.CurrentCulture);
                         }
-                        catch (Exception ex) when (ex is IOException or InvalidOperationException or Win32Exception)
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or Win32Exception)
                         {
                             branch = "Git read unavailable";
                         }
@@ -239,9 +239,10 @@ public sealed partial class WorkspaceViewModel
             foreach (var row in rows) OverviewProjects.Add(row);
             OnPropertyChanged(nameof(HasOverviewProjects));
 
-            OverviewActiveProjects = sessions.Any(item => item.Status == "active")
-                ? sessions.Where(item => item.Status == "active" && item.ProjectDirectory is not null)
-                    .Select(item => item.ProjectDirectory).Distinct().Count() + " reported active"
+            var activeTracked = paths.Count(project => sessions.Any(item =>
+                item.Status == "active" && IsInsideProject(item.ProjectDirectory, project)));
+            OverviewActiveProjects = activeTracked > 0
+                ? activeTracked + " reported active"
                 : "No confirmed active projects";
 
             UpdateOverviewAllowance();
