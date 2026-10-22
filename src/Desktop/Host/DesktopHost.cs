@@ -22,6 +22,7 @@ internal sealed class DesktopHost(
     CodexMonitor.Core.Workspace.IGitImpactService git,
     CodexMonitor.Core.Workspace.IWorkspaceActivitySource activity,
     CodexMonitor.Core.Workspace.IWorkspacePlanner planner,
+    CodexMonitor.Core.Workspace.ILocalSkillsService skills,
     CancellationTokenSource shutdown) : IDisposable
 {
     private WorkspaceWindow? _workspaceWindow;
@@ -138,7 +139,7 @@ internal sealed class DesktopHost(
         if (_disposed) return;
         if (_workspaceWindow is null)
         {
-            _workspaceWindow = new WorkspaceWindow(window.WorkspaceUsageModel, goals, projects, inspector, git, activity, planner);
+            _workspaceWindow = new WorkspaceWindow(window.WorkspaceUsageModel, goals, projects, inspector, git, activity, planner, skills);
             _workspaceWindow.Closed += (_, _) => _workspaceWindow = null;
         }
         _workspaceWindow.ApplyUsage(coordinator.Dashboard.Limits);
