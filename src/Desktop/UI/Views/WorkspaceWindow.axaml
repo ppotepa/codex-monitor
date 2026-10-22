@@ -49,6 +49,15 @@
                 </StackPanel>
               </Border>
             </Grid>
+            <Border BorderBrush="#C4D8CB" BorderThickness="1" CornerRadius="6" Padding="12"
+                    IsVisible="{Binding HasAttention}">
+              <StackPanel Spacing="5">
+                <TextBlock Text="Needs your attention" Foreground="#275F4F" FontSize="14" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding ActivityAttention}" Foreground="#405A53" FontSize="13" TextWrapping="Wrap"/>
+                <TextBlock Text="Open Activity or Sessions to inspect the underlying observation."
+                           Foreground="#68767C" FontSize="11" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
             <StackPanel Spacing="10">
               <TextBlock Text="Next action" FontSize="19" FontWeight="SemiBold" Foreground="#202A30"/>
               <TextBlock Text="{Binding AdvisorText}" FontSize="14" TextWrapping="Wrap" Foreground="#485A61"/>
