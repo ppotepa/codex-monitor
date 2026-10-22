@@ -18,6 +18,7 @@ internal sealed class DesktopHost(
     IDesktopNotificationService notifications,
     CodexMonitor.Core.Workspace.IWorkspaceGoalRepository goals,
     CodexMonitor.Core.Workspace.IWorkspaceProjectRepository projects,
+    CodexMonitor.Core.Workspace.IWorkspaceInstructionsInspector inspector,
     CancellationTokenSource shutdown) : IDisposable
 {
     private WorkspaceWindow? _workspaceWindow;
@@ -133,7 +134,7 @@ internal sealed class DesktopHost(
         if (_disposed) return;
         if (_workspaceWindow is null)
         {
-            _workspaceWindow = new WorkspaceWindow(window.WorkspaceUsageModel, goals, projects);
+            _workspaceWindow = new WorkspaceWindow(window.WorkspaceUsageModel, goals, projects, inspector);
             _workspaceWindow.Closed += (_, _) => _workspaceWindow = null;
         }
         _workspaceWindow.Show();
