@@ -106,7 +106,17 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
     public string GitBranch { get => _gitBranch; private set => Set(ref _gitBranch, value); }
     public string GitDetails { get => _gitDetails; private set => Set(ref _gitDetails, value); }
     public string ActivityCoverage { get => _activityCoverage; private set => Set(ref _activityCoverage, value); }
-    public string ActivityAttention { get => _activityAttention; private set => Set(ref _activityAttention, value); }
+    public string ActivityAttention
+    {
+        get => _activityAttention;
+        private set
+        {
+            if (Set(ref _activityAttention, value)) OnPropertyChanged(nameof(HasAttention));
+        }
+    }
+    public bool HasAttention =>
+        ActivityAttention.StartsWith("An observed event", StringComparison.Ordinal) ||
+        ActivityAttention.StartsWith("Observed session", StringComparison.Ordinal);
     public string AdvisorEvidence { get => _advisorEvidence; private set => Set(ref _advisorEvidence, value); }
     public string NotifySetup { get => _notifySetup; private set => Set(ref _notifySetup, value); }
     public ObservableCollection<string> InstructionFiles { get; } = [];
@@ -466,6 +476,8 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
         {
             _sessionSnapshot = await source.ListAsync(_analysisLifetime.Token);
             SessionsStatus = _sessionSnapshot.Sessions.Count + " stored sessions. " + _sessionSnapshot.Coverage;
+            if (_sessionSnapshot.Sessions.Any(session => session.Status == "waitingOnApproval"))
+                ActivityAttention = "Observed session reports waiting on approval; verify it in Codex.";
             foreach (var session in _sessionSnapshot.Sessions)
             {
                 var status = session.Status == "notLoaded" ? "Not loaded by this server" : session.Status;
