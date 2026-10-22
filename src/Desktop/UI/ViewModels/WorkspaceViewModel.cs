@@ -236,7 +236,7 @@ public sealed class WorkspaceViewModel : BindableBase
                 _projects?.Add(path);
                 LoadProjects();
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidDataException or InvalidOperationException)
             {
                 ProjectStatus += " (Could not persist project: " + ex.Message + ")";
             }
