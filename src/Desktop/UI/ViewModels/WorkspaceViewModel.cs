@@ -10,7 +10,7 @@ using System.Windows.Input;
 namespace CodexMonitor.UI.ViewModels;
 
 // A presentation-only model. Local tools never require an account or network access.
-public sealed class WorkspaceViewModel : BindableBase
+public sealed class WorkspaceViewModel : BindableBase, IDisposable
 {
     private readonly IWorkspaceGoalRepository? _goals;
     private readonly IWorkspaceProjectRepository? _projects;
@@ -19,6 +19,18 @@ public sealed class WorkspaceViewModel : BindableBase
     private readonly IWorkspaceActivitySource? _activity;
     private readonly IWorkspacePlanner? _planner;
     private readonly ILocalSkillsService? _skillsService;
+    private readonly IInstructionsAuditService? _instructionAudit;
+    private readonly IInstructionsOptimizer? _instructionOptimizer;
+    private readonly IInstructionsFileEditor? _instructionEditor;
+    private readonly CancellationTokenSource _analysisLifetime = new();
+    private InstructionsProposal? _pendingInstructions;
+    private string? _proposalFile;
+    private string _instructionsAuditText = "";
+    private string _instructionsProposedText = "";
+    private string _instructionsRationale = "AI suggestions appear here after an explicit request.";
+    private string _instructionsOperationStatus = "";
+    private bool _isOptimizingInstructions;
+    private bool _confirmInstructionsApply;
     private SkillInstallReview? _skillPending;
     private readonly Dictionary<string, string> _knownSkillFolders = new(StringComparer.Ordinal); 
     private string _skillSourceFolder = "";
@@ -54,6 +66,17 @@ public sealed class WorkspaceViewModel : BindableBase
 
     public DashboardViewModel Usage { get; }
     public ObservableCollection<string> ActivityItems { get; } = [];
+    public string InstructionsAuditText { get => _instructionsAuditText; private set => Set(ref _instructionsAuditText, value); }
+    public string InstructionsProposedText { get => _instructionsProposedText; private set => Set(ref _instructionsProposedText, value); }
+    public string InstructionsRationale { get => _instructionsRationale; private set => Set(ref _instructionsRationale, value); }
+    public string InstructionsOperationStatus { get => _instructionsOperationStatus; private set => Set(ref _instructionsOperationStatus, value); }
+    public bool IsOptimizingInstructions { get => _isOptimizingInstructions; private set => Set(ref _isOptimizingInstructions, value); }
+    public bool ConfirmInstructionsApply
+    {
+        get => _confirmInstructionsApply;
+        set { if (Set(ref _confirmInstructionsApply, value)) OnPropertyChanged(nameof(CanApplyInstructions)); }
+    }
+    public bool CanApplyInstructions => _pendingInstructions is not null && ConfirmInstructionsApply;
     public string GitBranch { get => _gitBranch; private set => Set(ref _gitBranch, value); }
     public string GitDetails { get => _gitDetails; private set => Set(ref _gitDetails, value); }
     public string ActivityCoverage { get => _activityCoverage; private set => Set(ref _activityCoverage, value); }
@@ -91,6 +114,9 @@ public sealed class WorkspaceViewModel : BindableBase
     public string AdvisorText { get => _advisorText; private set => Set(ref _advisorText, value); }
     public bool IsLoading { get => _isLoading; private set => Set(ref _isLoading, value); }
     public int SelectedPage { get => _selectedPage; set => Set(ref _selectedPage, value); }
+    public ICommand AnalyzeInstructionsCommand { get; }
+    public ICommand OptimizeInstructionsCommand { get; }
+    public ICommand ApplyInstructionsCommand { get; }
     public ICommand ReviewSkillCommand { get; }
     public ICommand InstallReviewedSkillCommand { get; }
     public ICommand ReadSelectedSkillCommand { get; }
@@ -108,7 +134,9 @@ public sealed class WorkspaceViewModel : BindableBase
     public WorkspaceViewModel(DashboardViewModel usage, IWorkspaceGoalRepository? goals = null,
         IWorkspaceProjectRepository? projects = null, IWorkspaceInstructionsInspector? inspector = null,
         IGitImpactService? git = null, IWorkspaceActivitySource? activity = null,
-        IWorkspacePlanner? planner = null, ILocalSkillsService? skillsService = null)
+        IWorkspacePlanner? planner = null, ILocalSkillsService? skillsService = null,
+        IInstructionsAuditService? instructionAudit = null, IInstructionsOptimizer? instructionOptimizer = null,
+        IInstructionsFileEditor? instructionEditor = null)
     {
         Usage = usage;
         _goals = goals;
@@ -118,6 +146,12 @@ public sealed class WorkspaceViewModel : BindableBase
         _activity = activity;
         _planner = planner;
         _skillsService = skillsService;
+        _instructionAudit = instructionAudit;
+        _instructionOptimizer = instructionOptimizer;
+        _instructionEditor = instructionEditor;
+        AnalyzeInstructionsCommand = new UiCommand(AnalyzeInstructions);
+        OptimizeInstructionsCommand = new UiCommand(() => _ = OptimizeInstructionsAsync());
+        ApplyInstructionsCommand = new UiCommand(ApplyInstructions);
         ReviewSkillCommand = new UiCommand(ReviewSkill);
         InstallReviewedSkillCommand = new UiCommand(InstallReviewedSkill);
         ReadSelectedSkillCommand = new UiCommand(ReadSelectedSkill);
@@ -313,11 +347,99 @@ public sealed class WorkspaceViewModel : BindableBase
 
     private void ReadInstruction()
     {
+        _pendingInstructions = null;
+        _proposalFile = null;
+        ConfirmInstructionsApply = false;
+        OnPropertyChanged(nameof(CanApplyInstructions));
+        InstructionsProposedText = "";
         if (_inspector is null || string.IsNullOrWhiteSpace(SelectedInstructionPath)) return;
-        try { Instructions = _inspector.Read(SelectedInstructionPath); }
+        try
+        {
+            Instructions = _inspector.Read(SelectedInstructionPath);
+            AnalyzeInstructions();
+        }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         { Instructions = "Could not read instructions: " + ex.Message; }
     }
+
+    public void AnalyzeInstructions()
+    {
+        if (_instructionAudit is null) return;
+        try
+        {
+            var report = _instructionAudit.Analyze(Instructions);
+            InstructionsAuditText = "Approx. " + report.ApproximateTokens +
+                " tokens (character heuristic). " +
+                (report.Warnings.Count == 0 ? "No obvious structural issues." :
+                    string.Join(" ", report.Warnings));
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidDataException)
+        {
+            InstructionsAuditText = "Analysis failed: " + ex.Message;
+        }
+    }
+
+    public async Task OptimizeInstructionsAsync()
+    {
+        if (IsOptimizingInstructions || _instructionOptimizer is null ||
+            string.IsNullOrWhiteSpace(SelectedInstructionPath)) return;
+        IsOptimizingInstructions = true;
+        _pendingInstructions = null;
+        _proposalFile = null;
+        ConfirmInstructionsApply = false;
+        OnPropertyChanged(nameof(CanApplyInstructions));
+        InstructionsOperationStatus = "Codex is generating a read-only JSON proposal…";
+        try
+        {
+            var selectedFile = SelectedInstructionPath;
+            var original = Instructions;
+            var proposal = await _instructionOptimizer.ProposeAsync(original, _analysisLifetime.Token);
+            if (SelectedInstructionPath != selectedFile)
+            {
+                InstructionsOperationStatus = "Selection changed; proposal discarded.";
+                return;
+            }
+            _pendingInstructions = proposal;
+            _proposalFile = selectedFile;
+            InstructionsProposedText = proposal.ProposedText;
+            InstructionsRationale = proposal.Rationale;
+            InstructionsOperationStatus = "Review the original and proposed text before confirming save.";
+        }
+        catch (OperationCanceledException)
+        {
+            InstructionsOperationStatus = "AI analysis cancelled.";
+        }
+        catch (Exception ex)
+        {
+            InstructionsOperationStatus = "AI proposal unavailable: " + ex.Message;
+        }
+        finally
+        {
+            IsOptimizingInstructions = false;
+            OnPropertyChanged(nameof(CanApplyInstructions));
+        }
+    }
+
+    public void ApplyInstructions()
+    {
+        if (!CanApplyInstructions || _instructionEditor is null ||
+            _proposalFile != SelectedInstructionPath || _pendingInstructions is null) return;
+        try
+        {
+            _instructionEditor.Apply(_proposalFile, _pendingInstructions);
+            InstructionsOperationStatus = "Approved changes saved. A timestamped backup was retained.";
+            ReadInstruction();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            InstructionsOperationStatus = "Could not save: " + ex.Message;
+            _pendingInstructions = null;
+            ConfirmInstructionsApply = false;
+            OnPropertyChanged(nameof(CanApplyInstructions));
+        }
+    }
+
+    public void Dispose() => _analysisLifetime.Cancel();
 
     private void LoadProjects()
     {
