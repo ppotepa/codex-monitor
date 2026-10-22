@@ -13,7 +13,7 @@ public sealed record WorkspaceAiPlanningContext(
 
 public sealed record WorkspaceAiRecommendation(string Action, string Summary, string Rationale);
 
-public interface IWorkspaceAiPlanner
+public interface IWorkspaceAiPlanner : IFeature
 {
     string ProviderId { get; }
     Task<WorkspaceAiRecommendation> AnalyzeAsync(WorkspaceAiPlanningContext context,
