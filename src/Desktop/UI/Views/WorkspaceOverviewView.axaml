@@ -226,7 +226,7 @@
                   <TextBlock Text="{Binding OverviewAttentionEvidence}" FontSize="10"
                              Foreground="#8795A3" TextWrapping="Wrap"/>
                   <Button IsVisible="{Binding HasOverviewAttention}"
-                          Content="Inspect event →" Command="{Binding ShowOverviewActivityCommand}"
+                          Content="Inspect event →" Command="{Binding InspectOverviewAttentionCommand}"
                           Background="Transparent" Foreground="{DynamicResource AccentBrush}"
                           HorizontalAlignment="Left" FontSize="11" Padding="0,6"/>
                 </StackPanel>
