@@ -67,6 +67,12 @@
           <StackPanel Margin="40,30" Spacing="18" MaxWidth="880" HorizontalAlignment="Left">
             <TextBlock Text="Projects" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
             <TextBlock Text="Inspect a local repository. Nothing leaves your computer." FontSize="13" Foreground="#68767C"/>
+            <TextBlock Text="Saved repositories" FontSize="12" Foreground="#485A61"/>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+              <ComboBox ItemsSource="{Binding Projects}" SelectedItem="{Binding SelectedProject, Mode=TwoWay}"
+                        MinWidth="380" HorizontalAlignment="Stretch"/>
+              <Button Grid.Column="1" Content="Open selected" Command="{Binding LoadProjectCommand}"/>
+            </Grid>
             <TextBlock Text="Repository directory" FontSize="12" Foreground="#485A61"/>
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
               <TextBox Text="{Binding ProjectPath, Mode=TwoWay}" Watermark="Paste a local repository path"
