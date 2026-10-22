@@ -74,6 +74,7 @@ public sealed partial class WorkspaceViewModel
     public ICommand RefreshOverviewCommand { get; private set; } = null!;
     public ICommand AddOverviewProjectCommand { get; private set; } = null!;
     public ICommand ShowOverviewActivityCommand { get; private set; } = null!;
+    public ICommand InspectOverviewAttentionCommand { get; private set; } = null!;
     public ICommand ShowOverviewPlannerCommand { get; private set; } = null!;
     public ICommand ToggleOverviewActivityCommand { get; private set; } = null!;
 
@@ -86,6 +87,9 @@ public sealed partial class WorkspaceViewModel
         });
         AddOverviewProjectCommand = new UiCommand(() => SelectedPage = 1);
         ShowOverviewActivityCommand = new UiCommand(() => SelectedPage = 7);
+        InspectOverviewAttentionCommand = new UiCommand(() =>
+            SelectedPage = _sessionSnapshot?.Sessions.Any(item =>
+                item.Status == "waitingOnApproval") == true ? 9 : 7);
         ShowOverviewPlannerCommand = new UiCommand(() => SelectedPage = 6);
         ToggleOverviewActivityCommand = new UiCommand(() => IsActivityExpanded = !IsActivityExpanded);
         UpdateOverviewAllowance();
