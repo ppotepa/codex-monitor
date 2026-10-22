@@ -1,3 +1,5 @@
+using CodexMonitor.Core.Workspace;
+using CodexMonitor.Infrastructure.Workspace;
 using CodexMonitor.Infrastructure;
 using CodexMonitor.Infrastructure.Persistence;
 using CodexMonitor.Infrastructure.Processes;
@@ -102,7 +104,29 @@ var cached = reloadedDatabase.ReadTokenUsage("CODEX");
 Assert(cached?.Snapshot.LifetimeTokens == 12345 && cached.CachedAt == now, "Persist and reload token cache");
 File.Delete(databasePath);
 
-Console.WriteLine("Parser and provider checks passed.");
+var goalsPath = Path.Combine(Path.GetTempPath(), $"codex-monitor-goals-{Guid.NewGuid():N}.json");
+var goalStore = new JsonWorkspaceGoalRepository(goalsPath);
+var goal = new WorkspaceGoal(Path.GetTempPath(), "Finish refactor", 90, now);
+goalStore.Save(goal);
+Assert(goalStore.Find(Path.GetTempPath())?.BudgetMinutes == 90, "Read stored goal");
+goalStore.Save(goal with { Title = "Finish review", BudgetMinutes = 30 });
+Assert(goalStore.Find(Path.GetTempPath())?.Title == "Finish review", "Replace goal for the same project");
+try
+{
+    goalStore.Save(goal with { BudgetMinutes = 0 });
+    throw new Exception("Invalid goal budget accepted");
+}
+catch (ArgumentOutOfRangeException) { }
+File.WriteAllText(goalsPath, "{bad json");
+try
+{
+    goalStore.Save(goal);
+    throw new Exception("Corrupt goals file was overwritten");
+}
+catch (InvalidDataException) { }
+File.Delete(goalsPath);
+
+Console.WriteLine("Parser, provider and workspace goal checks passed.");
 
 static void Assert(bool condition, string message)
 {
