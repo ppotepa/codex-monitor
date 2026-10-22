@@ -14,6 +14,9 @@ public static class InfrastructureServices
         services.AddSingleton<IWorkspaceInstructionsInspector, FileSystemInstructionsInspector>();
         services.AddSingleton<IGitImpactService, GitImpactService>();
         services.AddSingleton<ILocalSkillsService, LocalSkillsService>();
+        services.AddSingleton<InstructionsStudioService>();
+        services.AddSingleton<IInstructionsAuditService>(sp => sp.GetRequiredService<InstructionsStudioService>());
+        services.AddSingleton<IInstructionsFileEditor>(sp => sp.GetRequiredService<InstructionsStudioService>());
         services.AddSingleton<IWorkspaceActivitySource>(sp => new JsonlWorkspaceActivitySource(
             Path.Combine(sp.GetRequiredService<IAppPaths>().DataDirectory, "activity.jsonl")));
         services.AddSingleton<IWorkspaceProjectRepository>(sp => new JsonWorkspaceProjectRepository(
