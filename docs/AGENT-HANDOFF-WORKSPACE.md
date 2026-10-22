@@ -2,7 +2,7 @@
 
 **Updated:** 2026-10-22  
 **Repository:** https://github.com/ppotepa/codex-monitor  
-**Delivery branch:** \`main\` (the owner explicitly requested direct writes, no new PR)  
+**Delivery branch:** `main` (the owner explicitly requested direct writes, no new PR)  
 **Status:** Source implementation pushed. Cross-platform .NET build and native GUI smoke test **not verified** in this environment.
 
 ## 1. Current user objective and design rules
@@ -11,56 +11,56 @@ CodexMonitor is a **local-first .NET 10 + Avalonia 11** utility for monitoring A
 
 Design is deliberately:
 - **Fluent Compact**, one Avalonia UI tree shared across Windows/Linux/macOS.
-- Dark graphite/mint palette already used by the tray: window \`#15191F\`, surface \`#20262E\` or \`#1D232B\`, hairlines \`#29323D\`, mint \`#63D9C6\`.
+- Dark graphite/mint palette already used by the tray: window `#15191F`, surface `#20262E` or `#1D232B`, hairlines `#29323D`, mint `#63D9C6`.
 - Small, consistent typography (most interface text 10–13 logical px), restrained whitespace, no gradients, neon effects, mountains/illustrative backgrounds, or dozens of metric cards.
 - **At most two visual attention centres:** (1) projects; (2) items requiring user attention. Above them sits a factual allowance strip. Planner recommendation and recent activity are secondary; activity is collapsed by default.
 - No dedicated authentication for local Git, skills, project registry, goals or instruction reading. AI is optional and uses the user's existing Codex CLI authentication when explicitly invoked.
-- Missing telemetry must not be represented as \`Idle\`, \`Working\`, or \`0%\` without evidence. Never attribute repository Git changes to individual agents without trustworthy correlation.
+- Missing telemetry must not be represented as `Idle`, `Working`, or `0%` without evidence. Never attribute repository Git changes to individual agents without trustworthy correlation.
 - Local installation and file changes need explicit review/confirmation; passive inspection must be read-only.
 
 ## 2. Architecture and existing source
 
-Solution: \`CodexMonitor.slnx\`; projects in \`src/Core\`, \`src/Infrastructure\`, \`src/Providers/Codex\`, \`src/Platform/Windows\`, \`src/Platform/Unix\`, \`src/Desktop/UI\`, \`src/Desktop/Host\`, and standalone checks in \`tests\`.
+Solution: `CodexMonitor.slnx`; projects in `src/Core`, `src/Infrastructure`, `src/Providers/Codex`, `src/Platform/Windows`, `src/Platform/Unix`, `src/Desktop/UI`, `src/Desktop/Host`, and standalone checks in `tests`.
 
-- \`src/Desktop/Host/DesktopHost.cs\`: main composition, callbacks, timers, shared tray, launches Workspace.
-- \`src/Desktop/UI/Views/DashboardWindow.axaml\`: **Quick View**, keep small and stable.
-- \`src/Desktop/UI/Views/WorkspaceWindow.axaml\`: full Workspace shell + other tool tabs, no WinForms duplicate.
-- \`src/Desktop/UI/ViewModels/WorkspaceViewModel.cs\`: existing workspace context and command orchestration (historically too large; be surgical).
-- \`src/Core/Workspace\`: provider feature contracts (\`IFeature\`) and tool abstractions.
-- \`src/Infrastructure/Workspace\`: local JSON registry/goals, Git inspection, local skills, instruction scanning, activity journal, diagnostics.
-- \`src/Providers/Codex\`: Codex usage, optional App Server stored-session listing, schema-bounded AI advisor and instructions optimizer.
+- `src/Desktop/Host/DesktopHost.cs`: main composition, callbacks, timers, shared tray, launches Workspace.
+- `src/Desktop/UI/Views/DashboardWindow.axaml`: **Quick View**, keep small and stable.
+- `src/Desktop/UI/Views/WorkspaceWindow.axaml`: full Workspace shell + other tool tabs, no WinForms duplicate.
+- `src/Desktop/UI/ViewModels/WorkspaceViewModel.cs`: existing workspace context and command orchestration (historically too large; be surgical).
+- `src/Core/Workspace`: provider feature contracts (`IFeature`) and tool abstractions.
+- `src/Infrastructure/Workspace`: local JSON registry/goals, Git inspection, local skills, instruction scanning, activity journal, diagnostics.
+- `src/Providers/Codex`: Codex usage, optional App Server stored-session listing, schema-bounded AI advisor and instructions optimizer.
 
-The \`IFeature\` registry models **provider capabilities**, not every application widget. Codex has adapters; other detected CLIs are shown as unsupported / NotImplemented where appropriate. Do not create duplicate OS-specific presentation trees or migration scaffolding for this new app.
+The `IFeature` registry models **provider capabilities**, not every application widget. Codex has adapters; other detected CLIs are shown as unsupported / NotImplemented where appropriate. Do not create duplicate OS-specific presentation trees or migration scaffolding for this new app.
 
 ## 3. Overview work pushed directly to main on 2026-10-22
 
 New files:
-- \`src/Desktop/UI/Views/WorkspaceOverviewView.axaml\` — compact, evidence-aware dark UI. Four small facts in one ribbon: remaining quota, next reset, observed session IDs, tracked projects. Main left projects table with Git diff and a collapsible activity feed. Narrow right attention and secondary next-step panel.
-- \`src/Desktop/UI/Views/WorkspaceOverviewView.axaml.cs\` — minimal Avalonia UserControl code-behind.
-- \`src/Desktop/UI/ViewModels/WorkspaceViewModel.Overview.cs\` — new \`WorkspaceViewModel\` partial: async local read model, project rows, evidence-linked attention, actual provider quota, activity preview, commands.
+- `src/Desktop/UI/Views/WorkspaceOverviewView.axaml` — compact, evidence-aware dark UI. Four small facts in one ribbon: remaining quota, next reset, observed session IDs, tracked projects. Main left projects table with Git diff and a collapsible activity feed. Narrow right attention and secondary next-step panel.
+- `src/Desktop/UI/Views/WorkspaceOverviewView.axaml.cs` — minimal Avalonia UserControl code-behind.
+- `src/Desktop/UI/ViewModels/WorkspaceViewModel.Overview.cs` — new `WorkspaceViewModel` partial: async local read model, project rows, evidence-linked attention, actual provider quota, activity preview, commands.
 
 Updated files:
-- \`src/Desktop/UI/Views/WorkspaceWindow.axaml\` — old Overview replaced by the new view. Shell now uses dark palette, compact 202px sidebar with SVG-like PathIcons, 64px topbar/breadcrumb, selected-tab styling, and updated colors in the **existing** tool tabs. Default dimensions 1120×740, min width 960.
-- \`src/Desktop/UI/Views/WorkspaceWindow.axaml.cs\` — initial local overview refresh on \`Opened\`.
-- \`src/Desktop/UI/ViewModels/WorkspaceViewModel.cs\` — class made \`partial\`, selected-page breadcrumb and refresh wiring, quota snapshot updates, initial Overview command registration.
-- \`docs/UI-DESIGN.md\` — compact UX and evidence contract.
+- `src/Desktop/UI/Views/WorkspaceWindow.axaml` — old Overview replaced by the new view. Shell now uses dark palette, compact 202px sidebar with SVG-like PathIcons, 64px topbar/breadcrumb, selected-tab styling, and updated colors in the **existing** tool tabs. Default dimensions 1120×740, min width 960.
+- `src/Desktop/UI/Views/WorkspaceWindow.axaml.cs` — initial local overview refresh on `Opened`.
+- `src/Desktop/UI/ViewModels/WorkspaceViewModel.cs` — class made `partial`, selected-page breadcrumb and refresh wiring, quota snapshot updates, initial Overview command registration.
+- `docs/UI-DESIGN.md` — compact UX and evidence contract.
 
-Notable commits on \`main\` from this effort:
-\`581bb851\` (overview model), \`c7cd8779\` (AXAML), \`623cb03b\` (view), \`11b769f8\` (VM wiring), \`d4b813ea\` (breadcrumb), \`26297bb2\` (compact shell), \`652ff03c\` (opened lifecycle), \`785d4aa7\` (safe active-project semantics), \`842ee89a\` / \`4c4f6fb8\` (attention source routing), \`01f8af12\` / \`87594536\` (compact sizing).
+Notable commits on `main` from this effort:
+`581bb851` (overview model), `c7cd8779` (AXAML), `623cb03b` (view), `11b769f8` (VM wiring), `d4b813ea` (breadcrumb), `26297bb2` (compact shell), `652ff03c` (opened lifecycle), `785d4aa7` (safe active-project semantics), `842ee89a` / `4c4f6fb8` (attention source routing), `01f8af12` / `87594536` (compact sizing).
 
 ## 4. Data lineage and intentionally conservative semantics
 
 | Display | Source | What is and is not guaranteed |
 | --- | --- | --- |
-| Remaining allowance | \`UsageCoordinator.Dashboard\` → \`DashboardViewModel\` | Real provider reading, or “No data”. Not session context tokens. |
-| Next reset | \`UsageSnapshot.MainWindow.ResetsAt\` | Reported reset time; formatted locally; “Not reported” if missing. |
-| Tracked projects | \`IWorkspaceProjectRepository.List()\` | Local saved paths; counts include entries outside current eight-row preview. |
-| Git diff per project | \`IGitImpactService.InspectAsync\` | Working-tree diff at selected repository; per-project, **not per agent**. |
-| Session IDs | Explicit stored App Server session read and/or unique IDs in local \`activity.jsonl\` | May be incomplete; **not** global live-agent process counts. |
-| Project state | Explicit App Server \`active\` / \`waitingOnApproval\`, else recent observed events or “No signal” | “Reported active” is not a guarantee of a currently running external host. |
-| Attention | Recent \`PermissionRequest\` hook/notify metadata (10-minute evidence window), or \`waitingOnApproval\` from previously loaded App Server sessions | “May be waiting”, never claim unresolved approval from an old event. |
-| Next step | \`IWorkspacePlanner.Evaluate\` | Deterministic, evidence-qualified guidance. No automatic AI call during Overview refresh. |
-| Activity | Local metadata-only \`IWorkspaceActivitySource.ReadRecent\` | Maximum eight preview rows, list collapsed by default; does not contain chat content. |
+| Remaining allowance | `UsageCoordinator.Dashboard` → `DashboardViewModel` | Real provider reading, or “No data”. Not session context tokens. |
+| Next reset | `UsageSnapshot.MainWindow.ResetsAt` | Reported reset time; formatted locally; “Not reported” if missing. |
+| Tracked projects | `IWorkspaceProjectRepository.List()` | Local saved paths; counts include entries outside current eight-row preview. |
+| Git diff per project | `IGitImpactService.InspectAsync` | Working-tree diff at selected repository; per-project, **not per agent**. |
+| Session IDs | Explicit stored App Server session read and/or unique IDs in local `activity.jsonl` | May be incomplete; **not** global live-agent process counts. |
+| Project state | Explicit App Server `active` / `waitingOnApproval`, else recent observed events or “No signal” | “Reported active” is not a guarantee of a currently running external host. |
+| Attention | Recent `PermissionRequest` hook/notify metadata (10-minute evidence window), or `waitingOnApproval` from previously loaded App Server sessions | “May be waiting”, never claim unresolved approval from an old event. |
+| Next step | `IWorkspacePlanner.Evaluate` | Deterministic, evidence-qualified guidance. No automatic AI call during Overview refresh. |
+| Activity | Local metadata-only `IWorkspaceActivitySource.ReadRecent` | Maximum eight preview rows, list collapsed by default; does not contain chat content. |
 
 Overview reads up to **eight tracked repositories**, with a maximum of three concurrent Git reads. The total tracked-project count remains accurate even when the list is truncated. A manual refresh also requests normal limit polling through the existing usage ViewModel.
 
@@ -87,16 +87,16 @@ Still outstanding in the broad product plan: external-host live-session coverage
 
 **Static review done:** Both new AXAML files and the updated workspace shell passed a basic tag-nesting check. The new Overview's bindings were checked against the partial ViewModel and its row types. No .NET SDK is installed in the execution environment used for connector writes.
 
-**Not verified:** .NET compiler, Avalonia XAML compiler, first-run appearance and real GUI interactions. GitHub Actions has repeatedly failed before exposing build steps on Windows, Ubuntu and macOS; do not label those runs “passed” or claim the errors are definitely from source. The \`AGENTS.md\` repo identity script is located at \`C:\Users\ppotepa\.codex\scripts\repo-check.ps1\` on the developer's Windows machine and cannot be executed in this Linux connector environment; the authenticated GitHub connector account was explicitly verified as \`ppotepa\`, with write permission to \`ppotepa/codex-monitor\`.
+**Not verified:** .NET compiler, Avalonia XAML compiler, first-run appearance and real GUI interactions. GitHub Actions has repeatedly failed before exposing build steps on Windows, Ubuntu and macOS; do not label those runs “passed” or claim the errors are definitely from source. The `AGENTS.md` repo identity script is located at `C:\Users\ppotepa\.codex\scripts\repo-check.ps1` on the developer's Windows machine and cannot be executed in this Linux connector environment; the authenticated GitHub connector account was explicitly verified as `ppotepa`, with write permission to `ppotepa/codex-monitor`.
 
 Build and checks from a configured .NET 10 machine:
 
-\`\`\`sh
+```sh
 dotnet restore CodexMonitor.slnx
 dotnet build CodexMonitor.slnx -c Release --nologo
 dotnet run --project tests/ParserChecks.csproj -c Release
 dotnet run --project src/Desktop/Host/CodexMonitor.Desktop.csproj
-\`\`\`
+```
 
 Manual acceptance checklist:
 1. Launch from tray **Open workspace**; Quick View must remain unchanged.
@@ -122,6 +122,6 @@ Manual acceptance checklist:
 
 ## 8. Collaboration rules for follow-up
 
-The current user explicitly requested direct commits to **main**, **no PRs**, and expects a clear handoff. Any future agent should recheck repository identity and latest \`main\` HEAD before writing, preserve existing functionality, and communicate exactly what was verified. If the user later changes this preference, obey the latest instruction.
+The current user explicitly requested direct commits to **main**, **no PRs**, and expects a clear handoff. Any future agent should recheck repository identity and latest `main` HEAD before writing, preserve existing functionality, and communicate exactly what was verified. If the user later changes this preference, obey the latest instruction.
 
 Core UX preference: **compact and calm, no bloat**. The sidebar, four-fact strip, project table, single attention panel and unboxed planner guidance are intentional. Avoid generic marketing dashboards with many separate cards or decorative imagery.
