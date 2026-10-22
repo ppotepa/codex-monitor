@@ -10,6 +10,7 @@ internal static class MonitoringServices
     public static IServiceCollection AddCodexMonitorApplication(this IServiceCollection services)
     {
         services.AddSingleton<IWorkspacePlanner, WorkspacePlanner>();
+        services.AddSingleton<IFeatureRegistry, FeatureRegistry>();
         services.AddSingleton<IProviderCatalog>(sp => new ProviderCatalog(sp.GetServices<IUsageProvider>()));
         services.AddSingleton<IAgentDiscovery, AgentDiscovery>();
         services.AddSingleton(sp => sp.GetRequiredService<IMonitorSettingsRepository>().Load());
