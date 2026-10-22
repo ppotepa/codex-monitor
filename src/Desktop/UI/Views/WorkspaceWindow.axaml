@@ -208,16 +208,40 @@
       </TabItem>
       <TabItem Header="AGENTS.md">
         <ScrollViewer>
-          <StackPanel Margin="40,30" Spacing="18" MaxWidth="880" HorizontalAlignment="Left">
-            <TextBlock Text="Instructions" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
-            <TextBlock Text="Read-only preview of all recognized project instructions."
-                       FontSize="13" Foreground="#68767C"/>
-            <ComboBox ItemsSource="{Binding InstructionFiles}" SelectedItem="{Binding SelectedInstructionPath, Mode=TwoWay}" MinWidth="420"/>
-            <Button Content="Read selected instructions" Command="{Binding ReadInstructionCommand}" HorizontalAlignment="Left"/>
-            <TextBox Text="{Binding Instructions}" AcceptsReturn="True" IsReadOnly="True"
-                     TextWrapping="Wrap" MinHeight="330" FontFamily="Consolas, Cascadia Code, monospace"/>
-            <TextBlock Text="Instruction auditing, AI optimization and saving are not implemented yet."
-                       Foreground="#748188" FontSize="12" TextWrapping="Wrap"/>
+          <StackPanel Margin="40,30" Spacing="14" MaxWidth="920" HorizontalAlignment="Left">
+            <TextBlock Text="AGENTS.md Studio" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
+            <TextBlock Text="Inspect nested instructions, review a proposed rewrite, then explicitly approve saving."
+                       Foreground="#68767C" TextWrapping="Wrap" FontSize="13"/>
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+              <ComboBox ItemsSource="{Binding InstructionFiles}"
+                        SelectedItem="{Binding SelectedInstructionPath, Mode=TwoWay}"
+                        MinWidth="390"/>
+              <Button Grid.Column="1" Content="Read" Command="{Binding ReadInstructionCommand}"/>
+              <Button Grid.Column="2" Content="Inspect" Command="{Binding AnalyzeInstructionsCommand}"/>
+            </Grid>
+            <TextBlock Text="{Binding InstructionsAuditText}" Foreground="#68767C" FontSize="12" TextWrapping="Wrap"/>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Current file" FontWeight="SemiBold" Foreground="#202A30" FontSize="16"/>
+                <TextBox Text="{Binding Instructions}" AcceptsReturn="True" IsReadOnly="True"
+                         TextWrapping="Wrap" MinHeight="300" FontFamily="Consolas, monospace"/>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Spacing="8">
+                <TextBlock Text="AI proposal" FontWeight="SemiBold" Foreground="#202A30" FontSize="16"/>
+                <TextBox Text="{Binding InstructionsProposedText}" AcceptsReturn="True" IsReadOnly="True"
+                         TextWrapping="Wrap" MinHeight="300" FontFamily="Consolas, monospace"/>
+              </StackPanel>
+            </Grid>
+            <Button Content="Generate proposed rewrite with Codex" Command="{Binding OptimizeInstructionsCommand}"
+                    IsEnabled="{Binding !IsOptimizingInstructions}" HorizontalAlignment="Left"/>
+            <TextBlock Text="{Binding InstructionsRationale}" TextWrapping="Wrap" Foreground="#68767C"/>
+            <TextBlock Text="{Binding InstructionsOperationStatus}" TextWrapping="Wrap" Foreground="#68767C" FontSize="12"/>
+            <CheckBox Content="I reviewed the proposal and approve replacing this AGENTS.md"
+                      IsChecked="{Binding ConfirmInstructionsApply, Mode=TwoWay}"/>
+            <Button Content="Apply approved proposal (save backup)" Command="{Binding ApplyInstructionsCommand}"
+                    IsEnabled="{Binding CanApplyInstructions}" HorizontalAlignment="Left"/>
+            <TextBlock Text="AI uses the existing Codex CLI login, consumes quota only on request, and cannot save without approval."
+                       TextWrapping="Wrap" Foreground="#748188" FontSize="12"/>
           </StackPanel>
         </ScrollViewer>
       </TabItem>
