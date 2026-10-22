@@ -82,12 +82,16 @@
             </Grid>
             <TextBlock Text="{Binding ProjectStatus}" FontSize="12" TextWrapping="Wrap" Foreground="#68767C"/>
             <TextBlock Text="{Binding ProjectName}" FontSize="22" FontWeight="SemiBold" Foreground="#202A30"/>
+            <Grid ColumnDefinitions="190,Auto,*" ColumnSpacing="10">
+              <ComboBox ItemsSource="{Binding GitImpactScopes}" SelectedItem="{Binding GitImpactSelection, Mode=TwoWay}"/>
+              <Button Grid.Column="1" Content="Recalculate" Command="{Binding InspectProjectCommand}" IsEnabled="{Binding !IsLoading}"/>
+            </Grid>
             <TextBlock Text="{Binding GitBranch}" Foreground="#68767C" FontSize="12"/>
             <TextBlock Text="{Binding GitSummary}" Foreground="#3F7968" FontSize="23" FontWeight="SemiBold"/>
             <TextBlock Text="{Binding GitDetails}" Foreground="#68767C" FontSize="12" TextWrapping="Wrap"/>
-            <TextBlock Text="Changed and untracked files" FontSize="15" Foreground="#202A30" FontWeight="SemiBold"/>
+            <TextBlock Text="Files in selected comparison" FontSize="15" Foreground="#202A30" FontWeight="SemiBold"/>
             <ListBox ItemsSource="{Binding ProjectFiles}" MinHeight="150" MaxHeight="340"/>
-            <TextBlock Text="Counts reflect local Git status, not agent attribution or historical productivity."
+            <TextBlock Text="Line counts reflect the selected Git diff, not verified agent authorship."
                        FontSize="12" Foreground="#748188" TextWrapping="Wrap"/>
           </StackPanel>
         </ScrollViewer>
