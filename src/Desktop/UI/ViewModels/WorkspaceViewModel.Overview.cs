@@ -103,9 +103,11 @@ public sealed partial class WorkspaceViewModel
 
     private void UpdateOverviewAllowance()
     {
-        var window = _usageSnapshot?.MainWindow;
-        OverviewQuotaRemaining = window is null ? 0 : Math.Clamp(100 - window.UsedPercent, 0, 100);
-        var reset = window?.ResetsAt;
+        // The tray/usage view can select a weekly or rolling window. Match that
+        // selection instead of mixing its text with a different main window.
+        OverviewQuotaRemaining = Usage.HasSelectedLimit
+            ? Math.Clamp(100 - Usage.UsedPercent, 0, 100) : 0;
+        var reset = Usage.SelectedResetsAt;
         if (reset is null)
         {
             OverviewResetClock = "—";
