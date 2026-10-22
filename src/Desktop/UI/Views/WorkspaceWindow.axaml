@@ -160,16 +160,49 @@
       </TabItem>
       <TabItem Header="Skills">
         <ScrollViewer>
-          <StackPanel Margin="40,30" Spacing="18" MaxWidth="880" HorizontalAlignment="Left">
-            <TextBlock Text="Skills" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
-            <TextBlock Text="Browse installed local skills. No sign-in and no automatic script execution."
+          <StackPanel Margin="40,30" Spacing="15" MaxWidth="900" HorizontalAlignment="Left">
+            <TextBlock Text="Skills manager" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
+            <TextBlock Text="Installed skills and reviewed local installs. No separate sign-in."
                        FontSize="13" Foreground="#68767C" TextWrapping="Wrap"/>
-            <Button Content="Rescan local skills" Command="{Binding RefreshSkillsCommand}"
-                    HorizontalAlignment="Left"/>
-            <TextBlock Text="{Binding SkillsSummary}" FontSize="13" Foreground="#68767C"/>
-            <ListBox ItemsSource="{Binding Skills}" MinHeight="240"/>
-            <TextBlock Text="Remote discovery, installation and updates are not implemented yet."
-                       TextWrapping="Wrap" FontSize="12" Foreground="#748188"/>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+              <TextBlock Text="{Binding SkillsSummary}" Foreground="#68767C" FontSize="13" VerticalAlignment="Center"/>
+              <Button Grid.Column="1" Content="Rescan" Command="{Binding RefreshSkillsCommand}"/>
+            </Grid>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
+              <StackPanel Spacing="10">
+                <TextBlock Text="Installed" Foreground="#202A30" FontSize="17" FontWeight="SemiBold"/>
+                <ListBox ItemsSource="{Binding Skills}" SelectedItem="{Binding SelectedSkill, Mode=TwoWay}"
+                         MinHeight="180" MaxHeight="260"/>
+                <Button Content="Read SKILL.md" Command="{Binding ReadSelectedSkillCommand}" HorizontalAlignment="Left"/>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Spacing="10">
+                <TextBlock Text="Skill details" Foreground="#202A30" FontSize="17" FontWeight="SemiBold"/>
+                <TextBox Text="{Binding SkillDetails}" IsReadOnly="True" AcceptsReturn="True"
+                         TextWrapping="Wrap" MinHeight="215" FontFamily="Consolas, monospace"/>
+              </StackPanel>
+            </Grid>
+            <Border BorderBrush="#E4EAE7" BorderThickness="0,1,0,0" Padding="0,20,0,0">
+              <StackPanel Spacing="10">
+                <TextBlock Text="Install from local folder" Foreground="#202A30" FontSize="17" FontWeight="SemiBold"/>
+                <TextBlock Text="Review contents and scripts before making local file changes."
+                           FontSize="12" Foreground="#68767C"/>
+                <Grid ColumnDefinitions="*,150" ColumnSpacing="10">
+                  <TextBox Text="{Binding SkillSourceFolder, Mode=TwoWay}" Watermark="Source folder containing SKILL.md"/>
+                  <ComboBox Grid.Column="1" ItemsSource="{Binding SkillScopes}"
+                            SelectedItem="{Binding SkillInstallScope, Mode=TwoWay}"/>
+                </Grid>
+                <Button Content="Preview installation" Command="{Binding ReviewSkillCommand}" HorizontalAlignment="Left"/>
+                <TextBox Text="{Binding SkillReviewText}" IsReadOnly="True" TextWrapping="Wrap"
+                         AcceptsReturn="True" MinHeight="120" MaxHeight="220" FontFamily="Consolas, monospace"/>
+                <CheckBox IsChecked="{Binding ConfirmSkillInstall, Mode=TwoWay}"
+                          Content="I reviewed the files and approve installation"/>
+                <Button Content="Install reviewed skill" IsEnabled="{Binding CanInstallSkill}"
+                        Command="{Binding InstallReviewedSkillCommand}" HorizontalAlignment="Left"/>
+                <TextBlock Text="{Binding SkillInstallStatus}" Foreground="#68767C" TextWrapping="Wrap" FontSize="12"/>
+                <TextBlock Text="Remote marketplace discovery, updates and uninstall are not yet available."
+                           Foreground="#748188" TextWrapping="Wrap" FontSize="12"/>
+              </StackPanel>
+            </Border>
           </StackPanel>
         </ScrollViewer>
       </TabItem>
