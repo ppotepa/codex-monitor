@@ -18,6 +18,7 @@ internal sealed class DesktopHost(
     IDesktopNotificationService notifications,
     CancellationTokenSource shutdown) : IDisposable
 {
+    private WorkspaceWindow? _workspaceWindow;
     private DispatcherTimer? _limitsTimer;
     private DispatcherTimer? _displayTimer;
     private DateTimeOffset _lastAgentScanAt;
@@ -37,6 +38,7 @@ internal sealed class DesktopHost(
         window.RefreshRequested += (_, _) => _ = coordinator.RefreshLimitsAsync();
         window.InstallRequested += (_, _) => _ = coordinator.RepairAsync();
         window.SettingsRequested += (_, _) => _ = ShowSettingsAsync();
+        window.WorkspaceRequested += (_, _) => ShowWorkspace();
         window.TokensRequested += (_, _) => _ = coordinator.RefreshTokensAsync(force: false);
         window.TokenRefreshRequested += (_, _) => _ = coordinator.RefreshTokensAsync(force: true);
 
@@ -124,6 +126,18 @@ internal sealed class DesktopHost(
         window.SetMessage(message);
     }
 
+    private void ShowWorkspace()
+    {
+        if (_disposed) return;
+        if (_workspaceWindow is null)
+        {
+            _workspaceWindow = new WorkspaceWindow(window.WorkspaceUsageModel);
+            _workspaceWindow.Closed += (_, _) => _workspaceWindow = null;
+        }
+        _workspaceWindow.Show();
+        _workspaceWindow.Activate();
+    }
+
     private async Task ShowSettingsAsync()
     {
         if (_disposed) return;
@@ -182,6 +196,7 @@ internal sealed class DesktopHost(
         tray.ErrorOccurred -= ShowStatus;
         agentManager.Changed -= OnAgentChanged;
         tray.Dispose();
+        _workspaceWindow?.Close();
         window.Dispose();
     }
 }
