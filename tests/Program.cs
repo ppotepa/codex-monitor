@@ -245,6 +245,48 @@ Assert(new JsonlWorkspaceActivitySource(eventPath).ReadRecent(null).Events.Count
     "Activity feed can load metadata-only events");
 Directory.Delete(eventDir, recursive: true);
 
+
+var gitFixture = Path.Combine(Path.GetTempPath(), $"codex-git-impact-{Guid.NewGuid():N}");
+Directory.CreateDirectory(gitFixture);
+try
+{
+    static void GitFixture(string folder, params string[] args)
+    {
+        using var p = new System.Diagnostics.Process
+        {
+            StartInfo = new System.Diagnostics.ProcessStartInfo("git")
+            {
+                WorkingDirectory = folder,
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                UseShellExecute = false
+            }
+        };
+        foreach (var arg in args) p.StartInfo.ArgumentList.Add(arg);
+        p.Start();
+        var output = p.StandardOutput.ReadToEnd();
+        var error = p.StandardError.ReadToEnd();
+        if (!p.WaitForExit(5000)) { p.Kill(entireProcessTree: true); throw new Exception("Git fixture timed out"); }
+        if (p.ExitCode != 0) throw new Exception("Git fixture failed: " + error);
+    }
+
+    GitFixture(gitFixture, "init", "-q");
+    File.WriteAllText(Path.Combine(gitFixture, "code.txt"), "first\n");
+    GitFixture(gitFixture, "add", "code.txt");
+    GitFixture(gitFixture, "-c", "user.name=CodexMonitor Tests",
+        "-c", "user.email=tests@example.invalid", "commit", "-qm", "first");
+    File.AppendAllText(Path.Combine(gitFixture, "code.txt"), "second\n");
+    var gitService = new GitImpactService();
+    var working = await gitService.InspectRangeAsync(gitFixture, GitImpactScope.WorkingTree);
+    Assert(working.AddedLines == 1 && working.DeletedLines == 0, "Working-tree impact");
+    var committed = await gitService.InspectRangeAsync(gitFixture, GitImpactScope.LastCommit);
+    Assert(committed.AddedLines == 1 && committed.DeletedLines == 0, "Last-commit impact");
+}
+finally
+{
+    Directory.Delete(gitFixture, recursive: true);
+}
+
 Console.WriteLine("Parser, provider, capabilities, planner, skills, instructions and activity checks passed.");
 
 static void Assert(bool condition, string message)
