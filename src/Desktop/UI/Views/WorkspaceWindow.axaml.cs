@@ -20,6 +20,7 @@ public partial class WorkspaceWindow : Window
         var model = new WorkspaceViewModel(usage, goals, projects, inspector, git, activity,
             planner, skills, audit, optimizer, editor, doctor, sessions, aiPlanner);
         DataContext = model;
+        Opened += (_, _) => _ = model.RefreshOverviewAsync();
         Closed += (_, _) => model.Dispose();
     }
 
