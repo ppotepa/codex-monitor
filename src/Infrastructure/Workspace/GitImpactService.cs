@@ -7,7 +7,11 @@ namespace CodexMonitor.Infrastructure.Workspace;
 // All commands are read-only. ArgumentList avoids invoking a shell.
 public sealed class GitImpactService : IGitImpactService
 {
-    public async Task<GitImpactSnapshot> InspectAsync(string directory, CancellationToken cancellationToken = default)
+    public Task<GitImpactSnapshot> InspectAsync(string directory, CancellationToken cancellationToken = default) =>
+        InspectRangeAsync(directory, GitImpactScope.WorkingTree, cancellationToken);
+
+    public async Task<GitImpactSnapshot> InspectRangeAsync(string directory, GitImpactScope scope,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(directory);
         if (!Directory.Exists(directory)) throw new DirectoryNotFoundException(directory);
@@ -19,8 +23,11 @@ public sealed class GitImpactService : IGitImpactService
         var worktree = File.Exists(Path.Combine(root, ".git")) ||
                        gitDir.Contains("worktrees", StringComparison.OrdinalIgnoreCase);
         var latest = (await RunAsync(directory, cancellationToken, "log", "-1", "--format=%h %s")).Trim();
-        var numstat = await RunAsync(directory, cancellationToken, "diff", "--numstat", "HEAD", "--");
-        var status = await RunAsync(directory, cancellationToken, "ls-files", "--others", "--exclude-standard");
+        var numstat = scope == GitImpactScope.LastCommit
+            ? await RunAsync(directory, cancellationToken, "show", "--format=", "--numstat", "HEAD", "--")
+            : await RunAsync(directory, cancellationToken, "diff", "--numstat", "HEAD", "--");
+        var status = scope == GitImpactScope.LastCommit ? "" :
+            await RunAsync(directory, cancellationToken, "ls-files", "--others", "--exclude-standard");
         var files = new List<GitFileImpact>();
         foreach (var line in numstat.Split('\n', StringSplitOptions.RemoveEmptyEntries))
         {
