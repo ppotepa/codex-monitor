@@ -34,7 +34,8 @@ public sealed class CodexInstructionsOptimizer(IExecutableLocator locator, IProc
                 "Do not execute tools, edit files, invent paths or remove security constraints. " +
                 "Return only the JSON specified by the output schema.\n<document>\n" +
                 originalText + "\n</document>";
-            var args = new[] { "exec", "--ephemeral", "--sandbox", "read-only",
+            var args = new[] { "exec", "--cd", temp, "--ignore-user-config", "--ignore-rules",
+                "--ephemeral", "--sandbox", "read-only",
                 "--skip-git-repo-check", "--output-schema", schemaPath, "-o", outputPath, prompt };
             var process = await processes.RunAsync(executable, args, TimeSpan.FromMinutes(2), cancellationToken);
             if (process.ExitCode != 0)
