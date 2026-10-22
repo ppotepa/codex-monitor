@@ -8,6 +8,7 @@ namespace CodexMonitor.Desktop;
 // One desktop lifetime, timer and event pipeline for all target systems.
 internal sealed class DesktopHost(
     DashboardWindow window,
+    WorkspaceWindow workspace,
     DesktopTrayShell tray,
     UsageCoordinator coordinator,
     MonitorSettings settings,
@@ -49,6 +50,7 @@ internal sealed class DesktopHost(
         _lastAgentScanAt = DateTimeOffset.UtcNow;
 
         window.RefreshRequested += (_, _) => _ = coordinator.RefreshLimitsAsync();
+        window.WorkspaceRequested += (_, _) => ShowWorkspace();
         window.InstallRequested += (_, _) => _ = coordinator.RepairAsync();
         window.SettingsRequested += (_, _) => _ = ShowSettingsAsync();
         window.WorkspaceRequested += (_, _) => ShowWorkspace();
@@ -57,7 +59,7 @@ internal sealed class DesktopHost(
 
         try
         {
-            tray.Install(window.ShowNearCursor, ShowAgents,
+            tray.Install(window.ShowNearCursor, ShowWorkspace, ShowAgents,
                 () => _ = ShowSettingsAsync(), () => Quit(lifetime));
             _trayAvailable = true;
         }
@@ -121,6 +123,12 @@ internal sealed class DesktopHost(
         window.ApplyState(state);
         _workspaceWindow?.ApplyUsage(state.Limits, coordinator.ProviderInfo.Id);
         tray.Update(state);
+    }
+
+    private void ShowWorkspace()
+    {
+        if (_disposed) return;
+        workspace.ShowNearCursor();
     }
 
     private void OnAlert(string title, string message, UsageAlertSeverity severity)

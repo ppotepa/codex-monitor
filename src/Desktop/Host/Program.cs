@@ -58,9 +58,11 @@ internal static class Program
         services.AddCodexProvider();
         services.AddCodexMonitorApplication();
         services.AddSingleton<DashboardViewModel>();
+        services.AddSingleton<WorkspaceViewModel>();
         services.AddSingleton(sp => new DashboardWindow(
             sp.GetRequiredService<DashboardViewModel>(),
             sp.GetRequiredService<IWindowClosePolicy>().HideOnClose));
+        services.AddSingleton<WorkspaceWindow>();
         services.AddSingleton<DesktopTrayShell>();
         services.AddSingleton<DesktopHost>();
 

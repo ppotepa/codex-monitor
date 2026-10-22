@@ -3,6 +3,7 @@ using CodexMonitor.Infrastructure.Workspace;
 using Microsoft.Extensions.DependencyInjection;
 using CodexMonitor.Infrastructure.Persistence;
 using CodexMonitor.Infrastructure.Processes;
+using CodexMonitor.Infrastructure.Projects;
 
 namespace CodexMonitor.Infrastructure;
 

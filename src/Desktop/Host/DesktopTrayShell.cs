@@ -24,10 +24,11 @@ internal sealed class DesktopTrayShell(
     public event Action<string>? ErrorOccurred;
     public event Action? Changed;
 
-    public void Install(Action show, Action agents, Action settingsAction, Action quit)
+    public void Install(Action show, Action workspace, Action agents, Action settingsAction, Action quit)
     {
         var menu = new NativeMenu();
         Add(menu, "Show usage", show);
+        Add(menu, "Open workspace", workspace);
         Add(menu, "Refresh limits", () => _ = coordinator.RefreshLimitsAsync());
         _refreshTokensItem.Click += (_, _) => _ = coordinator.RefreshTokensAsync(force: true);
         menu.Add(_refreshTokensItem);
