@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -90,7 +91,7 @@ public sealed class WorkspaceViewModel : BindableBase
                 : "No root AGENTS.md found. Nested instruction files are not inspected yet.";
             RefreshSkills();
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or Win32Exception)
         {
             ProjectStatus = "Local inspection failed: " + ex.Message;
         }
@@ -132,9 +133,10 @@ public sealed class WorkspaceViewModel : BindableBase
         var paths = new[]
         {
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".agents", "skills"),
-            Path.Combine(ProjectPath.Trim().Trim('"'), ".agents", "skills")
+            Directory.Exists(ProjectPath.Trim().Trim('"')) ? Path.Combine(ProjectPath.Trim().Trim('"'), ".agents", "skills") : ""
         };
-        foreach (var path in paths.Distinct(StringComparer.OrdinalIgnoreCase))
+        SkillsSummary = "";
+        foreach (var path in paths.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.OrdinalIgnoreCase))
         {
             if (!Directory.Exists(path)) continue;
             try
