@@ -10,9 +10,9 @@ public partial class WorkspaceWindow : Window
 {
     public WorkspaceWindow() : this(new DashboardViewModel()) { }
 
-    internal WorkspaceWindow(DashboardViewModel usage, IWorkspaceGoalRepository? goals = null, IWorkspaceProjectRepository? projects = null)
+    internal WorkspaceWindow(DashboardViewModel usage, IWorkspaceGoalRepository? goals = null, IWorkspaceProjectRepository? projects = null, IWorkspaceInstructionsInspector? inspector = null)
     {
         AvaloniaXamlLoader.Load(this);
-        DataContext = new WorkspaceViewModel(usage, goals, projects);
+        DataContext = new WorkspaceViewModel(usage, goals, projects, inspector);
     }
 }
