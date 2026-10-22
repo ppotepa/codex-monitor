@@ -1,6 +1,6 @@
 # Agent handoff — CodexMonitor Workspace / compact Overview
 
-**Updated:** 2026-10-22  
+**Updated:** 2026-10-23  
 **Repository:** https://github.com/ppotepa/codex-monitor  
 **Delivery branch:** `main` (the owner explicitly requested direct writes, no new PR)  
 **Status:** Source implementation pushed. Cross-platform .NET build and native GUI smoke test **not verified** in this environment.
@@ -110,6 +110,39 @@ Manual acceptance checklist:
 9. Refresh quota and verify it updates; no Codex App Server or AI request automatically started from Overview.
 10. Verify remaining tabs Skills/AGENTS.md/Planner/Doctor/Usage and Settings remain legible in dark theme.
 11. Run Windows, Linux and macOS build/smoke checks and resolve actual XAML compiler errors if any.
+
+## 6a. Follow-up correctness fixes (2026-10-23)
+
+The `main` branch received the following follow-up fixes after the first
+Overview landing:
+
+- `WorkspaceViewModel` now uses a named `DashboardViewModel.PropertyChanged`
+  handler and **unsubscribes on `Dispose()`**. This fixes a potential memory leak
+  when opening/closing Workspace repeatedly (the usage model is a singleton).
+  The ViewModel cancels outstanding work on close.
+- `DashboardViewModel` now exposes `HasSelectedLimit` and
+  `SelectedResetsAt`; `WorkspaceViewModel.Overview.cs` computes quota
+  progress and reset countdown from the **same user-selected limit window**
+  used by the displayed remaining percentage. Earlier it used
+  `UsageSnapshot.MainWindow` and could mix the weekly and 5-hour windows.
+- On provider change, previously observed session IDs, activity and attention
+  are immediately cleared, then refreshed using the new provider filter.
+  In-flight refreshes detect provider changes and do not repaint with
+  stale provider observations.
+- `WorkspaceOverviewView.axaml` project row containers stretch to the full
+  list width, making rows easier to select.
+
+Static AXAML nesting and binding-name checks passed, but these are not a
+substitute for Avalonia XAML compilation. The GitHub Actions failures observed
+in this project were **before steps started**: GitHub listed empty `steps`,
+empty `runner_name`, and failures after roughly 2 seconds on all OS jobs.
+This suggests runner-allocation/configuration trouble, not a diagnosed C#
+compiler error. A .NET SDK was unavailable in the connector runtime.
+
+**Priority for next agent:** obtain a real .NET 10 build on the development
+machine, repair any true compile/XAML errors, render the Workspace, then
+compare the screenshot with `codexmonitor-overview-1110.png` (the mockup
+provided earlier in the chat; not a committed code asset).
 
 ## 7. Next agent's recommended order
 
