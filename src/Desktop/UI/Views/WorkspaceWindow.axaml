@@ -96,10 +96,42 @@
             <TextBlock Text="Usage" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
             <TextBlock Text="Limits and token activity from the selected provider." Foreground="#68767C"/>
             <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
-              <views:LimitsView DataContext="{Binding Usage}"/>
-              <views:TokensView Grid.Column="1" DataContext="{Binding Usage}"
-                                IsVisible="{Binding Usage.SupportsTokens}"/>
+              <Border Background="White" BorderBrush="#E4EAE7" BorderThickness="1" CornerRadius="9" Padding="24">
+                <StackPanel Spacing="9">
+                  <TextBlock Text="CURRENT WINDOW" Foreground="#748188" FontWeight="SemiBold" FontSize="11"/>
+                  <TextBlock Text="{Binding Usage.LimitTitle}" Foreground="#202A30" FontSize="18" FontWeight="SemiBold"/>
+                  <TextBlock Text="{Binding Usage.RemainingText}" Foreground="#347867" FontSize="30" FontWeight="SemiBold"/>
+                  <TextBlock Text="{Binding Usage.ResetText}" Foreground="#68767C" FontSize="12" TextWrapping="Wrap"/>
+                  <Button Content="Refresh limits" Command="{Binding Usage.RefreshLimitsCommand}"
+                          IsEnabled="{Binding Usage.CanRefreshLimits}" HorizontalAlignment="Left"/>
+                </StackPanel>
+              </Border>
+              <Border Grid.Column="1" Background="White" BorderBrush="#E4EAE7" BorderThickness="1" CornerRadius="9" Padding="24"
+                      IsVisible="{Binding Usage.SupportsTokens}">
+                <StackPanel Spacing="9">
+                  <TextBlock Text="TOKEN ACTIVITY" Foreground="#748188" FontWeight="SemiBold" FontSize="11"/>
+                  <TextBlock Text="{Binding Usage.LatestTokens}" Foreground="#202A30" FontSize="30" FontWeight="SemiBold"/>
+                  <TextBlock Text="{Binding Usage.Lifetime}" Foreground="#68767C" FontSize="13"/>
+                  <TextBlock Text="{Binding Usage.Peak}" Foreground="#68767C" FontSize="13"/>
+                  <Button Content="Refresh tokens" Command="{Binding Usage.RefreshTokensCommand}"
+                          IsEnabled="{Binding Usage.CanRefreshTokens}" HorizontalAlignment="Left"/>
+                </StackPanel>
+              </Border>
             </Grid>
+            <TextBlock Text="Other limit windows" FontSize="18" Foreground="#202A30" FontWeight="SemiBold"/>
+            <ItemsControl ItemsSource="{Binding Usage.OtherLimits}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:LimitWindowItem">
+                  <Border BorderBrush="#E4EAE7" BorderThickness="0,0,0,1" Padding="0,12">
+                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                      <TextBlock Text="{Binding Label}" Foreground="#202A30" FontSize="14"/>
+                      <TextBlock Grid.Column="1" Text="{Binding UsedPercent, StringFormat={}{0:0}% used}" Foreground="#347867"/>
+                      <TextBlock Grid.Row="1" Text="{Binding ResetText}" Foreground="#68767C" FontSize="12"/>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
           </StackPanel>
         </ScrollViewer>
       </TabItem>
