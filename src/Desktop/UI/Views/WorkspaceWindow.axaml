@@ -143,11 +143,13 @@
         <ScrollViewer>
           <StackPanel Margin="40,30" Spacing="18" MaxWidth="880" HorizontalAlignment="Left">
             <TextBlock Text="Instructions" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
-            <TextBlock Text="Read-only preview of the selected project's root AGENTS.md."
+            <TextBlock Text="Read-only preview of all recognized project instructions."
                        FontSize="13" Foreground="#68767C"/>
+            <ComboBox ItemsSource="{Binding InstructionFiles}" SelectedItem="{Binding SelectedInstructionPath, Mode=TwoWay}" MinWidth="420"/>
+            <Button Content="Read selected instructions" Command="{Binding ReadInstructionCommand}" HorizontalAlignment="Left"/>
             <TextBox Text="{Binding Instructions}" AcceptsReturn="True" IsReadOnly="True"
                      TextWrapping="Wrap" MinHeight="330" FontFamily="Consolas, Cascadia Code, monospace"/>
-            <TextBlock Text="Nested AGENTS.md, analysis, AI optimization and saving are not implemented yet."
+            <TextBlock Text="Instruction auditing, AI optimization and saving are not implemented yet."
                        Foreground="#748188" FontSize="12" TextWrapping="Wrap"/>
           </StackPanel>
         </ScrollViewer>
