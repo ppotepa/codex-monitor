@@ -253,6 +253,17 @@
             <TextBlock Text="{Binding AdvisorText}" FontSize="17" TextWrapping="Wrap" Foreground="#202A30"/>
             <TextBlock Text="Evidence and limitations" Foreground="#68767C" FontSize="13" FontWeight="SemiBold"/>
             <TextBlock Text="{Binding AdvisorEvidence}" Foreground="#68767C" FontSize="12" TextWrapping="Wrap"/>
+            <Border BorderBrush="#E4EAE7" BorderThickness="0,1,0,0" Padding="0,20,0,0">
+              <StackPanel Spacing="10">
+                <TextBlock Text="Codex AI Advisor" FontSize="18" Foreground="#202A30" FontWeight="SemiBold"/>
+                <TextBlock Text="Uses only aggregate quota, observed session status and your goal."
+                           Foreground="#68767C" FontSize="12" TextWrapping="Wrap"/>
+                <Button Content="Analyze with Codex" Command="{Binding AskAiPlannerCommand}"
+                        IsEnabled="{Binding !IsAdvisorBusy}" HorizontalAlignment="Left"/>
+                <TextBlock Text="{Binding AiAdvisorText}" FontSize="14" TextWrapping="Wrap" Foreground="#202A30"/>
+                <TextBlock Text="{Binding AiAdvisorStatus}" FontSize="12" TextWrapping="Wrap" Foreground="#68767C"/>
+              </StackPanel>
+            </Border>
             <TextBlock Text="AI recommendations are optional; no model is called by the local planner."
                        Foreground="#748188" TextWrapping="Wrap"/>
           </StackPanel>
