@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using CodexMonitor.Core.Workspace;
 using CodexMonitor.Infrastructure.Workspace;
 using CodexMonitor.Infrastructure;
@@ -167,7 +170,82 @@ try
 catch (IOException) { }
 Directory.Delete(skillsFixture, recursive: true);
 
-Console.WriteLine("Parser, provider and workspace checks passed.");
+var featureRegistry = new FeatureRegistry([
+    new SampleFeature("codex", "sessions.list", 10),
+    new SampleFeature("codex", "sessions.list", 5)
+]);
+Assert(featureRegistry.Candidates<SampleFeature>("CODEX").Count == 2, "Candidate fallback sorted by priority");
+Assert(featureRegistry.Describe("codex", "sessions.list").Implemented, "Codex feature implemented");
+Assert(!featureRegistry.Describe("claude", "sessions.list").Implemented, "Unsupported feature explicitly NotImplemented");
+
+var observation = new WorkspaceActivitySnapshot([], false, "No hook configured", null);
+var planner = new WorkspacePlanner();
+var lowQuota = new UsageSnapshot("pro", now, [new UsageWindow("weekly", 87, now.AddHours(3))]);
+Assert(planner.Evaluate(lowQuota, observation, null, now).Summary.Contains("remaining 13%"),
+    "Planner recommends useful work instead of wasting quota near reset");
+var tooLow = new UsageSnapshot("pro", now, [new UsageWindow("weekly", 97, now.AddDays(3))]);
+Assert(planner.Evaluate(tooLow, observation, null, now).Summary.Contains("Very little quota"),
+    "Planner warns about small quota and distant reset");
+Assert(planner.Evaluate(null, observation, null, now).Confidence == "No quota evidence",
+    "No invented recommendations without readings");
+
+var skillWork = Path.Combine(Path.GetTempPath(), "codex-skill-tests-" + Guid.NewGuid().ToString("N"));
+var skillSource = Path.Combine(skillWork, "sample-skill");
+var skillTarget = Path.Combine(skillWork, "repository");
+Directory.CreateDirectory(skillSource);
+Directory.CreateDirectory(skillTarget);
+File.WriteAllText(Path.Combine(skillSource, "SKILL.md"), "---\nname: sample-skill\ndescription: Tests only\n---\n");
+var skillsService = new LocalSkillsService();
+var skillReview = skillsService.PreviewInstall(skillSource, SkillScope.Project, skillTarget);
+Assert(skillReview.Files.Count == 1 && skillReview.Scope == SkillScope.Project, "Review local skill contents");
+skillsService.Install(skillReview);
+Assert(skillsService.List(skillTarget).Any(skill => skill.Name == "sample-skill"), "Skill install and discovery");
+try
+{
+    skillsService.PreviewInstall(skillSource, SkillScope.Project, skillTarget);
+    throw new Exception("Duplicate skill was installable");
+}
+catch (IOException) { }
+Directory.Delete(skillWork, recursive: true);
+
+var instructionWork = Path.Combine(Path.GetTempPath(), "codex-instruction-edit-" + Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(instructionWork);
+var instructionPath = Path.Combine(instructionWork, "AGENTS.md");
+var originalInstructions = "Always run the tests before merging.\nAlways run the tests before merging.\n";
+File.WriteAllText(instructionPath, originalInstructions);
+var instructionsStudio = new InstructionsStudioService();
+Assert(instructionsStudio.Analyze(originalInstructions).Warnings.Count > 0, "Duplicate instruction detection");
+var instructionHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(originalInstructions)));
+var proposal = new InstructionsProposal("codex", instructionHash, "Run tests before merging.\n", "Remove duplicate");
+instructionsStudio.Apply(instructionPath, proposal);
+Assert(File.ReadAllText(instructionPath) == proposal.ProposedText, "Approved instructions applied");
+Assert(Directory.GetFiles(instructionWork, "AGENTS.md.bak.*").Length == 1, "Backup before rewrite");
+try
+{
+    instructionsStudio.Apply(instructionPath, proposal);
+    throw new Exception("Stale instructions proposal overwrote newer file");
+}
+catch (InvalidOperationException) { }
+Directory.Delete(instructionWork, recursive: true);
+
+var eventDir = Path.Combine(Path.GetTempPath(), "codex-event-tests-" + Guid.NewGuid().ToString("N"));
+var eventPayload = JsonSerializer.Serialize(new Dictionary<string, string>
+{
+    ["type"] = "agent-turn-complete",
+    ["thread-id"] = "thread-test",
+    ["cwd"] = Path.GetTempPath(),
+    ["last-assistant-message"] = "secret that must not be logged"
+});
+Assert(WorkspaceNotifyReceiver.Capture(["--codex-notify", eventPayload], eventDir) == 0,
+    "Codex event receiver stores a notification");
+var eventPath = Path.Combine(eventDir, "activity.jsonl");
+Assert(!File.ReadAllText(eventPath).Contains("secret that must not be logged"),
+    "Event journal does not persist assistant message text");
+Assert(new JsonlWorkspaceActivitySource(eventPath).ReadRecent(null).Events.Count == 1,
+    "Activity feed can load metadata-only events");
+Directory.Delete(eventDir, recursive: true);
+
+Console.WriteLine("Parser, provider, capabilities, planner, skills, instructions and activity checks passed.");
 
 static void Assert(bool condition, string message)
 {
@@ -184,3 +262,5 @@ internal sealed class NullCommandLaunchStrategy : ICommandLaunchStrategy
     public System.Diagnostics.ProcessStartInfo Create(string executable, IReadOnlyList<string> arguments, bool redirectStandardInput)
         => throw new NotSupportedException();
 }
+
+internal sealed record SampleFeature(string ProviderId, string FeatureId, int Priority) : IFeature;
