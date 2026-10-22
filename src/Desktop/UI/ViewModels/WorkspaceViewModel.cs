@@ -623,7 +623,13 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
             var scope = SkillInstallScope == "Project" ? SkillScope.Project : SkillScope.User;
             _skillPending = _skillsService.PreviewInstall(SkillSourceFolder.Trim().Trim('"'),
                 scope, ProjectPath.Trim().Trim('"'));
+            var manifestPath = Path.Combine(_skillPending.SourceFolder, "SKILL.md");
+            var manifestPreview = File.Exists(manifestPath) &&
+                                  new FileInfo(manifestPath).Length <= 16_384
+                ? File.ReadAllText(manifestPath)
+                : "Manifest unavailable or larger than 16 KB; inspect the source manually.";
             SkillReviewText = "Install " + _skillPending.Name + " to " + _skillPending.TargetFolder +
+                Environment.NewLine + "SKILL.md preview:" + Environment.NewLine + manifestPreview +
                 Environment.NewLine + "Files (" + _skillPending.Files.Count + "):" +
                 Environment.NewLine + string.Join(Environment.NewLine,
                     _skillPending.Files.Take(60).Select(f => f.RelativePath + " (" + f.SizeBytes + " bytes)")) +
