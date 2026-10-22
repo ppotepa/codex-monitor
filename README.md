@@ -149,3 +149,5 @@ agent discovery every 30 minutes. Alert thresholds are configurable.
 
 More: [Architecture](docs/ARCHITECTURE.md) · [UI design](docs/UI-DESIGN.md) ·
 [Linux/macOS notes](docs/UNIX.md).
+
+**Next-agent implementation handoff:** [Compact Workspace Overview — source, data semantics, validation and follow-ups](docs/AGENT-HANDOFF-WORKSPACE.md).
