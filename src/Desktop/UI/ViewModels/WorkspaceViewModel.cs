@@ -149,13 +149,29 @@ public sealed partial class WorkspaceViewModel : BindableBase, IDisposable
     public string SkillsSummary { get => _skillsSummary; private set => Set(ref _skillsSummary, value); }
     public string AdvisorText { get => _advisorText; private set => Set(ref _advisorText, value); }
     public bool IsLoading { get => _isLoading; private set => Set(ref _isLoading, value); }
+    public string CurrentPageName => SelectedPage switch
+    {
+        0 => "Overview",
+        1 => "Projects",
+        2 => "Usage",
+        3 => "Goals",
+        4 => "Skills",
+        5 => "AGENTS.md",
+        6 => "Planner",
+        7 => "Activity",
+        8 => "Doctor",
+        9 => "Sessions",
+        _ => "Workspace"
+    };
+
     public int SelectedPage
     {
         get => _selectedPage;
         set
         {
-            if (Set(ref _selectedPage, value) && value == 0)
-                _ = RefreshOverviewAsync();
+            if (!Set(ref _selectedPage, value)) return;
+            OnPropertyChanged(nameof(CurrentPageName));
+            if (value == 0) _ = RefreshOverviewAsync();
         }
     }
     public ICommand AskAiPlannerCommand { get; }
