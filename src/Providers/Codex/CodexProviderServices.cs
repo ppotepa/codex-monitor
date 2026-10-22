@@ -11,6 +11,9 @@ public static class CodexProviderServices
         services.AddSingleton<IInstructionsOptimizer, CodexInstructionsOptimizer>();
         services.AddSingleton<IAgentSessionSource, CodexAppServerSessionSource>();
         services.AddSingleton<IWorkspaceAiPlanner, CodexWorkspaceAiPlanner>();
+        services.AddSingleton<IFeature>(sp => sp.GetRequiredService<IInstructionsOptimizer>());
+        services.AddSingleton<IFeature>(sp => sp.GetRequiredService<IAgentSessionSource>());
+        services.AddSingleton<IFeature>(sp => sp.GetRequiredService<IWorkspaceAiPlanner>());
         return services;
     }
 }
