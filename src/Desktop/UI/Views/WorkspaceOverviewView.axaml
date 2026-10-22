@@ -1,0 +1,258 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CodexMonitor.UI.ViewModels"
+             x:Class="CodexMonitor.UI.Views.WorkspaceOverviewView"
+             x:DataType="vm:WorkspaceViewModel" x:CompileBindings="True"
+             Background="Transparent">
+  <UserControl.Styles>
+    <Style Selector="ListBox.overview-projects">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+    </Style>
+    <Style Selector="ListBox.overview-projects ListBoxItem">
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Margin" Value="0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+    <Style Selector="ListBox.overview-projects ListBoxItem:pointerover">
+      <Setter Property="Background" Value="{DynamicResource RaisedBrush}"/>
+    </Style>
+  </UserControl.Styles>
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+    <StackPanel Spacing="20" Margin="28,24,28,30">
+      <!-- Only the project list and attention panel compete for primary attention. -->
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <StackPanel Spacing="4">
+          <TextBlock Text="MONITOR YOUR WORK" FontSize="10" FontWeight="SemiBold"
+                     Foreground="#8795A3"/>
+          <TextBlock Text="Overview" FontSize="27" FontWeight="SemiBold"
+                     Foreground="{DynamicResource TextBrush}"/>
+          <TextBlock Text="Projects, observed activity and allowance — in one quiet place."
+                     Foreground="{DynamicResource MutedBrush}" FontSize="12" TextWrapping="Wrap"/>
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
+          <Button Command="{Binding RefreshOverviewCommand}" IsEnabled="{Binding !IsOverviewBusy}"
+                  Background="Transparent" BorderBrush="{DynamicResource OutlineBrush}" BorderThickness="1"
+                  FontSize="12" Padding="12,7" Content="Refresh"/>
+          <Button Classes="primary" Command="{Binding AddOverviewProjectCommand}"
+                  Content="+ Add project" Padding="12,7" FontSize="12"/>
+        </StackPanel>
+      </Grid>
+
+      <!-- Compact metrics strip: factual readings only. No synthetic progress. -->
+      <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource OutlineBrush}"
+              BorderThickness="1" CornerRadius="9">
+        <Grid ColumnDefinitions="2*,*,*,*">
+          <StackPanel Grid.Column="0" Spacing="8" Margin="16,13">
+            <TextBlock Text="AVAILABLE ALLOWANCE" Foreground="#8795A3" FontSize="10" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding Usage.RemainingText}" FontSize="24" FontWeight="SemiBold"
+                       Foreground="{DynamicResource AccentBrush}"/>
+            <ProgressBar Minimum="0" Maximum="100" Height="4"
+                         Value="{Binding OverviewQuotaRemaining}"/>
+          </StackPanel>
+          <Border Grid.Column="1" BorderBrush="#29323D" BorderThickness="1,0,0,0">
+            <StackPanel Spacing="7" Margin="15,13">
+              <TextBlock Text="NEXT RESET" Foreground="#8795A3" FontSize="10" FontWeight="SemiBold"/>
+              <TextBlock Text="{Binding OverviewResetClock}" FontSize="22" FontWeight="SemiBold"
+                         Foreground="{DynamicResource TextBrush}"/>
+              <TextBlock Text="{Binding OverviewResetDate}" FontSize="11" Foreground="{DynamicResource MutedBrush}"/>
+            </StackPanel>
+          </Border>
+          <Border Grid.Column="2" BorderBrush="#29323D" BorderThickness="1,0,0,0">
+            <StackPanel Spacing="7" Margin="15,13">
+              <TextBlock Text="OBSERVED SESSIONS" Foreground="#8795A3" FontSize="10" FontWeight="SemiBold"/>
+              <TextBlock Text="{Binding OverviewObservedSessions}" FontSize="22" FontWeight="SemiBold"
+                         Foreground="{DynamicResource TextBrush}"/>
+              <TextBlock Text="{Binding OverviewCoverage}" FontSize="11"
+                         Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+          <Border Grid.Column="3" BorderBrush="#29323D" BorderThickness="1,0,0,0">
+            <StackPanel Spacing="7" Margin="15,13">
+              <TextBlock Text="TRACKED PROJECTS" Foreground="#8795A3" FontSize="10" FontWeight="SemiBold"/>
+              <TextBlock Text="{Binding OverviewTrackedCount}" FontSize="22" FontWeight="SemiBold"
+                         Foreground="{DynamicResource TextBrush}"/>
+              <TextBlock Text="{Binding OverviewActiveProjects}" FontSize="11"
+                         Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+        </Grid>
+      </Border>
+
+      <Grid ColumnDefinitions="*,274" ColumnSpacing="22">
+        <StackPanel Grid.Column="0" Spacing="12">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <TextBlock Text="Projects" FontSize="16" FontWeight="SemiBold"
+                         Foreground="{DynamicResource TextBrush}"/>
+              <TextBlock Text="{Binding OverviewTrackedCount}" VerticalAlignment="Center"
+                         Foreground="#8795A3" FontSize="11"/>
+            </StackPanel>
+            <Button Grid.Column="1" Command="{Binding ShowProjectsCommand}" Content="View all →"
+                    Background="Transparent" Foreground="{DynamicResource MutedBrush}"
+                    FontWeight="Normal" Padding="6,3" FontSize="11"/>
+          </Grid>
+          <Border BorderBrush="{DynamicResource OutlineBrush}" BorderThickness="1"
+                  Background="{DynamicResource SurfaceBrush}" CornerRadius="9" ClipToBounds="True">
+            <Grid RowDefinitions="34,Auto,Auto,Auto">
+              <Grid Grid.Row="0" ColumnDefinitions="2*,92,86,100"
+                    Background="#191F26" ColumnSpacing="4">
+                <TextBlock Text="REPOSITORY" Margin="12,10,0,0" Foreground="#8795A3"
+                           FontSize="10" FontWeight="SemiBold"/>
+                <TextBlock Grid.Column="1" Text="SESSIONS" Margin="0,10,0,0"
+                           Foreground="#8795A3" FontSize="10" FontWeight="SemiBold"/>
+                <TextBlock Grid.Column="2" Text="GIT DIFF" Margin="0,10,0,0"
+                           Foreground="#8795A3" FontSize="10" FontWeight="SemiBold"/>
+                <TextBlock Grid.Column="3" Text="STATE" Margin="0,10,0,0"
+                           Foreground="#8795A3" FontSize="10" FontWeight="SemiBold"/>
+              </Grid>
+              <ListBox Grid.Row="1" Classes="overview-projects" IsVisible="{Binding HasOverviewProjects}"
+                       ItemsSource="{Binding OverviewProjects}"
+                       SelectedItem="{Binding SelectedOverviewProject, Mode=TwoWay}">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:OverviewProjectRow">
+                    <Border BorderBrush="#29323D" BorderThickness="0,1,0,0" Padding="12,11">
+                      <Grid ColumnDefinitions="2*,92,86,100" ColumnSpacing="4" MinHeight="39">
+                        <StackPanel Spacing="4" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12"
+                                     Foreground="{DynamicResource TextBrush}" TextTrimming="CharacterEllipsis"/>
+                          <TextBlock Text="{Binding Subtitle}" FontSize="10"
+                                     Foreground="#8795A3" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="{Binding SessionsText}"
+                                   VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{DynamicResource MutedBrush}" TextTrimming="CharacterEllipsis"/>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="3"
+                                    VerticalAlignment="Center">
+                          <TextBlock Text="{Binding AddedText}" FontSize="11"
+                                     Foreground="{DynamicResource AccentBrush}"/>
+                          <TextBlock Text="{Binding DeletedText}" FontSize="11" Foreground="#8795A3"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="3" Text="{Binding State}"
+                                   VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{DynamicResource MutedBrush}" TextTrimming="CharacterEllipsis"/>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+              <StackPanel Grid.Row="2" IsVisible="{Binding !HasOverviewProjects}"
+                          Spacing="8" Margin="20,28" HorizontalAlignment="Center">
+                <TextBlock Text="No projects tracked yet" FontSize="14"
+                           FontWeight="SemiBold" HorizontalAlignment="Center"
+                           Foreground="{DynamicResource TextBrush}"/>
+                <TextBlock Text="Add a local repository to begin monitoring it."
+                           Foreground="{DynamicResource MutedBrush}" FontSize="11"
+                           HorizontalAlignment="Center"/>
+                <Button Content="Add a project" Command="{Binding AddOverviewProjectCommand}"
+                        HorizontalAlignment="Center" Padding="12,6"/>
+              </StackPanel>
+              <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Background="#191F26"
+                    MinHeight="36">
+                <TextBlock Text="Git diff is project-wide, not attributed to individual agents."
+                           Margin="12,9,0,0" Foreground="#8795A3" FontSize="10"
+                           TextTrimming="CharacterEllipsis"/>
+                <Button Grid.Column="1" Command="{Binding ShowProjectsCommand}"
+                        Background="Transparent" Foreground="{DynamicResource AccentBrush}"
+                        Content="Git impact →" FontSize="11" Padding="8,3"/>
+              </Grid>
+            </Grid>
+          </Border>
+
+          <Border BorderBrush="#29323D" BorderThickness="0,1,0,0" Margin="0,12,0,0">
+            <StackPanel>
+              <Grid ColumnDefinitions="*,Auto" MinHeight="40">
+                <StackPanel Orientation="Horizontal" Spacing="9" VerticalAlignment="Center">
+                  <TextBlock Text="Recent activity" FontSize="13" FontWeight="SemiBold"
+                             Foreground="{DynamicResource TextBrush}"/>
+                  <TextBlock Text="{Binding OverviewActivityCount}" FontSize="11"
+                             Foreground="#8795A3" VerticalAlignment="Center"/>
+                </StackPanel>
+                <Button Grid.Column="1" Command="{Binding ToggleOverviewActivityCommand}"
+                        Content="Expand / collapse" Background="Transparent" FontSize="11"
+                        Padding="6,3" Foreground="{DynamicResource MutedBrush}"/>
+              </Grid>
+              <StackPanel IsVisible="{Binding IsActivityExpanded}" Spacing="5" Margin="0,7,0,0">
+                <ItemsControl ItemsSource="{Binding OverviewActivity}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:OverviewActivityRow">
+                      <Grid ColumnDefinitions="44,*,Auto" ColumnSpacing="9" MinHeight="31">
+                        <TextBlock Text="{Binding When}" FontSize="11" Foreground="#8795A3"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Event}" FontSize="12"
+                                   TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextBrush}"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="{Binding Context}" FontSize="10"
+                                   TextTrimming="CharacterEllipsis" Foreground="#8795A3"
+                                   VerticalAlignment="Center"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock IsVisible="{Binding !HasOverviewActivity}"
+                           Text="No events recorded. Hooks/notify is optional."
+                           FontSize="11" Foreground="{DynamicResource MutedBrush}"/>
+                <Button Content="Open Activity →" Command="{Binding ShowOverviewActivityCommand}"
+                        HorizontalAlignment="Left" Background="Transparent"
+                        Foreground="{DynamicResource AccentBrush}" Padding="0,6" FontSize="11"/>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" Spacing="20">
+          <Border Background="{DynamicResource SurfaceBrush}"
+                  BorderBrush="{DynamicResource OutlineBrush}" BorderThickness="1"
+                  CornerRadius="9" Padding="16">
+            <StackPanel Spacing="11">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="Needs attention" FontSize="15" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextBrush}"/>
+                <Border Grid.Column="1" Padding="6,2" Background="#332C24"
+                        BorderBrush="#66533B" BorderThickness="1" CornerRadius="5"
+                        IsVisible="{Binding HasOverviewAttention}">
+                  <TextBlock Text="{Binding OverviewAttentionCount}" Foreground="#E9BC7C" FontSize="10"/>
+                </Border>
+              </Grid>
+              <Border BorderBrush="#29323D" BorderThickness="0,1,0,0" Padding="0,13,0,0">
+                <StackPanel Spacing="7">
+                  <TextBlock Text="{Binding OverviewAttentionTitle}" FontSize="12"
+                             FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"/>
+                  <TextBlock Text="{Binding OverviewAttentionBody}" FontSize="11"
+                             Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap"/>
+                  <TextBlock Text="{Binding OverviewAttentionEvidence}" FontSize="10"
+                             Foreground="#8795A3" TextWrapping="Wrap"/>
+                  <Button IsVisible="{Binding HasOverviewAttention}"
+                          Content="Inspect event →" Command="{Binding ShowOverviewActivityCommand}"
+                          Background="Transparent" Foreground="{DynamicResource AccentBrush}"
+                          HorizontalAlignment="Left" FontSize="11" Padding="0,6"/>
+                </StackPanel>
+              </Border>
+              <TextBlock Text="{Binding OverviewCoverage}" FontSize="10"
+                         Foreground="#8795A3" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+
+          <!-- Deliberately unboxed secondary advice. -->
+          <StackPanel Spacing="10" Margin="1,2">
+            <TextBlock Text="✧  Next step" FontSize="15" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextBrush}"/>
+            <TextBlock Text="{Binding AdvisorText}" Foreground="{DynamicResource MutedBrush}"
+                       FontSize="12" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding AdvisorEvidence}" Foreground="#8795A3"
+                       FontSize="10" TextWrapping="Wrap"/>
+            <Button Command="{Binding ShowOverviewPlannerCommand}" Content="Open planner →"
+                    Background="Transparent" Foreground="{DynamicResource AccentBrush}"
+                    HorizontalAlignment="Left" FontSize="11" Padding="0,7"/>
+          </StackPanel>
+        </StackPanel>
+      </Grid>
+
+      <TextBlock Text="{Binding OverviewStatus}" FontSize="10" Foreground="#8795A3"
+                 TextTrimming="CharacterEllipsis"/>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
