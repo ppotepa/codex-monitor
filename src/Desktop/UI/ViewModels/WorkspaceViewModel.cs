@@ -240,13 +240,21 @@ public sealed partial class WorkspaceViewModel : BindableBase, IDisposable
         ShowSkillsCommand = new UiCommand(() => SelectedPage = 4);
         ShowInstructionsCommand = new UiCommand(() => SelectedPage = 5);
         RefreshSkills();
-        usage.PropertyChanged += (_, args) =>
-        {
-            if (args.PropertyName is nameof(DashboardViewModel.RemainingText) or nameof(DashboardViewModel.ResetText))
-                RefreshAdvice();
-        };
+        usage.PropertyChanged += OnUsagePropertyChanged;
         RefreshAdvice();
         InitializeOverview();
+    }
+
+    private bool _disposed;
+
+    private void OnUsagePropertyChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (_disposed) return;
+        if (args.PropertyName is nameof(DashboardViewModel.RemainingText) or nameof(DashboardViewModel.ResetText))
+        {
+            UpdateOverviewAllowance();
+            RefreshAdvice();
+        }
     }
 
     private void RefreshAdvice()
@@ -622,7 +630,13 @@ public sealed partial class WorkspaceViewModel : BindableBase, IDisposable
         }
     }
 
-    public void Dispose() => _analysisLifetime.Cancel();
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        Usage.PropertyChanged -= OnUsagePropertyChanged;
+        _analysisLifetime.Cancel();
+    }
 
     private void LoadProjects()
     {
