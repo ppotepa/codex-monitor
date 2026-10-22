@@ -58,8 +58,8 @@ public sealed class WorkspaceViewModel : BindableBase
         RefreshSkillsCommand = new UiCommand(RefreshSkills);
         ShowOverviewCommand = new UiCommand(() => SelectedPage = 0);
         ShowProjectsCommand = new UiCommand(() => SelectedPage = 1);
-        ShowSkillsCommand = new UiCommand(() => SelectedPage = 3);
-        ShowInstructionsCommand = new UiCommand(() => SelectedPage = 4);
+        ShowSkillsCommand = new UiCommand(() => SelectedPage = 4);
+        ShowInstructionsCommand = new UiCommand(() => SelectedPage = 5);
         RefreshSkills();
         usage.PropertyChanged += (_, args) =>
         {
