@@ -296,7 +296,7 @@ public sealed partial class WorkspaceViewModel
         {
             OverviewStatus = "Overview refresh cancelled.";
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or Win32Exception)
         {
             OverviewStatus = "Local overview unavailable: " + ex.Message;
         }
