@@ -268,16 +268,19 @@ public sealed partial class WorkspaceViewModel : BindableBase, IDisposable
     // Called by the desktop host whenever a new provider snapshot is available.
     public void ApplyUsageSnapshot(CodexMonitor.Core.Usage.UsageSnapshot? limits, string providerId)
     {
-        if (!string.Equals(_selectedProviderId, providerId, StringComparison.OrdinalIgnoreCase))
+        var providerChanged = !string.Equals(_selectedProviderId, providerId, StringComparison.OrdinalIgnoreCase);
+        if (providerChanged)
         {
             _sessionSnapshot = null;
             SessionItems.Clear();
             SessionsStatus = "Provider changed. Refresh sessions for the selected provider.";
+            ResetOverviewProviderObservations();
         }
         _selectedProviderId = providerId;
         _usageSnapshot = limits;
         UpdateOverviewAllowance();
         RefreshAdvice();
+        if (providerChanged) _ = RefreshOverviewAsync();
     }
 
     public void RefreshActivity()
