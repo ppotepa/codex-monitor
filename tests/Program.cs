@@ -190,19 +190,19 @@ Assert(planner.Evaluate(null, observation, null, now).Confidence == "No quota ev
     "No invented recommendations without readings");
 
 var skillWork = Path.Combine(Path.GetTempPath(), "codex-skill-tests-" + Guid.NewGuid().ToString("N"));
-var skillSource = Path.Combine(skillWork, "sample-skill");
+var installSkillSource = Path.Combine(skillWork, "sample-skill");
 var skillTarget = Path.Combine(skillWork, "repository");
-Directory.CreateDirectory(skillSource);
+Directory.CreateDirectory(installSkillSource);
 Directory.CreateDirectory(skillTarget);
-File.WriteAllText(Path.Combine(skillSource, "SKILL.md"), "---\nname: sample-skill\ndescription: Tests only\n---\n");
-var skillsService = new LocalSkillsService();
-var skillReview = skillsService.PreviewInstall(skillSource, SkillScope.Project, skillTarget);
+File.WriteAllText(Path.Combine(installSkillSource, "SKILL.md"), "---\nname: sample-skill\ndescription: Tests only\n---\n");
+var installSkillsService = new LocalSkillsService();
+var skillReview = installSkillsService.PreviewInstall(installSkillSource, SkillScope.Project, skillTarget);
 Assert(skillReview.Files.Count == 1 && skillReview.Scope == SkillScope.Project, "Review local skill contents");
-skillsService.Install(skillReview);
-Assert(skillsService.List(skillTarget).Any(skill => skill.Name == "sample-skill"), "Skill install and discovery");
+installSkillsService.Install(skillReview);
+Assert(installSkillsService.List(skillTarget).Any(skill => skill.Name == "sample-skill"), "Skill install and discovery");
 try
 {
-    skillsService.PreviewInstall(skillSource, SkillScope.Project, skillTarget);
+    installSkillsService.PreviewInstall(installSkillSource, SkillScope.Project, skillTarget);
     throw new Exception("Duplicate skill was installable");
 }
 catch (IOException) { }
@@ -284,7 +284,7 @@ try
 }
 finally
 {
-    Directory.Delete(gitFixture, recursive: true);
+    DeleteTree(gitFixture);
 }
 
 Console.WriteLine("Parser, provider, capabilities, planner, skills, instructions and activity checks passed.");
@@ -292,6 +292,18 @@ Console.WriteLine("Parser, provider, capabilities, planner, skills, instructions
 static void Assert(bool condition, string message)
 {
     if (!condition) throw new Exception(message);
+}
+
+static void DeleteTree(string path)
+{
+    if (!Directory.Exists(path)) return;
+    foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+        File.SetAttributes(file, FileAttributes.Normal);
+    foreach (var directory in Directory.EnumerateDirectories(path, "*", SearchOption.AllDirectories)
+                 .OrderByDescending(directory => directory.Length))
+        File.SetAttributes(directory, FileAttributes.Normal);
+    File.SetAttributes(path, FileAttributes.Normal);
+    Directory.Delete(path, recursive: true);
 }
 
 internal sealed class NullExecutableLocator : IExecutableLocator
