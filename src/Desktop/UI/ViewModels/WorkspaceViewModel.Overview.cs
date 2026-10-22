@@ -191,9 +191,10 @@ public sealed partial class WorkspaceViewModel
                 : recentIds > 0 ? "Event identifiers · partial coverage"
                 : activity.IsConfigured ? "No recent session IDs · partial" : "Not configured";
 
+            var observedAt = DateTimeOffset.UtcNow;
             var approval = events.FirstOrDefault(item =>
-                DateTimeOffset.UtcNow - item.At is var age && age >= TimeSpan.Zero &&
-                age < TimeSpan.FromMinutes(10) &&
+                item.At <= observedAt &&
+                observedAt - item.At < TimeSpan.FromMinutes(10) &&
                 (item.EventType.Contains("PermissionRequest", StringComparison.OrdinalIgnoreCase) ||
                  item.EventType.Contains("waitingOnApproval", StringComparison.OrdinalIgnoreCase)));
             var reportedApproval = sessions.FirstOrDefault(item => item.Status == "waitingOnApproval");
@@ -244,7 +245,8 @@ public sealed partial class WorkspaceViewModel
                     var latestEvent = events.FirstOrDefault(item => IsInsideProject(item.ProjectDirectory, path));
                     var status = projectSessions.Any(item => item.Status == "waitingOnApproval") ? "Approval?" :
                         projectSessions.Any(item => item.Status == "active") ? "Reported active" :
-                        latestEvent is not null && DateTimeOffset.UtcNow - latestEvent.At < TimeSpan.FromMinutes(10)
+                        latestEvent is not null && latestEvent.At <= observedAt &&
+                        observedAt - latestEvent.At < TimeSpan.FromMinutes(10)
                             ? "Recent event" : "No signal";
                     var sessionCount = projectSessions.Length > 0
                         ? projectSessions.Length + " stored"
