@@ -26,6 +26,11 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
     private readonly IInstructionsOptimizer? _instructionOptimizer;
     private readonly IInstructionsFileEditor? _instructionEditor;
     private readonly IWorkspaceDoctor? _doctor;
+    private readonly IWorkspaceAiPlanner? _aiPlanner;
+    private bool _isAdvisorBusy;
+    private DateTimeOffset? _lastAiAdvisorAt;
+    private string _aiAdvisorText = "No AI analysis yet. Local recommendations are shown above.";
+    private string _aiAdvisorStatus = "AI is optional and uses existing Codex CLI credentials.";
     private readonly IReadOnlyList<IAgentSessionSource> _sessionSources;
     private AgentSessionSnapshot? _sessionSnapshot;
     private string _selectedProviderId = "codex";
@@ -75,6 +80,9 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
     private int _selectedPage;
 
     public DashboardViewModel Usage { get; }
+    public string AiAdvisorText { get => _aiAdvisorText; private set => Set(ref _aiAdvisorText, value); }
+    public string AiAdvisorStatus { get => _aiAdvisorStatus; private set => Set(ref _aiAdvisorStatus, value); }
+    public bool IsAdvisorBusy { get => _isAdvisorBusy; private set => Set(ref _isAdvisorBusy, value); }
     public ObservableCollection<SessionItem> SessionItems { get; } = [];
     public string SessionsStatus { get => _sessionsStatus; private set => Set(ref _sessionsStatus, value); }
     public bool IsLoadingSessions { get => _isLoadingSessions; private set => Set(ref _isLoadingSessions, value); }
@@ -129,6 +137,7 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
     public string AdvisorText { get => _advisorText; private set => Set(ref _advisorText, value); }
     public bool IsLoading { get => _isLoading; private set => Set(ref _isLoading, value); }
     public int SelectedPage { get => _selectedPage; set => Set(ref _selectedPage, value); }
+    public ICommand AskAiPlannerCommand { get; }
     public ICommand RefreshSessionsCommand { get; }
     public ICommand RefreshDoctorCommand { get; }
     public ICommand AnalyzeInstructionsCommand { get; }
@@ -154,7 +163,7 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
         IWorkspacePlanner? planner = null, ILocalSkillsService? skillsService = null,
         IInstructionsAuditService? instructionAudit = null, IInstructionsOptimizer? instructionOptimizer = null,
         IInstructionsFileEditor? instructionEditor = null, IWorkspaceDoctor? doctor = null,
-        IEnumerable<IAgentSessionSource>? sessionSources = null)
+        IEnumerable<IAgentSessionSource>? sessionSources = null, IWorkspaceAiPlanner? aiPlanner = null)
     {
         Usage = usage;
         _goals = goals;
@@ -169,6 +178,8 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
         _instructionEditor = instructionEditor;
         _doctor = doctor;
         _sessionSources = sessionSources?.ToArray() ?? [];
+        _aiPlanner = aiPlanner;
+        AskAiPlannerCommand = new UiCommand(() => _ = AskAiPlannerAsync());
         RefreshSessionsCommand = new UiCommand(() => _ = RefreshSessionsAsync());
         RefreshDoctorCommand = new UiCommand(RefreshDoctor);
         AnalyzeInstructionsCommand = new UiCommand(AnalyzeInstructions);
@@ -389,6 +400,47 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         { Instructions = "Could not read instructions: " + ex.Message; }
+    }
+
+    public async Task AskAiPlannerAsync()
+    {
+        if (IsAdvisorBusy || _aiPlanner is null) return;
+        if (!string.Equals(_aiPlanner.ProviderId, _selectedProviderId, StringComparison.OrdinalIgnoreCase))
+        {
+            AiAdvisorStatus = "AI planning is NotImplemented for this provider.";
+            return;
+        }
+        if (_lastAiAdvisorAt is { } last && DateTimeOffset.UtcNow - last < TimeSpan.FromMinutes(2))
+        {
+            AiAdvisorStatus = "Analysis cooldown: try again after two minutes to avoid unnecessary quota usage.";
+            return;
+        }
+        IsAdvisorBusy = true;
+        _lastAiAdvisorAt = DateTimeOffset.UtcNow;
+        AiAdvisorStatus = "Requesting a structured JSON recommendation from the existing Codex CLI…";
+        try
+        {
+            var primary = _usageSnapshot?.MainWindow;
+            var context = new WorkspaceAiPlanningContext(_selectedProviderId,
+                primary is null ? null : Math.Clamp(100 - primary.UsedPercent, 0, 100),
+                primary?.ResetsAt, _sessionSnapshot?.Sessions.Count ?? 0,
+                _sessionSnapshot?.Sessions.Count(item => item.Status == "active") ?? 0,
+                _sessionSnapshot?.Sessions.Count(item => item.Status == "waitingOnApproval") ?? 0,
+                _sessionSnapshot?.Coverage ?? "Unknown: stored sessions have not been inspected.",
+                _currentGoal?.Title, _currentGoal?.BudgetMinutes);
+            var answer = await _aiPlanner.AnalyzeAsync(context, _analysisLifetime.Token);
+            AiAdvisorText = answer.Summary + Environment.NewLine + answer.Rationale;
+            AiAdvisorStatus = "AI suggestion (" + answer.Action + "), not a verified system status.";
+        }
+        catch (OperationCanceledException)
+        {
+            AiAdvisorStatus = "AI analysis cancelled.";
+        }
+        catch (Exception ex)
+        {
+            AiAdvisorStatus = "Codex AI Advisor unavailable: " + ex.Message;
+        }
+        finally { IsAdvisorBusy = false; }
     }
 
     public async Task RefreshSessionsAsync()
