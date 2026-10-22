@@ -7,14 +7,14 @@ public sealed record WorkspaceAdvice(string Summary, string Evidence, string Con
 public interface IWorkspacePlanner
 {
     WorkspaceAdvice Evaluate(UsageSnapshot? limits, WorkspaceActivitySnapshot activity,
-        WorkspaceGoal? goal, DateTimeOffset now);
+        WorkspaceGoal? goal, DateTimeOffset now, AgentSessionSnapshot? sessions = null);
 }
 
 // Pure, deterministic fallback. Never assumes that missing event logs imply an idle agent.
 public sealed class WorkspacePlanner : IWorkspacePlanner
 {
     public WorkspaceAdvice Evaluate(UsageSnapshot? limits, WorkspaceActivitySnapshot activity,
-        WorkspaceGoal? goal, DateTimeOffset now)
+        WorkspaceGoal? goal, DateTimeOffset now, AgentSessionSnapshot? sessions = null)
     {
         var window = limits?.MainWindow;
         if (window is null)
@@ -28,17 +28,21 @@ public sealed class WorkspacePlanner : IWorkspacePlanner
                        (untilReset is { } duration
                            ? $"reset in {Math.Max(0, duration.TotalHours):0.#} h."
                            : "reset time unknown.") + " " + activity.Coverage;
+        var liveApproval = sessions?.Sessions.Any(item => item.Status == "waitingOnApproval") == true;
         var recentApproval = activity.Events.Any(item =>
             item.EventType.Contains("PermissionRequest", StringComparison.OrdinalIgnoreCase) &&
             now - item.At < TimeSpan.FromMinutes(10));
-        if (recentApproval)
+        if (liveApproval || recentApproval)
             return new("A recent event may need approval. Check its session before allocating more quota." +
                 activeGoal, evidence, "Partial observation");
 
+        var observedWorking = sessions?.Sessions.Count(item => item.Status == "active") ?? 0;
         if (untilReset is { } time && time > TimeSpan.Zero && time <= TimeSpan.FromHours(4) &&
             remaining >= 5)
             return new($"Consider using the remaining {remaining:0}% on useful work before reset; " +
-                "unused quota usually does not carry forward. Check active sessions directly." +
+                "unused quota usually does not carry forward. " + (observedWorking > 0 ?
+                $"This App Server reports {observedWorking} active session(s)." :
+                "Check active sessions directly; incomplete telemetry cannot prove inactivity.") + "" +
                 activeGoal, evidence, "Quota-based recommendation");
 
         if (remaining < 10 && (untilReset is null || untilReset > TimeSpan.FromHours(8)))
