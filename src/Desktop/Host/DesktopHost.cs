@@ -136,6 +136,8 @@ internal sealed class DesktopHost(
         }
         _workspaceWindow.Show();
         _workspaceWindow.Activate();
+        _ = coordinator.RefreshLimitsAsync();
+        _ = coordinator.RefreshTokensAsync(force: false);
     }
 
     private async Task ShowSettingsAsync()
