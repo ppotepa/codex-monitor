@@ -5,16 +5,17 @@
  SystemDecorations="None" Background="{DynamicResource WindowBrush}">
  <Border BorderBrush="{DynamicResource OutlineBrush}" BorderThickness="1" CornerRadius="12" Padding="16">
   <Grid RowDefinitions="Auto,Auto,Auto,*" RowSpacing="8">
-   <Grid x:Name="WindowHeader" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6"
+   <Grid x:Name="WindowHeader" ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="6"
          Background="Transparent" MinHeight="36" Cursor="SizeAll" ToolTip.Tip="Drag to move window">
     <TextBlock Text="Codex Monitor" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center"/>
     <Border Grid.Column="1" Background="#253C40" CornerRadius="4" Padding="7,4" VerticalAlignment="Center">
      <TextBlock Text="{Binding ProviderName}" Foreground="#67DDCA" FontSize="12" FontWeight="SemiBold"/>
     </Border>
-    <Button Grid.Column="2" Classes="icon" Cursor="Arrow" Command="{Binding SettingsCommand}" ToolTip.Tip="Settings" AutomationProperties.Name="Open settings">
+    <Button Grid.Column="2" Cursor="Arrow" Click="WorkspaceClicked" Content="Workspace" ToolTip.Tip="Open full dashboard" AutomationProperties.Name="Open full dashboard"/>
+    <Button Grid.Column="3" Classes="icon" Cursor="Arrow" Command="{Binding SettingsCommand}" ToolTip.Tip="Settings" AutomationProperties.Name="Open settings">
      <PathIcon Width="16" Height="16" Data="M2,3 H6 V1 H8 V3 H18 V5 H8 V7 H6 V5 H2 Z M2,9 H12 V7 H14 V9 H18 V11 H14 V13 H12 V11 H2 Z M2,15 H6 V13 H8 V15 H18 V17 H8 V19 H6 V17 H2 Z"/>
     </Button>
-    <Button Grid.Column="3" Classes="icon" Cursor="Arrow" Click="CloseClicked" ToolTip.Tip="Close" AutomationProperties.Name="Close dashboard">
+    <Button Grid.Column="4" Classes="icon" Cursor="Arrow" Click="CloseClicked" ToolTip.Tip="Close" AutomationProperties.Name="Close dashboard">
      <PathIcon Width="12" Height="12" Data="M1,0 L6,5 L11,0 L12,1 L7,6 L12,11 L11,12 L6,7 L1,12 L0,11 L5,6 L0,1 Z"/>
     </Button>
    </Grid>

@@ -1,0 +1,64 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:vm="using:CodexMonitor.UI.ViewModels" x:Class="CodexMonitor.UI.Views.WorkspaceWindow"
+ x:DataType="vm:WorkspaceViewModel" x:CompileBindings="True" Title="Codex Monitor workspace"
+ Width="1260" Height="820" MinWidth="980" MinHeight="640" WindowStartupLocation="CenterScreen">
+ <Grid ColumnDefinitions="248,*">
+  <Border Background="{DynamicResource SurfaceBrush}">
+   <DockPanel LastChildFill="True">
+    <StackPanel DockPanel.Dock="Top" Margin="22,24,18,20" Spacing="3">
+     <TextBlock Text="CODEX MONITOR" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+     <TextBlock Text="Agent workspace" Classes="caption"/>
+    </StackPanel>
+    <Border DockPanel.Dock="Bottom" Classes="card" Margin="12,12,12,16" Padding="13">
+     <StackPanel Spacing="5">
+      <TextBlock Text="CURRENT CONTEXT" Classes="caption"/>
+      <TextBlock Text="{Binding ContextLabel}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+      <TextBlock Text="Usage and activity stay local to this device." Classes="caption" TextWrapping="Wrap"/>
+     </StackPanel>
+    </Border>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+     <StackPanel Margin="12,0,12,10" Spacing="5">
+      <TextBlock Text="WORKSPACE" Classes="caption" Margin="10,0,0,4"/>
+      <Button Content="Overview" Tag="Overview" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
+      <Button Content="Projects" Tag="Projects" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
+      <Button Content="Sessions" Tag="Sessions" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
+      <Button Content="Activity" Tag="Activity" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
+      <Button Content="Git Impact" Tag="Git Impact" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
+      <Button Content="Attention" Tag="Attention" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
+      <Button Content="Goals" Tag="Goals" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
+      <TextBlock Text="TOOLS" Classes="caption" Margin="10,12,0,4"/>
+      <Button Content="Skills Manager" Tag="Skills Manager" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
+      <Button Content="AGENTS.md Studio" Tag="AGENTS.md Studio" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
+      <Button Content="Work Planner" Tag="Work Planner" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
+      <Button Content="Agent Doctor" Tag="Agent Doctor" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
+      <Button Content="MCP Manager" Tag="MCP Manager" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
+      <Button Content="Project Setup" Tag="Project Setup" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
+      <Button Content="Agent Tools" Tag="Agent Tools" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
+      <Button Content="Settings" Tag="Settings" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
+     </StackPanel>
+    </ScrollViewer>
+   </DockPanel>
+  </Border>
+  <Grid Grid.Column="1" RowDefinitions="Auto,*">
+   <Border Padding="22,18" BorderBrush="{DynamicResource OutlineBrush}" BorderThickness="0,0,0,1">
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="18">
+     <StackPanel Spacing="4" VerticalAlignment="Center">
+      <TextBlock x:Name="PageTitle" Text="Overview" FontSize="22" FontWeight="SemiBold"/>
+      <TextBlock Text="{Binding ProjectSummary}" Classes="caption"/>
+     </StackPanel>
+     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+      <ComboBox x:Name="ScopeSelector" Width="110" ItemsSource="{Binding Scopes}" SelectedItem="{Binding Scope, Mode=TwoWay}" AutomationProperties.Name="Workspace scope"/>
+      <ComboBox x:Name="AgentSelector" Width="105" ItemsSource="{Binding Agents}" SelectedItem="{Binding AgentId, Mode=TwoWay}" AutomationProperties.Name="Agent context"/>
+      <ComboBox x:Name="ProjectSelector" Width="255" ItemsSource="{Binding ProjectChoices}" SelectedItem="{Binding SelectedProject, Mode=TwoWay}" AutomationProperties.Name="Project context">
+       <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:WorkspaceProjectChoice"><TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/></DataTemplate></ComboBox.ItemTemplate>
+      </ComboBox>
+      <Button Content="Apply context" Classes="primary" Click="ApplyContextClicked"/>
+     </StackPanel>
+    </Grid>
+   </Border>
+   <ScrollViewer Grid.Row="1" Padding="24" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <StackPanel x:Name="PageContent" Spacing="12" MaxWidth="960" HorizontalAlignment="Left"/>
+   </ScrollViewer>
+  </Grid>
+ </Grid>
+</Window>

@@ -75,6 +75,8 @@ Assert(defaultSettings.LimitsRefreshMinutes == 5 && defaultSettings.TokenRefresh
     "Use gentle default refresh cadence");
 Assert(defaultSettings.AgentScanMinutes == 30 && defaultSettings.AutoRefreshTokens,
     "Enable periodic agent scan and token refresh by default");
+VerifyWorkspace();
+VerifyGitImpact();
 try
 {
     registry.Get("unsupported-provider");
@@ -102,7 +104,82 @@ var cached = reloadedDatabase.ReadTokenUsage("CODEX");
 Assert(cached?.Snapshot.LifetimeTokens == 12345 && cached.CachedAt == now, "Persist and reload token cache");
 File.Delete(databasePath);
 
-Console.WriteLine("Parser and provider checks passed.");
+Console.WriteLine("Parser, provider, workspace and Git impact checks passed.");
+
+static void VerifyWorkspace()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codex-monitor-workspace-{Guid.NewGuid():N}");
+    try
+    {
+        var repository = Path.Combine(root, "repo");
+        var worktree = Path.Combine(root, "repo-feature");
+        var commonGit = Path.Combine(repository, ".git");
+        var worktreeGit = Path.Combine(commonGit, "worktrees", "feature");
+        Directory.CreateDirectory(commonGit);
+        Directory.CreateDirectory(worktree);
+        Directory.CreateDirectory(worktreeGit);
+        File.WriteAllText(Path.Combine(worktree, ".git"), $"gitdir: {worktreeGit}{Environment.NewLine}");
+        File.WriteAllText(Path.Combine(worktreeGit, "commondir"), Path.GetRelativePath(worktreeGit, commonGit));
+
+        var settings = new MonitorSettings();
+        var repositoryStore = new MemorySettingsRepository();
+        var workspace = new WorkspaceService(settings, repositoryStore, new TestAppPaths(root), new ProjectCatalog());
+        var preview = workspace.PreviewAddProject(repository);
+        Assert(preview.Contains(Path.Combine(root, "settings.json"), StringComparison.Ordinal), "Project preview names the settings target");
+        Assert(settings.ProjectPaths.Count == 0, "Project preview makes no settings changes");
+        workspace.AddProject(repository);
+        var nested = Path.Combine(worktree, "src");
+        Directory.CreateDirectory(nested);
+        workspace.AddProject(nested);
+        Assert(workspace.Groups.Count == 1 && workspace.Groups[0].Worktrees.Count == 2,
+            "Group Git worktrees while preserving their separate paths");
+
+        var context = new WorkspaceContext(WorkspaceScope.Project, "codex", worktree);
+        Assert(workspace.PreviewContext(context).Contains("To: Project", StringComparison.Ordinal), "Preview a project context selection");
+        workspace.SetContext(context);
+        Assert(workspace.Current.Scope == WorkspaceScope.Project && workspace.Current.ProjectPath == worktree,
+            "Persist project context");
+        Assert(workspace.PreviewRemoveProject(worktree).Contains("active context will return to Global", StringComparison.Ordinal),
+            "Explain the effect of removing the selected project");
+        workspace.RemoveProject(worktree);
+        Assert(workspace.Current.Scope == WorkspaceScope.Global && workspace.Projects.Count == 1,
+            "Return to global scope after removing active worktree");
+        Assert(repositoryStore.Saves == 4, "Persist each approved workspace operation");
+    }
+    finally
+    {
+        if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+    }
+}
+
+static void VerifyGitImpact()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"codex-monitor-git-impact-{Guid.NewGuid():N}");
+    try
+    {
+        Directory.CreateDirectory(Path.Combine(root, ".git"));
+        var runner = new FixtureProcessRunner([
+            new ProcessResult(0, "## feature/demo\n M src/changed.cs\n?? new.txt\n", ""),
+            new ProcessResult(0, "2\t1\tsrc/changed.cs\n", "")
+        ]);
+        var service = new GitImpactService(new FixedExecutableLocator("git"), runner, new ProjectCatalog());
+        var impact = service.ReadAsync(root).GetAwaiter().GetResult();
+        Assert(impact.Status == AvailabilityStatus.Ready && impact.Branch == "feature/demo", "Read worktree status and branch");
+        Assert(impact.ChangedFiles == 2 && impact.UntrackedFiles == 1, "Count tracked and untracked files");
+        Assert(impact.AddedLines == 2 && impact.RemovedLines == 1, "Read added and removed lines");
+        Assert(impact.Files.Any(file => file.Path == "new.txt" && file.ChangeType == "??"), "Keep untracked paths visible");
+
+        var unavailableGit = new GitImpactService(new NullExecutableLocator(), runner, new ProjectCatalog());
+        Assert(unavailableGit.ReadAsync(root).GetAwaiter().GetResult().Status == AvailabilityStatus.NotInstalled,
+            "Expose missing Git as NotInstalled");
+        Assert(service.ReadAsync(null).GetAwaiter().GetResult().Status == AvailabilityStatus.NoData,
+            "Require a selected project for Git impact");
+    }
+    finally
+    {
+        if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+    }
+}
 
 static void Assert(bool condition, string message)
 {
@@ -114,8 +191,38 @@ internal sealed class NullExecutableLocator : IExecutableLocator
     public string? Find(IEnumerable<string> executableNames) => null;
 }
 
+internal sealed class FixedExecutableLocator(string executable) : IExecutableLocator
+{
+    public string? Find(IEnumerable<string> executableNames) => executable;
+}
+
+internal sealed class FixtureProcessRunner(IReadOnlyList<ProcessResult> results) : IProcessRunner
+{
+    private int _index;
+
+    public Task<ProcessResult> RunAsync(string executable, IReadOnlyList<string> arguments,
+        TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        if (_index >= results.Count) throw new InvalidOperationException("No process fixture remains.");
+        return Task.FromResult(results[_index++]);
+    }
+}
+
 internal sealed class NullCommandLaunchStrategy : ICommandLaunchStrategy
 {
     public System.Diagnostics.ProcessStartInfo Create(string executable, IReadOnlyList<string> arguments, bool redirectStandardInput)
         => throw new NotSupportedException();
+}
+
+internal sealed class TestAppPaths(string dataDirectory) : IAppPaths
+{
+    public string DataDirectory { get; } = dataDirectory;
+}
+
+internal sealed class MemorySettingsRepository : IMonitorSettingsRepository
+{
+    public int Saves { get; private set; }
+    public string? PersistenceError => null;
+    public MonitorSettings Load() => new();
+    public void Save(MonitorSettings settings) => Saves++;
 }
