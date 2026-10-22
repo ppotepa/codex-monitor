@@ -14,6 +14,8 @@ public sealed class WorkspaceViewModel : BindableBase
 {
     private readonly IWorkspaceGoalRepository? _goals;
     private readonly IWorkspaceProjectRepository? _projects;
+    private readonly IWorkspaceInstructionsInspector? _inspector;
+    private string? _selectedInstructionPath;
     private string? _selectedProject;
     private string _goalTitle = "";
     private string _budgetText = "60";
@@ -29,6 +31,8 @@ public sealed class WorkspaceViewModel : BindableBase
     private int _selectedPage;
 
     public DashboardViewModel Usage { get; }
+    public ObservableCollection<string> InstructionFiles { get; } = [];
+    public string? SelectedInstructionPath { get => _selectedInstructionPath; set => Set(ref _selectedInstructionPath, value); }
     public ObservableCollection<string> Projects { get; } = [];
     public string? SelectedProject { get => _selectedProject; set => Set(ref _selectedProject, value); }
     public ObservableCollection<string> ProjectFiles { get; } = [];
@@ -45,6 +49,7 @@ public sealed class WorkspaceViewModel : BindableBase
     public string AdvisorText { get => _advisorText; private set => Set(ref _advisorText, value); }
     public bool IsLoading { get => _isLoading; private set => Set(ref _isLoading, value); }
     public int SelectedPage { get => _selectedPage; set => Set(ref _selectedPage, value); }
+    public ICommand ReadInstructionCommand { get; }
     public ICommand LoadProjectCommand { get; }
     public ICommand SaveGoalCommand { get; }
     public ICommand InspectProjectCommand { get; }
@@ -54,11 +59,13 @@ public sealed class WorkspaceViewModel : BindableBase
     public ICommand ShowSkillsCommand { get; }
     public ICommand ShowInstructionsCommand { get; }
 
-    public WorkspaceViewModel(DashboardViewModel usage, IWorkspaceGoalRepository? goals = null, IWorkspaceProjectRepository? projects = null)
+    public WorkspaceViewModel(DashboardViewModel usage, IWorkspaceGoalRepository? goals = null, IWorkspaceProjectRepository? projects = null, IWorkspaceInstructionsInspector? inspector = null)
     {
         Usage = usage;
         _goals = goals;
         _projects = projects;
+        _inspector = inspector;
+        ReadInstructionCommand = new UiCommand(ReadInstruction);
         LoadProjectCommand = new UiCommand(() => { if (!string.IsNullOrWhiteSpace(SelectedProject)) { ProjectPath = SelectedProject; _ = InspectProjectAsync(); } });
         LoadProjects();
         SaveGoalCommand = new UiCommand(SaveGoal);
@@ -104,10 +111,7 @@ public sealed class WorkspaceViewModel : BindableBase
             ProjectStatus = result.Status;
             ProjectFiles.Clear();
             foreach (var file in result.Files) ProjectFiles.Add(file);
-            var agents = Path.Combine(path, "AGENTS.md");
-            Instructions = File.Exists(agents)
-                ? File.ReadAllText(agents)
-                : "No root AGENTS.md found. Nested instruction files are not inspected yet.";
+            RefreshInstructions(path);
             RefreshSkills();
             try
             {
@@ -161,6 +165,38 @@ public sealed class WorkspaceViewModel : BindableBase
         if (process.ExitCode != 0) return ("—", "Not a readable Git repository: " + stderr.Trim(), []);
         var files = stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         return (files.Length + " changed/untracked files", "Working tree checked locally. Not attributed to a specific agent.", files.Take(100).ToArray());
+    }
+
+    private void RefreshInstructions(string project)
+    {
+        InstructionFiles.Clear();
+        if (_inspector is null) return;
+        try
+        {
+            foreach (var item in _inspector.Find(project)) InstructionFiles.Add(item.Path);
+            if (InstructionFiles.Count > 0)
+            {
+                SelectedInstructionPath = InstructionFiles[0];
+                ReadInstruction();
+            }
+            else
+            {
+                SelectedInstructionPath = null;
+                Instructions = "No AGENTS.md or AGENTS.override.md found in the scanned folders.";
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Instructions = "Could not inspect instructions: " + ex.Message;
+        }
+    }
+
+    private void ReadInstruction()
+    {
+        if (_inspector is null || string.IsNullOrWhiteSpace(SelectedInstructionPath)) return;
+        try { Instructions = _inspector.Read(SelectedInstructionPath); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        { Instructions = "Could not read instructions: " + ex.Message; }
     }
 
     private void LoadProjects()
