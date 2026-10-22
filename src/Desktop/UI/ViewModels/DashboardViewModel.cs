@@ -22,6 +22,8 @@ public sealed class DashboardViewModel : BindableBase
     private string _usedText = "—";
     private string _resetText = "Sign in to Codex CLI to view limits.";
     private double _usedPercent;
+    private DateTimeOffset? _selectedResetsAt;
+    private bool _hasSelectedLimit;
     private string _limitError = "";
     private bool _hasLimitError;
     private string _tokenError = "";
@@ -46,6 +48,8 @@ public sealed class DashboardViewModel : BindableBase
     public string UsedText { get => _usedText; private set => Set(ref _usedText, value); }
     public string ResetText { get => _resetText; private set => Set(ref _resetText, value); }
     public double UsedPercent { get => _usedPercent; private set => Set(ref _usedPercent, value); }
+    public DateTimeOffset? SelectedResetsAt { get => _selectedResetsAt; private set => Set(ref _selectedResetsAt, value); }
+    public bool HasSelectedLimit { get => _hasSelectedLimit; private set => Set(ref _hasSelectedLimit, value); }
     public string LimitError { get => _limitError; private set => Set(ref _limitError, value); }
     public bool HasLimitError { get => _hasLimitError; private set => Set(ref _hasLimitError, value); }
     public string TokenError { get => _tokenError; private set => Set(ref _tokenError, value); }
@@ -103,6 +107,8 @@ public sealed class DashboardViewModel : BindableBase
         RemainingText = selected is null ? "No data" : $"{100 - selected.UsedPercent:0}% left";
         UsedText = selected is null ? "—" : $"{selected.UsedPercent:0}%";
         UsedPercent = Math.Clamp(selected?.UsedPercent ?? 0, 0, 100);
+        HasSelectedLimit = selected is not null;
+        SelectedResetsAt = selected?.ResetsAt;
         ResetText = selected is null
             ? $"Connect {provider.DisplayName} to view your limits."
             : UsageDisplayText.ResetText(selected.ResetsAt);
