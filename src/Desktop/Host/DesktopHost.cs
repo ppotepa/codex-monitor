@@ -8,7 +8,6 @@ namespace CodexMonitor.Desktop;
 // One desktop lifetime, timer and event pipeline for all target systems.
 internal sealed class DesktopHost(
     DashboardWindow window,
-    WorkspaceWindow workspace,
     DesktopTrayShell tray,
     UsageCoordinator coordinator,
     MonitorSettings settings,
@@ -17,8 +16,22 @@ internal sealed class DesktopHost(
     IStartupService startup,
     IWindowClosePolicy closePolicy,
     IDesktopNotificationService notifications,
+    CodexMonitor.Core.Workspace.IWorkspaceGoalRepository goals,
+    CodexMonitor.Core.Workspace.IWorkspaceProjectRepository projects,
+    CodexMonitor.Core.Workspace.IWorkspaceInstructionsInspector inspector,
+    CodexMonitor.Core.Workspace.IGitImpactService git,
+    CodexMonitor.Core.Workspace.IWorkspaceActivitySource activity,
+    CodexMonitor.Core.Workspace.IWorkspacePlanner planner,
+    CodexMonitor.Core.Workspace.ILocalSkillsService skills,
+    CodexMonitor.Core.Workspace.IInstructionsAuditService instructionAudit,
+    CodexMonitor.Core.Workspace.IInstructionsOptimizer instructionOptimizer,
+    CodexMonitor.Core.Workspace.IInstructionsFileEditor instructionEditor,
+    CodexMonitor.Core.Workspace.IWorkspaceDoctor doctor,
+    IEnumerable<CodexMonitor.Core.Workspace.IAgentSessionSource> sessionSources,
+    CodexMonitor.Core.Workspace.IWorkspaceAiPlanner aiPlanner,
     CancellationTokenSource shutdown) : IDisposable
 {
+    private WorkspaceWindow? _workspaceWindow;
     private DispatcherTimer? _limitsTimer;
     private DispatcherTimer? _displayTimer;
     private DateTimeOffset _lastAgentScanAt;
@@ -36,9 +49,9 @@ internal sealed class DesktopHost(
         _lastAgentScanAt = DateTimeOffset.UtcNow;
 
         window.RefreshRequested += (_, _) => _ = coordinator.RefreshLimitsAsync();
-        window.WorkspaceRequested += (_, _) => ShowWorkspace();
         window.InstallRequested += (_, _) => _ = coordinator.RepairAsync();
         window.SettingsRequested += (_, _) => _ = ShowSettingsAsync();
+        window.WorkspaceRequested += (_, _) => ShowWorkspace();
         window.TokensRequested += (_, _) => _ = coordinator.RefreshTokensAsync(force: false);
         window.TokenRefreshRequested += (_, _) => _ = coordinator.RefreshTokensAsync(force: true);
 
@@ -106,14 +119,8 @@ internal sealed class DesktopHost(
         }
         var state = coordinator.Dashboard;
         window.ApplyState(state);
-        workspace.ApplyDashboardState(state, coordinator.ProviderInfo);
+        _workspaceWindow?.ApplyUsage(state.Limits, coordinator.ProviderInfo.Id);
         tray.Update(state);
-    }
-
-    private void ShowWorkspace()
-    {
-        if (_disposed) return;
-        workspace.ShowNearCursor();
     }
 
     private void OnAlert(string title, string message, UsageAlertSeverity severity)
@@ -131,6 +138,22 @@ internal sealed class DesktopHost(
             return;
         }
         window.SetMessage(message);
+    }
+
+    private void ShowWorkspace()
+    {
+        if (_disposed) return;
+        if (_workspaceWindow is null)
+        {
+            _workspaceWindow = new WorkspaceWindow(window.WorkspaceUsageModel, goals, projects, inspector, git, activity,
+                planner, skills, instructionAudit, instructionOptimizer, instructionEditor, doctor, sessionSources, aiPlanner);
+            _workspaceWindow.Closed += (_, _) => _workspaceWindow = null;
+        }
+        _workspaceWindow.ApplyUsage(coordinator.Dashboard.Limits, coordinator.ProviderInfo.Id);
+        _workspaceWindow.Show();
+        _workspaceWindow.Activate();
+        _ = coordinator.RefreshLimitsAsync();
+        _ = coordinator.RefreshTokensAsync(force: false);
     }
 
     private async Task ShowSettingsAsync()
@@ -191,7 +214,7 @@ internal sealed class DesktopHost(
         tray.ErrorOccurred -= ShowStatus;
         agentManager.Changed -= OnAgentChanged;
         tray.Dispose();
-        workspace.Dispose();
+        _workspaceWindow?.Close();
         window.Dispose();
     }
 }

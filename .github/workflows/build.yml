@@ -25,11 +25,16 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      # Build-only gate. Automated behavioral tests are deferred.
+      # Build and application checks run on every PR.
       - name: Build complete solution
         shell: pwsh
         run: |
           dotnet build CodexMonitor.slnx --configuration Release --nologo 2>&1 | Tee-Object -FilePath build.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run parser, provider and workspace regression checks
+        shell: pwsh
+        run: |
+          dotnet run --project tests/ParserChecks.csproj --configuration Release --no-restore --no-launch-profile
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Keep compiler output
         if: always()

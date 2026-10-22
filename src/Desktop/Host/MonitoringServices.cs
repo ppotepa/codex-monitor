@@ -1,6 +1,5 @@
 using CodexMonitor.Providers.Codex;
-using CodexMonitor.Infrastructure.Projects;
-using CodexMonitor.Core.Workspaces;
+using CodexMonitor.Core.Workspace;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CodexMonitor.Desktop;
@@ -10,10 +9,11 @@ internal static class MonitoringServices
 {
     public static IServiceCollection AddCodexMonitorApplication(this IServiceCollection services)
     {
+        services.AddSingleton<IWorkspacePlanner, WorkspacePlanner>();
+        services.AddSingleton<IFeatureRegistry, FeatureRegistry>();
         services.AddSingleton<IProviderCatalog>(sp => new ProviderCatalog(sp.GetServices<IUsageProvider>()));
         services.AddSingleton<IAgentDiscovery, AgentDiscovery>();
         services.AddSingleton(sp => sp.GetRequiredService<IMonitorSettingsRepository>().Load());
-        services.AddSingleton<IWorkspaceService, WorkspaceService>();
         services.AddSingleton(sp => UsageHistory.Load(sp.GetRequiredService<IUsageDataStore>()));
         services.AddSingleton<CancellationTokenSource>();
         services.AddSingleton<UsageAlertService>();

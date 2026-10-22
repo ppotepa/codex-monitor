@@ -1,3 +1,8 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using CodexMonitor.Core.Workspace;
+using CodexMonitor.Infrastructure.Workspace;
 using CodexMonitor.Infrastructure;
 using CodexMonitor.Infrastructure.Persistence;
 using CodexMonitor.Infrastructure.Processes;
@@ -75,8 +80,6 @@ Assert(defaultSettings.LimitsRefreshMinutes == 5 && defaultSettings.TokenRefresh
     "Use gentle default refresh cadence");
 Assert(defaultSettings.AgentScanMinutes == 30 && defaultSettings.AutoRefreshTokens,
     "Enable periodic agent scan and token refresh by default");
-VerifyWorkspace();
-VerifyGitImpact();
 try
 {
     registry.Get("unsupported-provider");
@@ -104,108 +107,208 @@ var cached = reloadedDatabase.ReadTokenUsage("CODEX");
 Assert(cached?.Snapshot.LifetimeTokens == 12345 && cached.CachedAt == now, "Persist and reload token cache");
 File.Delete(databasePath);
 
-Console.WriteLine("Parser, provider, workspace and Git impact checks passed.");
-
-static void VerifyWorkspace()
+var goalsPath = Path.Combine(Path.GetTempPath(), $"codex-monitor-goals-{Guid.NewGuid():N}.json");
+var goalStore = new JsonWorkspaceGoalRepository(goalsPath);
+var goal = new WorkspaceGoal(Path.GetTempPath(), "Finish refactor", 90, now);
+goalStore.Save(goal);
+Assert(goalStore.Find(Path.GetTempPath())?.BudgetMinutes == 90, "Read stored goal");
+goalStore.Save(goal with { Title = "Finish review", BudgetMinutes = 30 });
+Assert(goalStore.Find(Path.GetTempPath())?.Title == "Finish review", "Replace goal for the same project");
+try
 {
-    var root = Path.Combine(Path.GetTempPath(), $"codex-monitor-workspace-{Guid.NewGuid():N}");
-    try
-    {
-        var repository = Path.Combine(root, "repo");
-        var worktree = Path.Combine(root, "repo-feature");
-        var commonGit = Path.Combine(repository, ".git");
-        var worktreeGit = Path.Combine(commonGit, "worktrees", "feature");
-        Directory.CreateDirectory(commonGit);
-        Directory.CreateDirectory(worktree);
-        Directory.CreateDirectory(worktreeGit);
-        File.WriteAllText(Path.Combine(worktree, ".git"), $"gitdir: {worktreeGit}{Environment.NewLine}");
-        File.WriteAllText(Path.Combine(worktreeGit, "commondir"), Path.GetRelativePath(worktreeGit, commonGit));
+    goalStore.Save(goal with { BudgetMinutes = 0 });
+    throw new Exception("Invalid goal budget accepted");
+}
+catch (ArgumentOutOfRangeException) { }
+File.WriteAllText(goalsPath, "{bad json");
+try
+{
+    goalStore.Save(goal);
+    throw new Exception("Corrupt goals file was overwritten");
+}
+catch (InvalidDataException) { }
+File.Delete(goalsPath);
 
-        var settings = new MonitorSettings();
-        var repositoryStore = new MemorySettingsRepository();
-        var workspace = new WorkspaceService(settings, repositoryStore, new TestAppPaths(root), new ProjectCatalog());
-        var preview = workspace.PreviewAddProject(repository);
-        Assert(preview.Contains(Path.Combine(root, "settings.json"), StringComparison.Ordinal), "Project preview names the settings target");
-        Assert(settings.ProjectPaths.Count == 0, "Project preview makes no settings changes");
-        workspace.AddProject(repository);
-        var nested = Path.Combine(worktree, "src");
-        Directory.CreateDirectory(nested);
-        workspace.AddProject(nested);
-        Assert(workspace.Groups.Count == 1 && workspace.Groups[0].Worktrees.Count == 2,
-            "Group Git worktrees while preserving their separate paths");
+var projectsPath = Path.Combine(Path.GetTempPath(), $"codex-monitor-projects-{Guid.NewGuid():N}.json");
+var projectStore = new JsonWorkspaceProjectRepository(projectsPath);
+projectStore.Add(Path.GetTempPath());
+projectStore.Add(Path.GetTempPath());
+Assert(projectStore.List().Count == 1, "Project paths must be deduplicated");
+projectStore.Remove(Path.GetTempPath());
+Assert(projectStore.List().Count == 0, "Project removal");
+File.Delete(projectsPath);
 
-        var context = new WorkspaceContext(WorkspaceScope.Project, "codex", worktree);
-        Assert(workspace.PreviewContext(context).Contains("To: Project", StringComparison.Ordinal), "Preview a project context selection");
-        workspace.SetContext(context);
-        Assert(workspace.Current.Scope == WorkspaceScope.Project && workspace.Current.ProjectPath == worktree,
-            "Persist project context");
-        Assert(workspace.PreviewRemoveProject(worktree).Contains("active context will return to Global", StringComparison.Ordinal),
-            "Explain the effect of removing the selected project");
-        workspace.RemoveProject(worktree);
-        Assert(workspace.Current.Scope == WorkspaceScope.Global && workspace.Projects.Count == 1,
-            "Return to global scope after removing active worktree");
-        Assert(repositoryStore.Saves == 4, "Persist each approved workspace operation");
-    }
-    finally
+var instructionsFolder = Path.Combine(Path.GetTempPath(), $"codex-instructions-{Guid.NewGuid():N}");
+Directory.CreateDirectory(Path.Combine(instructionsFolder, "src", "nested"));
+Directory.CreateDirectory(Path.Combine(instructionsFolder, "node_modules"));
+File.WriteAllText(Path.Combine(instructionsFolder, "AGENTS.md"), "Root rules");
+File.WriteAllText(Path.Combine(instructionsFolder, "src", "nested", "AGENTS.override.md"), "Nested rules");
+File.WriteAllText(Path.Combine(instructionsFolder, "node_modules", "AGENTS.md"), "Ignored rules");
+var instructionsInspector = new FileSystemInstructionsInspector();
+var discovered = instructionsInspector.Find(instructionsFolder);
+Assert(discovered.Count == 2, "Root and nested AGENTS instructions discovered without dependency folders");
+Assert(instructionsInspector.Read(discovered[0].Path).Length > 0, "Read safe instruction file");
+Directory.Delete(instructionsFolder, recursive: true);
+
+
+var skillsFixture = Path.Combine(Path.GetTempPath(), $"codex-skills-{Guid.NewGuid():N}");
+var skillSource = Path.Combine(skillsFixture, "fixtures", "example-skill");
+var skillProject = Path.Combine(skillsFixture, "repository");
+Directory.CreateDirectory(skillSource);
+Directory.CreateDirectory(skillProject);
+File.WriteAllText(Path.Combine(skillSource, "SKILL.md"), "---\nname: example-skill\ndescription: Example local skill\n---");
+var skillsService = new LocalSkillsService();
+var reviewedSkill = skillsService.PreviewInstall(skillSource, SkillScope.Project, skillProject);
+Assert(reviewedSkill.Files.Count == 1, "Skill preview contains manifest");
+skillsService.Install(reviewedSkill);
+Assert(skillsService.List(skillProject).Any(item => item.Name == "example-skill"), "Reviewed skill is installed locally");
+try
+{
+    skillsService.PreviewInstall(skillSource, SkillScope.Project, skillProject);
+    throw new Exception("Duplicate skill destination accepted");
+}
+catch (IOException) { }
+Directory.Delete(skillsFixture, recursive: true);
+
+var featureRegistry = new FeatureRegistry([
+    new SampleFeature("codex", "sessions.list", 10),
+    new SampleFeature("codex", "sessions.list", 5)
+]);
+Assert(featureRegistry.Candidates<SampleFeature>("CODEX").Count == 2, "Candidate fallback sorted by priority");
+Assert(featureRegistry.Describe("codex", "sessions.list").Implemented, "Codex feature implemented");
+Assert(!featureRegistry.Describe("claude", "sessions.list").Implemented, "Unsupported feature explicitly NotImplemented");
+
+var observation = new WorkspaceActivitySnapshot([], false, "No hook configured", null);
+var planner = new WorkspacePlanner();
+var lowQuota = new UsageSnapshot("pro", now, [new UsageWindow("weekly", 87, now.AddHours(3))]);
+Assert(planner.Evaluate(lowQuota, observation, null, now).Summary.Contains("remaining 13%"),
+    "Planner recommends useful work instead of wasting quota near reset");
+var tooLow = new UsageSnapshot("pro", now, [new UsageWindow("weekly", 97, now.AddDays(3))]);
+Assert(planner.Evaluate(tooLow, observation, null, now).Summary.Contains("Very little quota"),
+    "Planner warns about small quota and distant reset");
+Assert(planner.Evaluate(null, observation, null, now).Confidence == "No quota evidence",
+    "No invented recommendations without readings");
+
+var skillWork = Path.Combine(Path.GetTempPath(), "codex-skill-tests-" + Guid.NewGuid().ToString("N"));
+var installSkillSource = Path.Combine(skillWork, "sample-skill");
+var skillTarget = Path.Combine(skillWork, "repository");
+Directory.CreateDirectory(installSkillSource);
+Directory.CreateDirectory(skillTarget);
+File.WriteAllText(Path.Combine(installSkillSource, "SKILL.md"), "---\nname: sample-skill\ndescription: Tests only\n---\n");
+var installSkillsService = new LocalSkillsService();
+var skillReview = installSkillsService.PreviewInstall(installSkillSource, SkillScope.Project, skillTarget);
+Assert(skillReview.Files.Count == 1 && skillReview.Scope == SkillScope.Project, "Review local skill contents");
+installSkillsService.Install(skillReview);
+Assert(installSkillsService.List(skillTarget).Any(skill => skill.Name == "sample-skill"), "Skill install and discovery");
+try
+{
+    installSkillsService.PreviewInstall(installSkillSource, SkillScope.Project, skillTarget);
+    throw new Exception("Duplicate skill was installable");
+}
+catch (IOException) { }
+Directory.Delete(skillWork, recursive: true);
+
+var instructionWork = Path.Combine(Path.GetTempPath(), "codex-instruction-edit-" + Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(instructionWork);
+var instructionPath = Path.Combine(instructionWork, "AGENTS.md");
+var originalInstructions = "Always run the tests before merging.\nAlways run the tests before merging.\n";
+File.WriteAllText(instructionPath, originalInstructions);
+var instructionsStudio = new InstructionsStudioService();
+Assert(instructionsStudio.Analyze(originalInstructions).Warnings.Count > 0, "Duplicate instruction detection");
+var instructionHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(originalInstructions)));
+var proposal = new InstructionsProposal("codex", instructionHash, "Run tests before merging.\n", "Remove duplicate");
+instructionsStudio.Apply(instructionPath, proposal);
+Assert(File.ReadAllText(instructionPath) == proposal.ProposedText, "Approved instructions applied");
+Assert(Directory.GetFiles(instructionWork, "AGENTS.md.bak.*").Length == 1, "Backup before rewrite");
+try
+{
+    instructionsStudio.Apply(instructionPath, proposal);
+    throw new Exception("Stale instructions proposal overwrote newer file");
+}
+catch (InvalidOperationException) { }
+Directory.Delete(instructionWork, recursive: true);
+
+var eventDir = Path.Combine(Path.GetTempPath(), "codex-event-tests-" + Guid.NewGuid().ToString("N"));
+var eventPayload = JsonSerializer.Serialize(new Dictionary<string, string>
+{
+    ["type"] = "agent-turn-complete",
+    ["thread-id"] = "thread-test",
+    ["cwd"] = Path.GetTempPath(),
+    ["last-assistant-message"] = "secret that must not be logged"
+});
+Assert(WorkspaceNotifyReceiver.Capture(["--codex-notify", eventPayload], eventDir) == 0,
+    "Codex event receiver stores a notification");
+var eventPath = Path.Combine(eventDir, "activity.jsonl");
+Assert(!File.ReadAllText(eventPath).Contains("secret that must not be logged"),
+    "Event journal does not persist assistant message text");
+Assert(new JsonlWorkspaceActivitySource(eventPath).ReadRecent(null).Events.Count == 1,
+    "Activity feed can load metadata-only events");
+Directory.Delete(eventDir, recursive: true);
+
+
+var gitFixture = Path.Combine(Path.GetTempPath(), $"codex-git-impact-{Guid.NewGuid():N}");
+Directory.CreateDirectory(gitFixture);
+try
+{
+    static void GitFixture(string folder, params string[] args)
     {
-        if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        using var p = new System.Diagnostics.Process
+        {
+            StartInfo = new System.Diagnostics.ProcessStartInfo("git")
+            {
+                WorkingDirectory = folder,
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                UseShellExecute = false
+            }
+        };
+        foreach (var arg in args) p.StartInfo.ArgumentList.Add(arg);
+        p.Start();
+        var output = p.StandardOutput.ReadToEnd();
+        var error = p.StandardError.ReadToEnd();
+        if (!p.WaitForExit(5000)) { p.Kill(entireProcessTree: true); throw new Exception("Git fixture timed out"); }
+        if (p.ExitCode != 0) throw new Exception("Git fixture failed: " + error);
     }
+
+    GitFixture(gitFixture, "init", "-q");
+    File.WriteAllText(Path.Combine(gitFixture, "code.txt"), "first\n");
+    GitFixture(gitFixture, "add", "code.txt");
+    GitFixture(gitFixture, "-c", "user.name=CodexMonitor Tests",
+        "-c", "user.email=tests@example.invalid", "commit", "-qm", "first");
+    File.AppendAllText(Path.Combine(gitFixture, "code.txt"), "second\n");
+    var gitService = new GitImpactService();
+    var working = await gitService.InspectRangeAsync(gitFixture, GitImpactScope.WorkingTree);
+    Assert(working.AddedLines == 1 && working.DeletedLines == 0, "Working-tree impact");
+    var committed = await gitService.InspectRangeAsync(gitFixture, GitImpactScope.LastCommit);
+    Assert(committed.AddedLines == 1 && committed.DeletedLines == 0, "Last-commit impact");
+}
+finally
+{
+    DeleteTree(gitFixture);
 }
 
-static void VerifyGitImpact()
-{
-    var root = Path.Combine(Path.GetTempPath(), $"codex-monitor-git-impact-{Guid.NewGuid():N}");
-    try
-    {
-        Directory.CreateDirectory(Path.Combine(root, ".git"));
-        var runner = new FixtureProcessRunner([
-            new ProcessResult(0, "## feature/demo\n M src/changed.cs\n?? new.txt\n", ""),
-            new ProcessResult(0, "2\t1\tsrc/changed.cs\n", "")
-        ]);
-        var service = new GitImpactService(new FixedExecutableLocator("git"), runner, new ProjectCatalog());
-        var impact = service.ReadAsync(root).GetAwaiter().GetResult();
-        Assert(impact.Status == AvailabilityStatus.Ready && impact.Branch == "feature/demo", "Read worktree status and branch");
-        Assert(impact.ChangedFiles == 2 && impact.UntrackedFiles == 1, "Count tracked and untracked files");
-        Assert(impact.AddedLines == 2 && impact.RemovedLines == 1, "Read added and removed lines");
-        Assert(impact.Files.Any(file => file.Path == "new.txt" && file.ChangeType == "??"), "Keep untracked paths visible");
-
-        var unavailableGit = new GitImpactService(new NullExecutableLocator(), runner, new ProjectCatalog());
-        Assert(unavailableGit.ReadAsync(root).GetAwaiter().GetResult().Status == AvailabilityStatus.NotInstalled,
-            "Expose missing Git as NotInstalled");
-        Assert(service.ReadAsync(null).GetAwaiter().GetResult().Status == AvailabilityStatus.NoData,
-            "Require a selected project for Git impact");
-    }
-    finally
-    {
-        if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
-    }
-}
+Console.WriteLine("Parser, provider, capabilities, planner, skills, instructions and activity checks passed.");
 
 static void Assert(bool condition, string message)
 {
     if (!condition) throw new Exception(message);
 }
 
+static void DeleteTree(string path)
+{
+    if (!Directory.Exists(path)) return;
+    foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+        File.SetAttributes(file, FileAttributes.Normal);
+    foreach (var directory in Directory.EnumerateDirectories(path, "*", SearchOption.AllDirectories)
+                 .OrderByDescending(directory => directory.Length))
+        File.SetAttributes(directory, FileAttributes.Normal);
+    File.SetAttributes(path, FileAttributes.Normal);
+    Directory.Delete(path, recursive: true);
+}
+
 internal sealed class NullExecutableLocator : IExecutableLocator
 {
     public string? Find(IEnumerable<string> executableNames) => null;
-}
-
-internal sealed class FixedExecutableLocator(string executable) : IExecutableLocator
-{
-    public string? Find(IEnumerable<string> executableNames) => executable;
-}
-
-internal sealed class FixtureProcessRunner(IReadOnlyList<ProcessResult> results) : IProcessRunner
-{
-    private int _index;
-
-    public Task<ProcessResult> RunAsync(string executable, IReadOnlyList<string> arguments,
-        TimeSpan timeout, CancellationToken cancellationToken)
-    {
-        if (_index >= results.Count) throw new InvalidOperationException("No process fixture remains.");
-        return Task.FromResult(results[_index++]);
-    }
 }
 
 internal sealed class NullCommandLaunchStrategy : ICommandLaunchStrategy
@@ -214,15 +317,4 @@ internal sealed class NullCommandLaunchStrategy : ICommandLaunchStrategy
         => throw new NotSupportedException();
 }
 
-internal sealed class TestAppPaths(string dataDirectory) : IAppPaths
-{
-    public string DataDirectory { get; } = dataDirectory;
-}
-
-internal sealed class MemorySettingsRepository : IMonitorSettingsRepository
-{
-    public int Saves { get; private set; }
-    public string? PersistenceError => null;
-    public MonitorSettings Load() => new();
-    public void Save(MonitorSettings settings) => Saves++;
-}
+internal sealed record SampleFeature(string ProviderId, string FeatureId, int Priority) : IFeature;

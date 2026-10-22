@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using CodexMonitor.Infrastructure;
+using CodexMonitor.Infrastructure.Workspace;
 using CodexMonitor.Platform.Windows;
 using CodexMonitor.Providers.Codex;
 using CodexMonitor.Platform.Unix;
@@ -17,6 +18,18 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        // Notify and hook calls are short-lived event writers, not new desktop instances.
+        if (args.Length > 0 && args[0] is "--codex-notify" or "--codex-hook")
+        {
+            var platform = new ServiceCollection();
+            if (OperatingSystem.IsWindows()) platform.AddWindowsPlatform();
+            else if (OperatingSystem.IsMacOS()) platform.AddMacOsPlatform();
+            else if (OperatingSystem.IsLinux()) platform.AddLinuxPlatform();
+            else return 2;
+            using var platformServices = platform.BuildServiceProvider();
+            return WorkspaceNotifyReceiver.Capture(args,
+                platformServices.GetRequiredService<IAppPaths>().DataDirectory);
+        }
         using var mutex = new Mutex(initiallyOwned: true,
             OperatingSystem.IsWindows() ? @"Local\CodexMonitor" : "CodexMonitor.Desktop",
             out var firstInstance);
@@ -45,11 +58,9 @@ internal static class Program
         services.AddCodexProvider();
         services.AddCodexMonitorApplication();
         services.AddSingleton<DashboardViewModel>();
-        services.AddSingleton<WorkspaceViewModel>();
         services.AddSingleton(sp => new DashboardWindow(
             sp.GetRequiredService<DashboardViewModel>(),
             sp.GetRequiredService<IWindowClosePolicy>().HideOnClose));
-        services.AddSingleton<WorkspaceWindow>();
         services.AddSingleton<DesktopTrayShell>();
         services.AddSingleton<DesktopHost>();
 

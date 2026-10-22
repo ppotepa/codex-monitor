@@ -1,64 +1,367 @@
-<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- xmlns:vm="using:CodexMonitor.UI.ViewModels" x:Class="CodexMonitor.UI.Views.WorkspaceWindow"
- x:DataType="vm:WorkspaceViewModel" x:CompileBindings="True" Title="Codex Monitor workspace"
- Width="1260" Height="820" MinWidth="980" MinHeight="640" WindowStartupLocation="CenterScreen">
- <Grid ColumnDefinitions="248,*">
-  <Border Background="{DynamicResource SurfaceBrush}">
-   <DockPanel LastChildFill="True">
-    <StackPanel DockPanel.Dock="Top" Margin="22,24,18,20" Spacing="3">
-     <TextBlock Text="CODEX MONITOR" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
-     <TextBlock Text="Agent workspace" Classes="caption"/>
-    </StackPanel>
-    <Border DockPanel.Dock="Bottom" Classes="card" Margin="12,12,12,16" Padding="13">
-     <StackPanel Spacing="5">
-      <TextBlock Text="CURRENT CONTEXT" Classes="caption"/>
-      <TextBlock Text="{Binding ContextLabel}" FontWeight="SemiBold" TextWrapping="Wrap"/>
-      <TextBlock Text="Usage and activity stay local to this device." Classes="caption" TextWrapping="Wrap"/>
-     </StackPanel>
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CodexMonitor.UI.ViewModels"
+        xmlns:views="using:CodexMonitor.UI.Views"
+        x:Class="CodexMonitor.UI.Views.WorkspaceWindow"
+        x:DataType="vm:WorkspaceViewModel" x:CompileBindings="True"
+        Title="Codex Monitor · Workspace" Width="1120" Height="740"
+        MinWidth="760" MinHeight="520" WindowStartupLocation="CenterScreen"
+        RequestedThemeVariant="Light" Background="#F8F9F7" Foreground="#1E2930">
+  <Grid RowDefinitions="62,*">
+    <Border BorderBrush="#E4E8E7" BorderThickness="0,0,0,1" Padding="28,0">
+      <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+        <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+          <TextBlock Text="codex / monitor" FontSize="19" FontWeight="SemiBold" Foreground="#222B31"/>
+          <Border Background="#E8F2EE" CornerRadius="5" Padding="8,4">
+            <TextBlock Text="WORKSPACE" Foreground="#347867" FontSize="10" FontWeight="SemiBold"/>
+          </Border>
+        </StackPanel>
+        <TextBlock Grid.Column="1" Text="Local-first · No separate sign-in"
+                   FontSize="12" Foreground="#68767C" VerticalAlignment="Center"/>
+      </Grid>
     </Border>
-    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-     <StackPanel Margin="12,0,12,10" Spacing="5">
-      <TextBlock Text="WORKSPACE" Classes="caption" Margin="10,0,0,4"/>
-      <Button Content="Overview" Tag="Overview" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
-      <Button Content="Projects" Tag="Projects" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
-      <Button Content="Sessions" Tag="Sessions" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
-      <Button Content="Activity" Tag="Activity" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
-      <Button Content="Git Impact" Tag="Git Impact" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
-      <Button Content="Attention" Tag="Attention" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
-      <Button Content="Goals" Tag="Goals" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
-      <TextBlock Text="TOOLS" Classes="caption" Margin="10,12,0,4"/>
-      <Button Content="Skills Manager" Tag="Skills Manager" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
-      <Button Content="AGENTS.md Studio" Tag="AGENTS.md Studio" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
-      <Button Content="Work Planner" Tag="Work Planner" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
-      <Button Content="Agent Doctor" Tag="Agent Doctor" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
-      <Button Content="MCP Manager" Tag="MCP Manager" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
-      <Button Content="Project Setup" Tag="Project Setup" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
-      <Button Content="Agent Tools" Tag="Agent Tools" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
-      <Button Content="Settings" Tag="Settings" Click="NavigateClicked" HorizontalContentAlignment="Left"/>
-     </StackPanel>
-    </ScrollViewer>
-   </DockPanel>
-  </Border>
-  <Grid Grid.Column="1" RowDefinitions="Auto,*">
-   <Border Padding="22,18" BorderBrush="{DynamicResource OutlineBrush}" BorderThickness="0,0,0,1">
-    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="18">
-     <StackPanel Spacing="4" VerticalAlignment="Center">
-      <TextBlock x:Name="PageTitle" Text="Overview" FontSize="22" FontWeight="SemiBold"/>
-      <TextBlock Text="{Binding ProjectSummary}" Classes="caption"/>
-     </StackPanel>
-     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-      <ComboBox x:Name="ScopeSelector" Width="110" ItemsSource="{Binding Scopes}" SelectedItem="{Binding Scope, Mode=TwoWay}" AutomationProperties.Name="Workspace scope"/>
-      <ComboBox x:Name="AgentSelector" Width="105" ItemsSource="{Binding Agents}" SelectedItem="{Binding AgentId, Mode=TwoWay}" AutomationProperties.Name="Agent context"/>
-      <ComboBox x:Name="ProjectSelector" Width="255" ItemsSource="{Binding ProjectChoices}" SelectedItem="{Binding SelectedProject, Mode=TwoWay}" AutomationProperties.Name="Project context">
-       <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:WorkspaceProjectChoice"><TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/></DataTemplate></ComboBox.ItemTemplate>
-      </ComboBox>
-      <Button Content="Apply context" Classes="primary" Click="ApplyContextClicked"/>
-     </StackPanel>
-    </Grid>
-   </Border>
-   <ScrollViewer Grid.Row="1" Padding="24" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-    <StackPanel x:Name="PageContent" Spacing="12" MaxWidth="960" HorizontalAlignment="Left"/>
-   </ScrollViewer>
+    <TabControl Grid.Row="1" TabStripPlacement="Left" SelectedIndex="{Binding SelectedPage, Mode=TwoWay}"
+                Background="Transparent" BorderThickness="0" Padding="0">
+      <TabItem Header="Overview">
+        <ScrollViewer>
+          <StackPanel Margin="40,30" MaxWidth="900" Spacing="24" HorizontalAlignment="Left">
+            <StackPanel Spacing="6">
+              <TextBlock Text="Overview" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
+              <TextBlock Text="One glance at your allowance and workspace." FontSize="13" Foreground="#748188"/>
+            </StackPanel>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
+              <Border Background="White" BorderBrush="#E4EAE7" BorderThickness="1" CornerRadius="9" Padding="24">
+                <StackPanel Spacing="10">
+                  <TextBlock Text="AVAILABLE QUOTA" FontSize="11" Foreground="#748188" FontWeight="SemiBold"/>
+                  <TextBlock Text="{Binding Usage.RemainingText}" FontSize="34" FontWeight="SemiBold" Foreground="#202A30"/>
+                  <TextBlock Text="{Binding Usage.ResetText}" FontSize="13" TextWrapping="Wrap" Foreground="#68767C"/>
+                  <Button Content="Refresh limits" Command="{Binding Usage.RefreshLimitsCommand}"
+                          IsEnabled="{Binding Usage.CanRefreshLimits}" HorizontalAlignment="Left"/>
+                </StackPanel>
+              </Border>
+              <Border Grid.Column="1" Background="White" BorderBrush="#E4EAE7" BorderThickness="1" CornerRadius="9" Padding="24">
+                <StackPanel Spacing="10">
+                  <TextBlock Text="CURRENT PROVIDER" FontSize="11" Foreground="#748188" FontWeight="SemiBold"/>
+                  <TextBlock Text="{Binding Usage.ProviderName}" FontSize="28" FontWeight="SemiBold" Foreground="#202A30"/>
+                  <TextBlock Text="{Binding Usage.StatusText}" TextWrapping="Wrap" FontSize="12" Foreground="#68767C"/>
+                  <TextBlock Text="Unavailable provider features are not replaced with Codex data."
+                             TextWrapping="Wrap" FontSize="12" Foreground="#68767C"/>
+                </StackPanel>
+              </Border>
+            </Grid>
+            <Border BorderBrush="#C4D8CB" BorderThickness="1" CornerRadius="6" Padding="12"
+                    IsVisible="{Binding HasAttention}">
+              <StackPanel Spacing="5">
+                <TextBlock Text="Needs your attention" Foreground="#275F4F" FontSize="14" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding ActivityAttention}" Foreground="#405A53" FontSize="13" TextWrapping="Wrap"/>
+                <TextBlock Text="Open Activity or Sessions to inspect the underlying observation."
+                           Foreground="#68767C" FontSize="11" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
+            <StackPanel Spacing="10">
+              <TextBlock Text="Next action" FontSize="19" FontWeight="SemiBold" Foreground="#202A30"/>
+              <TextBlock Text="{Binding AdvisorText}" FontSize="14" TextWrapping="Wrap" Foreground="#485A61"/>
+            </StackPanel>
+            <StackPanel Spacing="8">
+              <TextBlock Text="Your workspace" FontSize="19" FontWeight="SemiBold" Foreground="#202A30"/>
+              <TextBlock Text="{Binding ProjectName}" FontSize="15" FontWeight="SemiBold" Foreground="#202A30"/>
+              <TextBlock Text="{Binding ProjectStatus}" FontSize="13" Foreground="#68767C" TextWrapping="Wrap"/>
+              <Button Content="Inspect project" Command="{Binding ShowProjectsCommand}" HorizontalAlignment="Left"/>
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="Projects">
+        <ScrollViewer>
+          <StackPanel Margin="40,30" Spacing="18" MaxWidth="880" HorizontalAlignment="Left">
+            <TextBlock Text="Projects" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
+            <TextBlock Text="Inspect a local repository. Nothing leaves your computer." FontSize="13" Foreground="#68767C"/>
+            <TextBlock Text="Saved repositories" FontSize="12" Foreground="#485A61"/>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+              <ComboBox ItemsSource="{Binding Projects}" SelectedItem="{Binding SelectedProject, Mode=TwoWay}"
+                        MinWidth="380" HorizontalAlignment="Stretch"/>
+              <Button Grid.Column="1" Content="Open selected" Command="{Binding LoadProjectCommand}"/>
+            </Grid>
+            <TextBlock Text="Repository directory" FontSize="12" Foreground="#485A61"/>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+              <TextBox Text="{Binding ProjectPath, Mode=TwoWay}" Watermark="Paste a local repository path"
+                       MinWidth="380"/>
+              <Button Grid.Column="1" Content="Inspect" Command="{Binding InspectProjectCommand}"
+                      IsEnabled="{Binding !IsLoading}"/>
+            </Grid>
+            <TextBlock Text="{Binding ProjectStatus}" FontSize="12" TextWrapping="Wrap" Foreground="#68767C"/>
+            <TextBlock Text="{Binding ProjectName}" FontSize="22" FontWeight="SemiBold" Foreground="#202A30"/>
+            <Grid ColumnDefinitions="190,Auto,*" ColumnSpacing="10">
+              <ComboBox ItemsSource="{Binding GitImpactScopes}" SelectedItem="{Binding GitImpactSelection, Mode=TwoWay}"/>
+              <Button Grid.Column="1" Content="Recalculate" Command="{Binding InspectProjectCommand}" IsEnabled="{Binding !IsLoading}"/>
+            </Grid>
+            <TextBlock Text="{Binding GitBranch}" Foreground="#68767C" FontSize="12"/>
+            <TextBlock Text="{Binding GitSummary}" Foreground="#3F7968" FontSize="23" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding GitDetails}" Foreground="#68767C" FontSize="12" TextWrapping="Wrap"/>
+            <TextBlock Text="Files in selected comparison" FontSize="15" Foreground="#202A30" FontWeight="SemiBold"/>
+            <ListBox ItemsSource="{Binding ProjectFiles}" MinHeight="150" MaxHeight="340"/>
+            <TextBlock Text="Line counts reflect the selected Git diff, not verified agent authorship."
+                       FontSize="12" Foreground="#748188" TextWrapping="Wrap"/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="Usage">
+        <ScrollViewer>
+          <StackPanel Margin="40,30" Spacing="18" MaxWidth="850" HorizontalAlignment="Left">
+            <TextBlock Text="Usage" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
+            <TextBlock Text="Limits and token activity from the selected provider." Foreground="#68767C"/>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
+              <Border Background="White" BorderBrush="#E4EAE7" BorderThickness="1" CornerRadius="9" Padding="24">
+                <StackPanel Spacing="9">
+                  <TextBlock Text="CURRENT WINDOW" Foreground="#748188" FontWeight="SemiBold" FontSize="11"/>
+                  <TextBlock Text="{Binding Usage.LimitTitle}" Foreground="#202A30" FontSize="18" FontWeight="SemiBold"/>
+                  <TextBlock Text="{Binding Usage.RemainingText}" Foreground="#347867" FontSize="30" FontWeight="SemiBold"/>
+                  <TextBlock Text="{Binding Usage.ResetText}" Foreground="#68767C" FontSize="12" TextWrapping="Wrap"/>
+                  <Button Content="Refresh limits" Command="{Binding Usage.RefreshLimitsCommand}"
+                          IsEnabled="{Binding Usage.CanRefreshLimits}" HorizontalAlignment="Left"/>
+                </StackPanel>
+              </Border>
+              <Border Grid.Column="1" Background="White" BorderBrush="#E4EAE7" BorderThickness="1" CornerRadius="9" Padding="24"
+                      IsVisible="{Binding Usage.SupportsTokens}">
+                <StackPanel Spacing="9">
+                  <TextBlock Text="TOKEN ACTIVITY" Foreground="#748188" FontWeight="SemiBold" FontSize="11"/>
+                  <TextBlock Text="{Binding Usage.LatestTokens}" Foreground="#202A30" FontSize="30" FontWeight="SemiBold"/>
+                  <TextBlock Text="{Binding Usage.Lifetime}" Foreground="#68767C" FontSize="13"/>
+                  <TextBlock Text="{Binding Usage.Peak}" Foreground="#68767C" FontSize="13"/>
+                  <Button Content="Refresh tokens" Command="{Binding Usage.RefreshTokensCommand}"
+                          IsEnabled="{Binding Usage.CanRefreshTokens}" HorizontalAlignment="Left"/>
+                </StackPanel>
+              </Border>
+            </Grid>
+            <TextBlock Text="Other limit windows" FontSize="18" Foreground="#202A30" FontWeight="SemiBold"/>
+            <ItemsControl ItemsSource="{Binding Usage.OtherLimits}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:LimitWindowItem">
+                  <Border BorderBrush="#E4EAE7" BorderThickness="0,0,0,1" Padding="0,12">
+                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                      <TextBlock Text="{Binding Label}" Foreground="#202A30" FontSize="14"/>
+                      <TextBlock Grid.Column="1" Text="{Binding UsedPercent, StringFormat={}{0:0}% used}" Foreground="#347867"/>
+                      <TextBlock Grid.Row="1" Text="{Binding ResetText}" Foreground="#68767C" FontSize="12"/>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="Goals">
+        <ScrollViewer>
+          <StackPanel Margin="40,30" Spacing="16" MaxWidth="820" HorizontalAlignment="Left">
+            <TextBlock Text="Goal budget" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
+            <TextBlock Text="Plan your next task for the selected project. Goals are stored locally."
+                       TextWrapping="Wrap" Foreground="#68767C"/>
+            <TextBlock Text="{Binding ProjectName}" FontWeight="SemiBold" FontSize="16" Foreground="#202A30"/>
+            <TextBlock Text="Goal" FontSize="12" Foreground="#485A61"/>
+            <TextBox Text="{Binding GoalTitle, Mode=TwoWay}" Watermark="e.g. Finish core refactor"
+                     MinWidth="400"/>
+            <TextBlock Text="Time budget in minutes" FontSize="12" Foreground="#485A61"/>
+            <TextBox Text="{Binding BudgetText, Mode=TwoWay}" Width="120"
+                     HorizontalAlignment="Left"/>
+            <Button Content="Save goal" Command="{Binding SaveGoalCommand}"
+                    HorizontalAlignment="Left"/>
+            <TextBlock Text="{Binding GoalStatus}" TextWrapping="Wrap" Foreground="#68767C"/>
+            <TextBlock Text="A budget is a planned maximum, not a measured completion percentage."
+                       TextWrapping="Wrap" FontSize="12" Foreground="#748188"/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="Skills">
+        <ScrollViewer>
+          <StackPanel Margin="40,30" Spacing="15" MaxWidth="900" HorizontalAlignment="Left">
+            <TextBlock Text="Skills manager" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
+            <TextBlock Text="Installed skills and reviewed local installs. No separate sign-in."
+                       FontSize="13" Foreground="#68767C" TextWrapping="Wrap"/>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+              <TextBlock Text="{Binding SkillsSummary}" Foreground="#68767C" FontSize="13" VerticalAlignment="Center"/>
+              <Button Grid.Column="1" Content="Rescan" Command="{Binding RefreshSkillsCommand}"/>
+            </Grid>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
+              <StackPanel Spacing="10">
+                <TextBlock Text="Installed" Foreground="#202A30" FontSize="17" FontWeight="SemiBold"/>
+                <ListBox ItemsSource="{Binding Skills}" SelectedItem="{Binding SelectedSkill, Mode=TwoWay}"
+                         MinHeight="180" MaxHeight="260"/>
+                <Button Content="Read SKILL.md" Command="{Binding ReadSelectedSkillCommand}" HorizontalAlignment="Left"/>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Spacing="10">
+                <TextBlock Text="Skill details" Foreground="#202A30" FontSize="17" FontWeight="SemiBold"/>
+                <TextBox Text="{Binding SkillDetails}" IsReadOnly="True" AcceptsReturn="True"
+                         TextWrapping="Wrap" MinHeight="215" FontFamily="Consolas, monospace"/>
+              </StackPanel>
+            </Grid>
+            <Border BorderBrush="#E4EAE7" BorderThickness="0,1,0,0" Padding="0,20,0,0">
+              <StackPanel Spacing="10">
+                <TextBlock Text="Install from local folder" Foreground="#202A30" FontSize="17" FontWeight="SemiBold"/>
+                <TextBlock Text="Review contents and scripts before making local file changes."
+                           FontSize="12" Foreground="#68767C"/>
+                <Grid ColumnDefinitions="*,150" ColumnSpacing="10">
+                  <TextBox Text="{Binding SkillSourceFolder, Mode=TwoWay}" Watermark="Source folder containing SKILL.md"/>
+                  <ComboBox Grid.Column="1" ItemsSource="{Binding SkillScopes}"
+                            SelectedItem="{Binding SkillInstallScope, Mode=TwoWay}"/>
+                </Grid>
+                <Button Content="Preview installation" Command="{Binding ReviewSkillCommand}" HorizontalAlignment="Left"/>
+                <TextBox Text="{Binding SkillReviewText}" IsReadOnly="True" TextWrapping="Wrap"
+                         AcceptsReturn="True" MinHeight="120" MaxHeight="220" FontFamily="Consolas, monospace"/>
+                <CheckBox IsChecked="{Binding ConfirmSkillInstall, Mode=TwoWay}"
+                          Content="I reviewed the files and approve installation"/>
+                <Button Content="Install reviewed skill" IsEnabled="{Binding CanInstallSkill}"
+                        Command="{Binding InstallReviewedSkillCommand}" HorizontalAlignment="Left"/>
+                <TextBlock Text="{Binding SkillInstallStatus}" Foreground="#68767C" TextWrapping="Wrap" FontSize="12"/>
+                <TextBlock Text="Remote marketplace discovery, updates and uninstall are not yet available."
+                           Foreground="#748188" TextWrapping="Wrap" FontSize="12"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="AGENTS.md">
+        <ScrollViewer>
+          <StackPanel Margin="40,30" Spacing="14" MaxWidth="920" HorizontalAlignment="Left">
+            <TextBlock Text="AGENTS.md Studio" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
+            <TextBlock Text="Inspect nested instructions, review a proposed rewrite, then explicitly approve saving."
+                       Foreground="#68767C" TextWrapping="Wrap" FontSize="13"/>
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+              <ComboBox ItemsSource="{Binding InstructionFiles}"
+                        SelectedItem="{Binding SelectedInstructionPath, Mode=TwoWay}"
+                        MinWidth="390"/>
+              <Button Grid.Column="1" Content="Read" Command="{Binding ReadInstructionCommand}"/>
+              <Button Grid.Column="2" Content="Inspect" Command="{Binding AnalyzeInstructionsCommand}"/>
+            </Grid>
+            <TextBlock Text="{Binding InstructionsAuditText}" Foreground="#68767C" FontSize="12" TextWrapping="Wrap"/>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Current file" FontWeight="SemiBold" Foreground="#202A30" FontSize="16"/>
+                <TextBox Text="{Binding Instructions}" AcceptsReturn="True" IsReadOnly="True"
+                         TextWrapping="Wrap" MinHeight="300" FontFamily="Consolas, monospace"/>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Spacing="8">
+                <TextBlock Text="AI proposal" FontWeight="SemiBold" Foreground="#202A30" FontSize="16"/>
+                <TextBox Text="{Binding InstructionsProposedText}" AcceptsReturn="True" IsReadOnly="True"
+                         TextWrapping="Wrap" MinHeight="300" FontFamily="Consolas, monospace"/>
+              </StackPanel>
+            </Grid>
+            <Button Content="Generate proposed rewrite with Codex" Command="{Binding OptimizeInstructionsCommand}"
+                    IsEnabled="{Binding !IsOptimizingInstructions}" HorizontalAlignment="Left"/>
+            <TextBlock Text="{Binding InstructionsRationale}" TextWrapping="Wrap" Foreground="#68767C"/>
+            <TextBlock Text="{Binding InstructionsOperationStatus}" TextWrapping="Wrap" Foreground="#68767C" FontSize="12"/>
+            <CheckBox Content="I reviewed the proposal and approve replacing this AGENTS.md"
+                      IsChecked="{Binding ConfirmInstructionsApply, Mode=TwoWay}"/>
+            <Button Content="Apply approved proposal (save backup)" Command="{Binding ApplyInstructionsCommand}"
+                    IsEnabled="{Binding CanApplyInstructions}" HorizontalAlignment="Left"/>
+            <TextBlock Text="AI uses the existing Codex CLI login, consumes quota only on request, and cannot save without approval."
+                       TextWrapping="Wrap" Foreground="#748188" FontSize="12"/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="Planner">
+        <ScrollViewer>
+          <StackPanel Margin="40,30" Spacing="16" MaxWidth="810" HorizontalAlignment="Left">
+            <TextBlock Text="Work planner" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
+            <TextBlock Text="Lightweight guidance, without starting an AI agent." Foreground="#68767C"/>
+            <TextBlock Text="{Binding AdvisorText}" FontSize="17" TextWrapping="Wrap" Foreground="#202A30"/>
+            <TextBlock Text="Evidence and limitations" Foreground="#68767C" FontSize="13" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding AdvisorEvidence}" Foreground="#68767C" FontSize="12" TextWrapping="Wrap"/>
+            <Border BorderBrush="#E4EAE7" BorderThickness="0,1,0,0" Padding="0,20,0,0">
+              <StackPanel Spacing="10">
+                <TextBlock Text="Codex AI Advisor" FontSize="18" Foreground="#202A30" FontWeight="SemiBold"/>
+                <TextBlock Text="Uses only aggregate quota, observed session status and your goal."
+                           Foreground="#68767C" FontSize="12" TextWrapping="Wrap"/>
+                <Button Content="Analyze with Codex" Command="{Binding AskAiPlannerCommand}"
+                        IsEnabled="{Binding !IsAdvisorBusy}" HorizontalAlignment="Left"/>
+                <TextBlock Text="{Binding AiAdvisorText}" FontSize="14" TextWrapping="Wrap" Foreground="#202A30"/>
+                <TextBlock Text="{Binding AiAdvisorStatus}" FontSize="12" TextWrapping="Wrap" Foreground="#68767C"/>
+              </StackPanel>
+            </Border>
+            <TextBlock Text="AI recommendations are optional; no model is called by the local planner."
+                       Foreground="#748188" TextWrapping="Wrap"/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="Activity">
+        <ScrollViewer>
+          <StackPanel Margin="40,30" Spacing="16" MaxWidth="850" HorizontalAlignment="Left">
+            <TextBlock Text="Activity" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
+            <TextBlock Text="Observed Codex events. No assumption of universal live-session coverage."
+                       Foreground="#68767C" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding ActivityCoverage}" Foreground="#68767C" TextWrapping="Wrap" FontSize="12"/>
+            <Border BorderBrush="#E4EAE7" BorderThickness="0,0,0,1" Padding="0,12">
+              <TextBlock Text="{Binding ActivityAttention}" Foreground="#347867" TextWrapping="Wrap" FontSize="14"/>
+            </Border>
+            <Button Content="Refresh observations" Command="{Binding RefreshActivityCommand}"
+                    HorizontalAlignment="Left"/>
+            <ListBox ItemsSource="{Binding ActivityItems}" MinHeight="180"/>
+            <TextBlock Text="Optional setup for Codex CLI" FontWeight="SemiBold" Foreground="#202A30"/>
+            <TextBox Text="{Binding NotifySetup}" IsReadOnly="True" AcceptsReturn="True"
+                     TextWrapping="Wrap" MinHeight="80" FontFamily="Consolas, monospace"/>
+            <TextBlock Text="Only event metadata is recorded. Existing Codex authorization is reused."
+                       Foreground="#748188" FontSize="12" TextWrapping="Wrap"/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="Doctor">
+        <ScrollViewer>
+          <StackPanel Margin="40,30" Spacing="16" MaxWidth="890" HorizontalAlignment="Left">
+            <TextBlock Text="Agent doctor" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
+            <TextBlock Text="Local diagnostics: detected agents, Git, skills, instructions and event collection."
+                       Foreground="#68767C" FontSize="13" TextWrapping="Wrap"/>
+            <Button Content="Run local checks" Command="{Binding RefreshDoctorCommand}" HorizontalAlignment="Left"/>
+            <TextBlock Text="{Binding DoctorSummary}" Foreground="#68767C" TextWrapping="Wrap" FontSize="12"/>
+            <ItemsControl ItemsSource="{Binding DoctorItems}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:DoctorCheckItem">
+                  <Border BorderBrush="#E4EAE7" BorderThickness="0,0,0,1" Padding="0,12">
+                    <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="5">
+                      <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="{Binding Category}" Foreground="#748188" FontSize="12" Width="90"/>
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#202A30"/>
+                      </StackPanel>
+                      <TextBlock Grid.Column="1" Text="{Binding Status}" Foreground="#347867" FontSize="12"/>
+                      <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Detail}"
+                                 Foreground="#68767C" FontSize="12" TextWrapping="Wrap"/>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="NotImplemented means this agent has no adapter; no login can fix it."
+                       Foreground="#748188" FontSize="12" TextWrapping="Wrap"/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="Sessions">
+        <ScrollViewer>
+          <StackPanel Margin="40,30" Spacing="16" MaxWidth="900" HorizontalAlignment="Left">
+            <TextBlock Text="Sessions" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
+            <TextBlock Text="Read-only Codex history from an isolated App Server connection."
+                       Foreground="#68767C" TextWrapping="Wrap" FontSize="13"/>
+            <Button Content="Read saved sessions" Command="{Binding RefreshSessionsCommand}"
+                    IsEnabled="{Binding !IsLoadingSessions}" HorizontalAlignment="Left"/>
+            <TextBlock Text="{Binding SessionsStatus}" TextWrapping="Wrap" Foreground="#68767C" FontSize="12"/>
+            <ItemsControl ItemsSource="{Binding SessionItems}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:SessionItem">
+                  <Border BorderBrush="#E4EAE7" BorderThickness="0,0,0,1" Padding="0,12">
+                    <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="5">
+                      <TextBlock Text="{Binding Name}" Foreground="#202A30" FontSize="15" FontWeight="SemiBold"/>
+                      <TextBlock Grid.Column="1" Text="{Binding State}" Foreground="#347867" FontSize="12"/>
+                      <TextBlock Grid.Row="1" Text="{Binding Project}" Foreground="#68767C"
+                                 TextWrapping="Wrap" FontSize="12"/>
+                      <TextBlock Grid.Row="2" Text="{Binding LastUpdated}" Foreground="#748188" FontSize="11"/>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="notLoaded is not an idle signal. This window never resumes or modifies a session."
+                       Foreground="#748188" TextWrapping="Wrap" FontSize="12"/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+    </TabControl>
   </Grid>
- </Grid>
 </Window>

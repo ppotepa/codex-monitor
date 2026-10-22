@@ -7,4 +7,3 @@ global using CodexMonitor.Core.Usage;
 global using CodexMonitor.Core.Usage.History;
 global using CodexMonitor.Core.Usage.Providers;
 global using CodexMonitor.Core.Usage.Refresh;
-global using CodexMonitor.Core.Workspaces;
