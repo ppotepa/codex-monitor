@@ -147,6 +147,26 @@ Assert(discovered.Count == 2, "Root and nested AGENTS instructions discovered wi
 Assert(instructionsInspector.Read(discovered[0].Path).Length > 0, "Read safe instruction file");
 Directory.Delete(instructionsFolder, recursive: true);
 
+
+var skillsFixture = Path.Combine(Path.GetTempPath(), $"codex-skills-{Guid.NewGuid():N}");
+var skillSource = Path.Combine(skillsFixture, "fixtures", "example-skill");
+var skillProject = Path.Combine(skillsFixture, "repository");
+Directory.CreateDirectory(skillSource);
+Directory.CreateDirectory(skillProject);
+File.WriteAllText(Path.Combine(skillSource, "SKILL.md"), "---\nname: example-skill\ndescription: Example local skill\n---");
+var skillsService = new LocalSkillsService();
+var reviewedSkill = skillsService.PreviewInstall(skillSource, SkillScope.Project, skillProject);
+Assert(reviewedSkill.Files.Count == 1, "Skill preview contains manifest");
+skillsService.Install(reviewedSkill);
+Assert(skillsService.List(skillProject).Any(item => item.Name == "example-skill"), "Reviewed skill is installed locally");
+try
+{
+    skillsService.PreviewInstall(skillSource, SkillScope.Project, skillProject);
+    throw new Exception("Duplicate skill destination accepted");
+}
+catch (IOException) { }
+Directory.Delete(skillsFixture, recursive: true);
+
 Console.WriteLine("Parser, provider and workspace checks passed.");
 
 static void Assert(bool condition, string message)
