@@ -63,6 +63,9 @@ public partial class DashboardWindow : Window
     private void CloseClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => Close();
     public event EventHandler? InstallRequested;
     public event EventHandler? SettingsRequested;
+    public event EventHandler? WorkspaceRequested;
+    internal DashboardViewModel WorkspaceUsageModel => _model;
+    private void WorkspaceClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => WorkspaceRequested?.Invoke(this, EventArgs.Empty);
     public event EventHandler? TokensRequested;
     public event EventHandler? TokenRefreshRequested;
 
