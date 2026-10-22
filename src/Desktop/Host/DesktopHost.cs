@@ -28,6 +28,7 @@ internal sealed class DesktopHost(
     CodexMonitor.Core.Workspace.IInstructionsFileEditor instructionEditor,
     CodexMonitor.Core.Workspace.IWorkspaceDoctor doctor,
     IEnumerable<CodexMonitor.Core.Workspace.IAgentSessionSource> sessionSources,
+    CodexMonitor.Core.Workspace.IWorkspaceAiPlanner aiPlanner,
     CancellationTokenSource shutdown) : IDisposable
 {
     private WorkspaceWindow? _workspaceWindow;
@@ -145,7 +146,7 @@ internal sealed class DesktopHost(
         if (_workspaceWindow is null)
         {
             _workspaceWindow = new WorkspaceWindow(window.WorkspaceUsageModel, goals, projects, inspector, git, activity,
-                planner, skills, instructionAudit, instructionOptimizer, instructionEditor, doctor, sessionSources);
+                planner, skills, instructionAudit, instructionOptimizer, instructionEditor, doctor, sessionSources, aiPlanner);
             _workspaceWindow.Closed += (_, _) => _workspaceWindow = null;
         }
         _workspaceWindow.ApplyUsage(coordinator.Dashboard.Limits, coordinator.ProviderInfo.Id);
