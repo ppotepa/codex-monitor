@@ -13,6 +13,8 @@ namespace CodexMonitor.UI.ViewModels;
 public sealed class WorkspaceViewModel : BindableBase
 {
     private readonly IWorkspaceGoalRepository? _goals;
+    private readonly IWorkspaceProjectRepository? _projects;
+    private string? _selectedProject;
     private string _goalTitle = "";
     private string _budgetText = "60";
     private string _goalStatus = "Select a project to create a goal.";
@@ -27,6 +29,8 @@ public sealed class WorkspaceViewModel : BindableBase
     private int _selectedPage;
 
     public DashboardViewModel Usage { get; }
+    public ObservableCollection<string> Projects { get; } = [];
+    public string? SelectedProject { get => _selectedProject; set => Set(ref _selectedProject, value); }
     public ObservableCollection<string> ProjectFiles { get; } = [];
     public ObservableCollection<string> Skills { get; } = [];
     public string ProjectPath { get => _projectPath; set => Set(ref _projectPath, value); }
@@ -41,6 +45,7 @@ public sealed class WorkspaceViewModel : BindableBase
     public string AdvisorText { get => _advisorText; private set => Set(ref _advisorText, value); }
     public bool IsLoading { get => _isLoading; private set => Set(ref _isLoading, value); }
     public int SelectedPage { get => _selectedPage; set => Set(ref _selectedPage, value); }
+    public ICommand LoadProjectCommand { get; }
     public ICommand SaveGoalCommand { get; }
     public ICommand InspectProjectCommand { get; }
     public ICommand RefreshSkillsCommand { get; }
@@ -49,10 +54,13 @@ public sealed class WorkspaceViewModel : BindableBase
     public ICommand ShowSkillsCommand { get; }
     public ICommand ShowInstructionsCommand { get; }
 
-    public WorkspaceViewModel(DashboardViewModel usage, IWorkspaceGoalRepository? goals = null)
+    public WorkspaceViewModel(DashboardViewModel usage, IWorkspaceGoalRepository? goals = null, IWorkspaceProjectRepository? projects = null)
     {
         Usage = usage;
         _goals = goals;
+        _projects = projects;
+        LoadProjectCommand = new UiCommand(() => { if (!string.IsNullOrWhiteSpace(SelectedProject)) { ProjectPath = SelectedProject; _ = InspectProjectAsync(); } });
+        LoadProjects();
         SaveGoalCommand = new UiCommand(SaveGoal);
         InspectProjectCommand = new UiCommand(() => _ = InspectProjectAsync());
         RefreshSkillsCommand = new UiCommand(RefreshSkills);
@@ -101,6 +109,15 @@ public sealed class WorkspaceViewModel : BindableBase
                 ? File.ReadAllText(agents)
                 : "No root AGENTS.md found. Nested instruction files are not inspected yet.";
             RefreshSkills();
+            try
+            {
+                _projects?.Add(path);
+                LoadProjects();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                ProjectStatus += " (Could not persist project: " + ex.Message + ")";
+            }
             if (_goals is not null)
             {
                 var saved = _goals.Find(path);
@@ -144,6 +161,20 @@ public sealed class WorkspaceViewModel : BindableBase
         if (process.ExitCode != 0) return ("—", "Not a readable Git repository: " + stderr.Trim(), []);
         var files = stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         return (files.Length + " changed/untracked files", "Working tree checked locally. Not attributed to a specific agent.", files.Take(100).ToArray());
+    }
+
+    private void LoadProjects()
+    {
+        Projects.Clear();
+        if (_projects is null) return;
+        try
+        {
+            foreach (var path in _projects.List()) Projects.Add(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ProjectStatus = "Could not read saved projects: " + ex.Message;
+        }
     }
 
     public void SaveGoal()
