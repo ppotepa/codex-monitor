@@ -5,7 +5,7 @@ public sealed record AgentSessionInfo(string Id, string ProviderId, string? Proj
     string DisplayName, string Status, DateTimeOffset? UpdatedAt);
 public sealed record AgentSessionSnapshot(IReadOnlyList<AgentSessionInfo> Sessions, string Coverage);
 
-public interface IAgentSessionSource
+public interface IAgentSessionSource : IFeature
 {
     string ProviderId { get; }
     Task<AgentSessionSnapshot> ListAsync(CancellationToken cancellationToken);
