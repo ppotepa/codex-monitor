@@ -44,10 +44,13 @@ tray menu's **Open workspace** command open a separate full-size dashboard.
 Workspace persists Global/Agent/Project context and a local project list. Git
 worktrees are grouped by their shared repository directory, while retaining
 separate worktree paths. Project additions, removals and context changes show
-the settings target and effect before saving. Git Impact reads the selected
-worktree's branch, changed paths and line counts without modifying the worktree.
-Other roadmap pages report their explicit availability state while their
-vertical slices are being integrated.
+the settings target and effect before saving. Its tools include read-only Git
+impact and local session metadata, attention evidence, project goals, local
+skills review, AGENTS.md inspection and guarded editing, work planning, and
+agent diagnostics. Codex notifications are opt-in and store metadata only;
+Claude and Gemini capabilities report their implementation state explicitly.
+Remote skill catalogs, skill update/rollback, arbitrary Git revision ranges,
+and cross-platform UI smoke tests remain future work.
 
 The host in `src/Desktop/Host/` also shares tray menu actions, timers
 and notification delivery. Only OS-specific services vary: executable

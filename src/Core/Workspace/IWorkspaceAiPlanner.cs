@@ -15,7 +15,6 @@ public sealed record WorkspaceAiRecommendation(string Action, string Summary, st
 
 public interface IWorkspaceAiPlanner : IFeature
 {
-    string ProviderId { get; }
     Task<WorkspaceAiRecommendation> AnalyzeAsync(WorkspaceAiPlanningContext context,
         CancellationToken cancellationToken);
 }

@@ -57,16 +57,6 @@ internal sealed class JsonMonitorSettingsRepository(string filePath) : IMonitorS
             settings.AlertStates, StringComparer.OrdinalIgnoreCase);
         settings.TrayWindow ??= "auto";
         settings.PreferredAgentId ??= "auto";
-        if (!Enum.TryParse<WorkspaceScope>(settings.WorkspaceScope, ignoreCase: true, out _))
-            settings.WorkspaceScope = nameof(WorkspaceScope.Global);
-        settings.WorkspaceAgentId = settings.WorkspaceAgentId?.ToLowerInvariant() is "codex" or "claude" or "gemini"
-            ? settings.WorkspaceAgentId.ToLowerInvariant()
-            : "codex";
-        settings.ProjectPaths ??= [];
-        settings.ProjectPaths = settings.ProjectPaths
-            .Where(path => !string.IsNullOrWhiteSpace(path))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
         if (settings.WarningThreshold < 1 || settings.WarningThreshold >= 100) settings.WarningThreshold = 80;
         if (settings.CriticalThreshold <= settings.WarningThreshold || settings.CriticalThreshold > 100)
         {

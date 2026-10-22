@@ -65,10 +65,8 @@ public partial class DashboardWindow : Window
     public event EventHandler? SettingsRequested;
     public event EventHandler? WorkspaceRequested;
     internal DashboardViewModel WorkspaceUsageModel => _model;
-    private void WorkspaceClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => WorkspaceRequested?.Invoke(this, EventArgs.Empty);
     public event EventHandler? TokensRequested;
     public event EventHandler? TokenRefreshRequested;
-    public event EventHandler? WorkspaceRequested;
 
     public bool IsOpen => IsVisible;
     public bool ShowingTokens =>

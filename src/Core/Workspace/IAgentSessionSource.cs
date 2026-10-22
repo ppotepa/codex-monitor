@@ -7,6 +7,5 @@ public sealed record AgentSessionSnapshot(IReadOnlyList<AgentSessionInfo> Sessio
 
 public interface IAgentSessionSource : IFeature
 {
-    string ProviderId { get; }
     Task<AgentSessionSnapshot> ListAsync(CancellationToken cancellationToken);
 }

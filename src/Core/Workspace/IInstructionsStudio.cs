@@ -10,7 +10,6 @@ public interface IInstructionsAuditService
 
 public interface IInstructionsOptimizer : IFeature
 {
-    string ProviderId { get; }
     Task<InstructionsProposal> ProposeAsync(string originalText, CancellationToken cancellationToken);
 }
 

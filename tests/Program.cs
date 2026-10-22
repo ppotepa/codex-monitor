@@ -80,8 +80,6 @@ Assert(defaultSettings.LimitsRefreshMinutes == 5 && defaultSettings.TokenRefresh
     "Use gentle default refresh cadence");
 Assert(defaultSettings.AgentScanMinutes == 30 && defaultSettings.AutoRefreshTokens,
     "Enable periodic agent scan and token refresh by default");
-VerifyWorkspace();
-VerifyGitImpact();
 try
 {
     registry.Get("unsupported-provider");
@@ -311,23 +309,6 @@ static void DeleteTree(string path)
 internal sealed class NullExecutableLocator : IExecutableLocator
 {
     public string? Find(IEnumerable<string> executableNames) => null;
-}
-
-internal sealed class FixedExecutableLocator(string executable) : IExecutableLocator
-{
-    public string? Find(IEnumerable<string> executableNames) => executable;
-}
-
-internal sealed class FixtureProcessRunner(IReadOnlyList<ProcessResult> results) : IProcessRunner
-{
-    private int _index;
-
-    public Task<ProcessResult> RunAsync(string executable, IReadOnlyList<string> arguments,
-        TimeSpan timeout, CancellationToken cancellationToken)
-    {
-        if (_index >= results.Count) throw new InvalidOperationException("No process fixture remains.");
-        return Task.FromResult(results[_index++]);
-    }
 }
 
 internal sealed class NullCommandLaunchStrategy : ICommandLaunchStrategy

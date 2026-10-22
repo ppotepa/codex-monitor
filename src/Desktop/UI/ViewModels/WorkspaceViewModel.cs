@@ -575,7 +575,7 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
 
     public void ApplyInstructions()
     {
-        if (!CanApplyInstructions || _instructionEditor is null ||
+        if (!CanApplyInstructions || _instructionEditor is null || _proposalFile is null ||
             _proposalFile != SelectedInstructionPath || _pendingInstructions is null) return;
         try
         {
