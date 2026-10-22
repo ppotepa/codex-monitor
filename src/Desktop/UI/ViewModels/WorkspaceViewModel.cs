@@ -15,6 +15,18 @@ public sealed class WorkspaceViewModel : BindableBase
     private readonly IWorkspaceGoalRepository? _goals;
     private readonly IWorkspaceProjectRepository? _projects;
     private readonly IWorkspaceInstructionsInspector? _inspector;
+    private readonly IGitImpactService? _git;
+    private readonly IWorkspaceActivitySource? _activity;
+    private readonly IWorkspacePlanner? _planner;
+    private WorkspaceActivitySnapshot _activitySnapshot = new([], false, "Not configured", null);
+    private WorkspaceGoal? _currentGoal;
+    private CodexMonitor.Core.Usage.UsageSnapshot? _usageSnapshot;
+    private string _gitBranch = "—";
+    private string _gitDetails = "Select a Git project";
+    private string _activityCoverage = "No observation source configured.";
+    private string _activityAttention = "No confirmed events requiring attention.";
+    private string _advisorEvidence = "";
+    private string _notifySetup = "Add a Codex notify command in your existing Codex configuration.";
     private string? _selectedInstructionPath;
     private string? _selectedProject;
     private string _goalTitle = "";
@@ -31,6 +43,13 @@ public sealed class WorkspaceViewModel : BindableBase
     private int _selectedPage;
 
     public DashboardViewModel Usage { get; }
+    public ObservableCollection<string> ActivityItems { get; } = [];
+    public string GitBranch { get => _gitBranch; private set => Set(ref _gitBranch, value); }
+    public string GitDetails { get => _gitDetails; private set => Set(ref _gitDetails, value); }
+    public string ActivityCoverage { get => _activityCoverage; private set => Set(ref _activityCoverage, value); }
+    public string ActivityAttention { get => _activityAttention; private set => Set(ref _activityAttention, value); }
+    public string AdvisorEvidence { get => _advisorEvidence; private set => Set(ref _advisorEvidence, value); }
+    public string NotifySetup { get => _notifySetup; private set => Set(ref _notifySetup, value); }
     public ObservableCollection<string> InstructionFiles { get; } = [];
     public string? SelectedInstructionPath { get => _selectedInstructionPath; set => Set(ref _selectedInstructionPath, value); }
     public ObservableCollection<string> Projects { get; } = [];
@@ -49,6 +68,7 @@ public sealed class WorkspaceViewModel : BindableBase
     public string AdvisorText { get => _advisorText; private set => Set(ref _advisorText, value); }
     public bool IsLoading { get => _isLoading; private set => Set(ref _isLoading, value); }
     public int SelectedPage { get => _selectedPage; set => Set(ref _selectedPage, value); }
+    public ICommand RefreshActivityCommand { get; }
     public ICommand ReadInstructionCommand { get; }
     public ICommand LoadProjectCommand { get; }
     public ICommand SaveGoalCommand { get; }
@@ -59,12 +79,22 @@ public sealed class WorkspaceViewModel : BindableBase
     public ICommand ShowSkillsCommand { get; }
     public ICommand ShowInstructionsCommand { get; }
 
-    public WorkspaceViewModel(DashboardViewModel usage, IWorkspaceGoalRepository? goals = null, IWorkspaceProjectRepository? projects = null, IWorkspaceInstructionsInspector? inspector = null)
+    public WorkspaceViewModel(DashboardViewModel usage, IWorkspaceGoalRepository? goals = null,
+        IWorkspaceProjectRepository? projects = null, IWorkspaceInstructionsInspector? inspector = null,
+        IGitImpactService? git = null, IWorkspaceActivitySource? activity = null,
+        IWorkspacePlanner? planner = null)
     {
         Usage = usage;
         _goals = goals;
         _projects = projects;
         _inspector = inspector;
+        _git = git;
+        _activity = activity;
+        _planner = planner;
+        RefreshActivityCommand = new UiCommand(RefreshActivity);
+        var exe = Environment.ProcessPath ?? "<CodexMonitor executable>";
+        NotifySetup = "Add to ~/.codex/config.toml (with your executable path):\nnotify = [" +
+            System.Text.Json.JsonSerializer.Serialize(exe) + ", \"--codex-notify\"]";
         ReadInstructionCommand = new UiCommand(ReadInstruction);
         LoadProjectCommand = new UiCommand(() => { if (!string.IsNullOrWhiteSpace(SelectedProject)) { ProjectPath = SelectedProject; _ = InspectProjectAsync(); } });
         LoadProjects();
@@ -86,10 +116,53 @@ public sealed class WorkspaceViewModel : BindableBase
 
     private void RefreshAdvice()
     {
+        if (_planner is not null)
+        {
+            var result = _planner.Evaluate(_usageSnapshot, _activitySnapshot,
+                _currentGoal, DateTimeOffset.UtcNow);
+            AdvisorText = result.Summary;
+            AdvisorEvidence = result.Evidence;
+            return;
+        }
         AdvisorText = Usage.RemainingText == "No data"
-            ? "Refresh Codex limits to see the remaining allowance. No AI calls are made automatically."
-            : Usage.RemainingText + " · " + Usage.ResetText +
-              ". Use remaining quota according to active work; no unobserved sessions are assumed.";
+            ? "Refresh limits to enable recommendations."
+            : Usage.RemainingText + " · " + Usage.ResetText;
+        AdvisorEvidence = "Quota only. No session data verified.";
+    }
+
+    // Called by the desktop host whenever a new provider snapshot is available.
+    public void ApplyUsageSnapshot(CodexMonitor.Core.Usage.UsageSnapshot? limits)
+    {
+        _usageSnapshot = limits;
+        RefreshAdvice();
+    }
+
+    public void RefreshActivity()
+    {
+        ActivityItems.Clear();
+        if (_activity is null)
+        {
+            ActivityCoverage = "Activity collection is not available.";
+            return;
+        }
+        try
+        {
+            _activitySnapshot = _activity.ReadRecent(
+                Directory.Exists(ProjectPath) ? Path.GetFullPath(ProjectPath) : null);
+            ActivityCoverage = _activitySnapshot.Coverage;
+            foreach (var ev in _activitySnapshot.Events)
+                ActivityItems.Add($"{ev.At.ToLocalTime():g}  ·  {ev.EventType}  ·  {ev.SessionId ?? "unknown session"}");
+            ActivityAttention = _activitySnapshot.Events.Any(ev =>
+                ev.EventType.Contains("PermissionRequest", StringComparison.OrdinalIgnoreCase) &&
+                DateTimeOffset.UtcNow - ev.At < TimeSpan.FromMinutes(10))
+                ? "An observed event may need approval; verify its current state in Codex."
+                : "No recent observed approval requests.";
+            RefreshAdvice();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        {
+            ActivityCoverage = "Could not read local activity: " + ex.Message;
+        }
     }
 
     public async Task InspectProjectAsync()
@@ -105,13 +178,28 @@ public sealed class WorkspaceViewModel : BindableBase
         ProjectStatus = "Reading local repository…";
         try
         {
-            var result = await Task.Run(() => ReadGit(path));
             ProjectName = Path.GetFileName(Path.TrimEndingDirectorySeparator(path));
-            GitSummary = result.Summary;
-            ProjectStatus = result.Status;
             ProjectFiles.Clear();
-            foreach (var file in result.Files) ProjectFiles.Add(file);
+            if (_git is not null)
+            {
+                var impact = await _git.InspectAsync(path);
+                GitBranch = impact.Branch + (impact.IsWorktree ? " · worktree" : "");
+                GitSummary = $"+{impact.AddedLines:N0} / -{impact.DeletedLines:N0}";
+                GitDetails = $"{impact.Files.Count} tracked changes · {impact.UntrackedFiles} untracked · {impact.LatestCommit}";
+                ProjectStatus = "Working-tree Git impact; not attributed to any agent.";
+                foreach (var file in impact.Files)
+                    ProjectFiles.Add($"{file.Path}    +{file.Added} / -{file.Deleted}" +
+                        (file.Binary ? " (binary)" : ""));
+            }
+            else
+            {
+                var result = await Task.Run(() => ReadGit(path));
+                GitSummary = result.Summary;
+                ProjectStatus = result.Status;
+                foreach (var file in result.Files) ProjectFiles.Add(file);
+            }
             RefreshInstructions(path);
+            RefreshActivity();
             RefreshSkills();
             try
             {
@@ -127,8 +215,10 @@ public sealed class WorkspaceViewModel : BindableBase
                 var saved = _goals.Find(path);
                 GoalTitle = saved?.Title ?? "";
                 BudgetText = saved?.BudgetMinutes.ToString() ?? "60";
+                _currentGoal = saved;
                 GoalStatus = saved is null ? "No goal saved for this repository." :
                     "Goal saved · " + saved.StartedAtUtc.ToLocalTime().ToString("g");
+                RefreshAdvice();
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or Win32Exception)
@@ -226,7 +316,9 @@ public sealed class WorkspaceViewModel : BindableBase
         {
             _goals.Save(new WorkspaceGoal(Path.GetFullPath(ProjectPath.Trim().Trim('\"')),
                 GoalTitle.Trim(), budget, DateTimeOffset.UtcNow));
+            _currentGoal = _goals.Find(ProjectPath.Trim().Trim('"'));
             GoalStatus = "Goal saved locally. Time spent is not tracked automatically.";
+            RefreshAdvice();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         { GoalStatus = "Could not save goal: " + ex.Message; }
