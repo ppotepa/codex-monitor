@@ -10,6 +10,8 @@ public sealed class CodexInstructionsOptimizer(IExecutableLocator locator, IProc
     : IInstructionsOptimizer
 {
     public string ProviderId => "codex";
+    public string FeatureId => "instructions.optimize";
+    public int Priority => 10;
 
     public async Task<InstructionsProposal> ProposeAsync(string originalText, CancellationToken cancellationToken)
     {
