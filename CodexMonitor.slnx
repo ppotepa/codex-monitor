@@ -6,4 +6,5 @@
   <Project Path="src/Platform/Unix/CodexMonitor.Platform.Unix.csproj" />
   <Project Path="src/Desktop/UI/CodexMonitor.UI.csproj" />
   <Project Path="src/Desktop/Host/CodexMonitor.Desktop.csproj" />
+  <Project Path="tests/ParserChecks.csproj" />
 </Solution>
