@@ -9,6 +9,7 @@ public static class CodexProviderServices
     {
         services.AddSingleton<IUsageProvider, CodexProvider>();
         services.AddSingleton<IInstructionsOptimizer, CodexInstructionsOptimizer>();
+        services.AddSingleton<IAgentSessionSource, CodexAppServerSessionSource>();
         return services;
     }
 }
