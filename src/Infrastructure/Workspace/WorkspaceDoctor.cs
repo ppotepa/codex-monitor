@@ -9,12 +9,17 @@ public sealed class WorkspaceDoctor(
     IExecutableLocator executables,
     IWorkspaceActivitySource activity,
     ILocalSkillsService skills,
-    IWorkspaceInstructionsInspector instructions) : IWorkspaceDoctor
+    IWorkspaceInstructionsInspector instructions,
+    IFeatureRegistry features) : IWorkspaceDoctor
 {
     public IReadOnlyList<WorkspaceDoctorCheck> Inspect(string? projectPath)
     {
         var checks = new List<WorkspaceDoctorCheck>();
         agentManager.Refresh();
+        string[] knownCapabilities = [
+            "usage.limits", "usage.tokens", "dependency.repair",
+            "sessions.list", "advisory.work", "instructions.optimize"
+        ];
         foreach (var agent in agentManager.Snapshot.Agents)
         {
             var state = !agent.IsInstalled ? "NotInstalled" :
@@ -24,7 +29,11 @@ public sealed class WorkspaceDoctor(
                     ? "Installed; CodexMonitor has a provider adapter."
                     : "CLI detected, but CodexMonitor does not implement this provider yet."
                 : "CLI not detected. Installing an agent is optional.";
-            checks.Add(new WorkspaceDoctorCheck("Agents", agent.Definition.DisplayName, state, description));
+            var supported = knownCapabilities.Count(feature =>
+                features.Describe(agent.Definition.Id, feature).Implemented);
+            checks.Add(new WorkspaceDoctorCheck("Agents", agent.Definition.DisplayName, state,
+                description + $" Capabilities implemented: {supported}/{knownCapabilities.Length}."));
+
         }
         checks.Add(new WorkspaceDoctorCheck("Tools", "Git",
             executables.Find(["git", "git.exe"]) is null ? "NotInstalled" : "Ready",
