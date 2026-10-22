@@ -14,11 +14,11 @@ public partial class WorkspaceWindow : Window
         IGitImpactService? git = null, IWorkspaceActivitySource? activity = null, IWorkspacePlanner? planner = null, ILocalSkillsService? skills = null,
         IInstructionsAuditService? audit = null, IInstructionsOptimizer? optimizer = null,
         IInstructionsFileEditor? editor = null, IWorkspaceDoctor? doctor = null,
-        IEnumerable<IAgentSessionSource>? sessions = null)
+        IEnumerable<IAgentSessionSource>? sessions = null, IWorkspaceAiPlanner? aiPlanner = null)
     {
         AvaloniaXamlLoader.Load(this);
         var model = new WorkspaceViewModel(usage, goals, projects, inspector, git, activity,
-            planner, skills, audit, optimizer, editor, doctor, sessions);
+            planner, skills, audit, optimizer, editor, doctor, sessions, aiPlanner);
         DataContext = model;
         Closed += (_, _) => model.Dispose();
     }
