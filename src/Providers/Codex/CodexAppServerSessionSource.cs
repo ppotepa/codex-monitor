@@ -10,6 +10,8 @@ public sealed class CodexAppServerSessionSource(IExecutableLocator locator, ICom
     : IAgentSessionSource
 {
     public string ProviderId => "codex";
+    public string FeatureId => "sessions.list";
+    public int Priority => 10;
 
     public async Task<AgentSessionSnapshot> ListAsync(CancellationToken cancellationToken)
     {
