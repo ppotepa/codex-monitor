@@ -8,7 +8,7 @@ public interface IInstructionsAuditService
     InstructionsAudit Analyze(string text);
 }
 
-public interface IInstructionsOptimizer
+public interface IInstructionsOptimizer : IFeature
 {
     string ProviderId { get; }
     Task<InstructionsProposal> ProposeAsync(string originalText, CancellationToken cancellationToken);
