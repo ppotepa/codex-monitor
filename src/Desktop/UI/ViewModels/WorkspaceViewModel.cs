@@ -10,6 +10,8 @@ using System.Windows.Input;
 namespace CodexMonitor.UI.ViewModels;
 
 // A presentation-only model. Local tools never require an account or network access.
+public sealed record DoctorCheckItem(string Category, string Name, string Status, string Detail);
+
 public sealed class WorkspaceViewModel : BindableBase, IDisposable
 {
     private readonly IWorkspaceGoalRepository? _goals;
@@ -22,6 +24,8 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
     private readonly IInstructionsAuditService? _instructionAudit;
     private readonly IInstructionsOptimizer? _instructionOptimizer;
     private readonly IInstructionsFileEditor? _instructionEditor;
+    private readonly IWorkspaceDoctor? _doctor;
+    private string _doctorSummary = "Run local diagnostics to inspect agents and tools.";
     private readonly CancellationTokenSource _analysisLifetime = new();
     private InstructionsProposal? _pendingInstructions;
     private string? _proposalFile;
@@ -65,6 +69,8 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
     private int _selectedPage;
 
     public DashboardViewModel Usage { get; }
+    public ObservableCollection<DoctorCheckItem> DoctorItems { get; } = [];
+    public string DoctorSummary { get => _doctorSummary; private set => Set(ref _doctorSummary, value); }
     public ObservableCollection<string> ActivityItems { get; } = [];
     public string InstructionsAuditText { get => _instructionsAuditText; private set => Set(ref _instructionsAuditText, value); }
     public string InstructionsProposedText { get => _instructionsProposedText; private set => Set(ref _instructionsProposedText, value); }
@@ -114,6 +120,7 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
     public string AdvisorText { get => _advisorText; private set => Set(ref _advisorText, value); }
     public bool IsLoading { get => _isLoading; private set => Set(ref _isLoading, value); }
     public int SelectedPage { get => _selectedPage; set => Set(ref _selectedPage, value); }
+    public ICommand RefreshDoctorCommand { get; }
     public ICommand AnalyzeInstructionsCommand { get; }
     public ICommand OptimizeInstructionsCommand { get; }
     public ICommand ApplyInstructionsCommand { get; }
@@ -136,7 +143,7 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
         IGitImpactService? git = null, IWorkspaceActivitySource? activity = null,
         IWorkspacePlanner? planner = null, ILocalSkillsService? skillsService = null,
         IInstructionsAuditService? instructionAudit = null, IInstructionsOptimizer? instructionOptimizer = null,
-        IInstructionsFileEditor? instructionEditor = null)
+        IInstructionsFileEditor? instructionEditor = null, IWorkspaceDoctor? doctor = null)
     {
         Usage = usage;
         _goals = goals;
@@ -149,6 +156,8 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
         _instructionAudit = instructionAudit;
         _instructionOptimizer = instructionOptimizer;
         _instructionEditor = instructionEditor;
+        _doctor = doctor;
+        RefreshDoctorCommand = new UiCommand(RefreshDoctor);
         AnalyzeInstructionsCommand = new UiCommand(AnalyzeInstructions);
         OptimizeInstructionsCommand = new UiCommand(() => _ = OptimizeInstructionsAsync());
         ApplyInstructionsCommand = new UiCommand(ApplyInstructions);
@@ -360,6 +369,23 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
         { Instructions = "Could not read instructions: " + ex.Message; }
+    }
+
+    public void RefreshDoctor()
+    {
+        DoctorItems.Clear();
+        if (_doctor is null) { DoctorSummary = "Local diagnostics not available."; return; }
+        try
+        {
+            foreach (var item in _doctor.Inspect(ProjectPath))
+                DoctorItems.Add(new DoctorCheckItem(item.Category, item.Name, item.Status, item.Detail));
+            DoctorSummary = "Local checks completed · " + DateTimeOffset.Now.ToString("g") +
+                " · " + DoctorItems.Count + " checks. Unsupported agents remain visible.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            DoctorSummary = "Local diagnostics failed: " + ex.Message;
+        }
     }
 
     public void AnalyzeInstructions()
