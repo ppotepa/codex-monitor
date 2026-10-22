@@ -18,6 +18,16 @@ public sealed class WorkspaceViewModel : BindableBase
     private readonly IGitImpactService? _git;
     private readonly IWorkspaceActivitySource? _activity;
     private readonly IWorkspacePlanner? _planner;
+    private readonly ILocalSkillsService? _skillsService;
+    private SkillInstallReview? _skillPending;
+    private readonly Dictionary<string, string> _knownSkillFolders = new(StringComparer.Ordinal); 
+    private string _skillSourceFolder = "";
+    private string _skillInstallScope = "User";
+    private string _skillReviewText = "Choose a local skill directory and review it before installing.";
+    private string _skillDetails = "Select an installed skill to read SKILL.md.";
+    private string _skillInstallStatus = "";
+    private string? _selectedSkill;
+    private bool _confirmSkillInstall;
     private WorkspaceActivitySnapshot _activitySnapshot = new([], false, "Not configured", null);
     private WorkspaceGoal? _currentGoal;
     private CodexMonitor.Core.Usage.UsageSnapshot? _usageSnapshot;
@@ -56,6 +66,19 @@ public sealed class WorkspaceViewModel : BindableBase
     public string? SelectedProject { get => _selectedProject; set => Set(ref _selectedProject, value); }
     public ObservableCollection<string> ProjectFiles { get; } = [];
     public ObservableCollection<string> Skills { get; } = [];
+    public IReadOnlyList<string> SkillScopes { get; } = ["User", "Project"];
+    public string SkillSourceFolder { get => _skillSourceFolder; set => Set(ref _skillSourceFolder, value); }
+    public string SkillInstallScope { get => _skillInstallScope; set => Set(ref _skillInstallScope, value); }
+    public string SkillReviewText { get => _skillReviewText; private set => Set(ref _skillReviewText, value); }
+    public string SkillDetails { get => _skillDetails; private set => Set(ref _skillDetails, value); }
+    public string SkillInstallStatus { get => _skillInstallStatus; private set => Set(ref _skillInstallStatus, value); }
+    public string? SelectedSkill { get => _selectedSkill; set => Set(ref _selectedSkill, value); }
+    public bool ConfirmSkillInstall
+    {
+        get => _confirmSkillInstall;
+        set { if (Set(ref _confirmSkillInstall, value)) OnPropertyChanged(nameof(CanInstallSkill)); }
+    }
+    public bool CanInstallSkill => _skillPending is not null && ConfirmSkillInstall;
     public string ProjectPath { get => _projectPath; set => Set(ref _projectPath, value); }
     public string GoalTitle { get => _goalTitle; set => Set(ref _goalTitle, value); }
     public string BudgetText { get => _budgetText; set => Set(ref _budgetText, value); }
@@ -68,6 +91,9 @@ public sealed class WorkspaceViewModel : BindableBase
     public string AdvisorText { get => _advisorText; private set => Set(ref _advisorText, value); }
     public bool IsLoading { get => _isLoading; private set => Set(ref _isLoading, value); }
     public int SelectedPage { get => _selectedPage; set => Set(ref _selectedPage, value); }
+    public ICommand ReviewSkillCommand { get; }
+    public ICommand InstallReviewedSkillCommand { get; }
+    public ICommand ReadSelectedSkillCommand { get; }
     public ICommand RefreshActivityCommand { get; }
     public ICommand ReadInstructionCommand { get; }
     public ICommand LoadProjectCommand { get; }
@@ -82,7 +108,7 @@ public sealed class WorkspaceViewModel : BindableBase
     public WorkspaceViewModel(DashboardViewModel usage, IWorkspaceGoalRepository? goals = null,
         IWorkspaceProjectRepository? projects = null, IWorkspaceInstructionsInspector? inspector = null,
         IGitImpactService? git = null, IWorkspaceActivitySource? activity = null,
-        IWorkspacePlanner? planner = null)
+        IWorkspacePlanner? planner = null, ILocalSkillsService? skillsService = null)
     {
         Usage = usage;
         _goals = goals;
@@ -91,6 +117,10 @@ public sealed class WorkspaceViewModel : BindableBase
         _git = git;
         _activity = activity;
         _planner = planner;
+        _skillsService = skillsService;
+        ReviewSkillCommand = new UiCommand(ReviewSkill);
+        InstallReviewedSkillCommand = new UiCommand(InstallReviewedSkill);
+        ReadSelectedSkillCommand = new UiCommand(ReadSelectedSkill);
         RefreshActivityCommand = new UiCommand(RefreshActivity);
         var exe = Environment.ProcessPath ?? "<CodexMonitor executable>";
         NotifySetup = "Add to ~/.codex/config.toml (with your executable path):\nnotify = [" +
@@ -324,9 +354,92 @@ public sealed class WorkspaceViewModel : BindableBase
         { GoalStatus = "Could not save goal: " + ex.Message; }
     }
 
+    public void ReviewSkill()
+    {
+        _skillPending = null;
+        ConfirmSkillInstall = false;
+        OnPropertyChanged(nameof(CanInstallSkill));
+        if (_skillsService is null) { SkillInstallStatus = "Skill management unavailable."; return; }
+        try
+        {
+            var scope = SkillInstallScope == "Project" ? SkillScope.Project : SkillScope.User;
+            _skillPending = _skillsService.PreviewInstall(SkillSourceFolder.Trim().Trim('"'),
+                scope, ProjectPath.Trim().Trim('"'));
+            SkillReviewText = "Install " + _skillPending.Name + " to " + _skillPending.TargetFolder +
+                Environment.NewLine + "Files (" + _skillPending.Files.Count + "):" +
+                Environment.NewLine + string.Join(Environment.NewLine,
+                    _skillPending.Files.Take(60).Select(f => f.RelativePath + " (" + f.SizeBytes + " bytes)")) +
+                Environment.NewLine + string.Join(Environment.NewLine, _skillPending.Warnings);
+            SkillInstallStatus = "Review the listed files, then explicitly approve installation.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            SkillReviewText = "Skill preview failed: " + ex.Message;
+            SkillInstallStatus = "";
+        }
+        OnPropertyChanged(nameof(CanInstallSkill));
+    }
+
+    public void InstallReviewedSkill()
+    {
+        if (!CanInstallSkill || _skillsService is null || _skillPending is null) return;
+        try
+        {
+            _skillsService.Install(_skillPending);
+            SkillInstallStatus = "Installed locally: " + _skillPending.Name;
+            _skillPending = null;
+            ConfirmSkillInstall = false;
+            OnPropertyChanged(nameof(CanInstallSkill));
+            RefreshSkills();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            SkillInstallStatus = "Installation failed: " + ex.Message + ". Review again before retry.";
+            _skillPending = null;
+            ConfirmSkillInstall = false;
+            OnPropertyChanged(nameof(CanInstallSkill));
+        }
+    }
+
+    public void ReadSelectedSkill()
+    {
+        if (SelectedSkill is null || !_knownSkillFolders.TryGetValue(SelectedSkill, out var folder)) return;
+        try
+        {
+            var manifest = Path.Combine(folder, "SKILL.md");
+            if (new FileInfo(manifest).Length > 256 * 1024)
+                throw new InvalidDataException("SKILL.md exceeds 256 KB.");
+            SkillDetails = File.ReadAllText(manifest);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            SkillDetails = "Could not read skill manifest: " + ex.Message;
+        }
+    }
+
     public void RefreshSkills()
     {
         Skills.Clear();
+        _knownSkillFolders.Clear();
+        if (_skillsService is not null)
+        {
+            try
+            {
+                foreach (var skill in _skillsService.List(ProjectPath))
+                {
+                    var label = skill.Name + " · " + skill.Scope +
+                        (string.IsNullOrWhiteSpace(skill.Description) ? "" : " · " + skill.Description);
+                    Skills.Add(label);
+                    _knownSkillFolders[label] = skill.Folder;
+                }
+                SkillsSummary = Skills.Count + " installed local skills.";
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                SkillsSummary = "Could not list installed skills: " + ex.Message;
+            }
+            return;
+        }
         var paths = new[]
         {
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".agents", "skills"),
