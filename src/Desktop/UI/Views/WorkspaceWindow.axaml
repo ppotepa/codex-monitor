@@ -82,7 +82,9 @@
             </Grid>
             <TextBlock Text="{Binding ProjectStatus}" FontSize="12" TextWrapping="Wrap" Foreground="#68767C"/>
             <TextBlock Text="{Binding ProjectName}" FontSize="22" FontWeight="SemiBold" Foreground="#202A30"/>
-            <TextBlock Text="{Binding GitSummary}" Foreground="#3F7968" FontSize="16"/>
+            <TextBlock Text="{Binding GitBranch}" Foreground="#68767C" FontSize="12"/>
+            <TextBlock Text="{Binding GitSummary}" Foreground="#3F7968" FontSize="23" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding GitDetails}" Foreground="#68767C" FontSize="12" TextWrapping="Wrap"/>
             <TextBlock Text="Changed and untracked files" FontSize="15" Foreground="#202A30" FontWeight="SemiBold"/>
             <ListBox ItemsSource="{Binding ProjectFiles}" MinHeight="150" MaxHeight="340"/>
             <TextBlock Text="Counts reflect local Git status, not agent attribution or historical productivity."
@@ -192,8 +194,31 @@
             <TextBlock Text="Work planner" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
             <TextBlock Text="Lightweight guidance, without starting an AI agent." Foreground="#68767C"/>
             <TextBlock Text="{Binding AdvisorText}" FontSize="17" TextWrapping="Wrap" Foreground="#202A30"/>
-            <TextBlock Text="Session-aware planning, budgets and AI recommendations are not implemented yet."
+            <TextBlock Text="Evidence and limitations" Foreground="#68767C" FontSize="13" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding AdvisorEvidence}" Foreground="#68767C" FontSize="12" TextWrapping="Wrap"/>
+            <TextBlock Text="AI recommendations are optional; no model is called by the local planner."
                        Foreground="#748188" TextWrapping="Wrap"/>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="Activity">
+        <ScrollViewer>
+          <StackPanel Margin="40,30" Spacing="16" MaxWidth="850" HorizontalAlignment="Left">
+            <TextBlock Text="Activity" FontSize="30" FontWeight="SemiBold" Foreground="#202A30"/>
+            <TextBlock Text="Observed Codex events. No assumption of universal live-session coverage."
+                       Foreground="#68767C" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding ActivityCoverage}" Foreground="#68767C" TextWrapping="Wrap" FontSize="12"/>
+            <Border BorderBrush="#E4EAE7" BorderThickness="0,0,0,1" Padding="0,12">
+              <TextBlock Text="{Binding ActivityAttention}" Foreground="#347867" TextWrapping="Wrap" FontSize="14"/>
+            </Border>
+            <Button Content="Refresh observations" Command="{Binding RefreshActivityCommand}"
+                    HorizontalAlignment="Left"/>
+            <ListBox ItemsSource="{Binding ActivityItems}" MinHeight="180"/>
+            <TextBlock Text="Optional setup for Codex CLI" FontWeight="SemiBold" Foreground="#202A30"/>
+            <TextBox Text="{Binding NotifySetup}" IsReadOnly="True" AcceptsReturn="True"
+                     TextWrapping="Wrap" MinHeight="80" FontFamily="Consolas, monospace"/>
+            <TextBlock Text="Only event metadata is recorded. Existing Codex authorization is reused."
+                       Foreground="#748188" FontSize="12" TextWrapping="Wrap"/>
           </StackPanel>
         </ScrollViewer>
       </TabItem>
