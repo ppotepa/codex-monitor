@@ -4,8 +4,8 @@
         xmlns:views="using:CodexMonitor.UI.Views"
         x:Class="CodexMonitor.UI.Views.WorkspaceWindow"
         x:DataType="vm:WorkspaceViewModel" x:CompileBindings="True"
-        Title="Codex Monitor · Workspace" Width="1180" Height="770"
-        MinWidth="900" MinHeight="570" WindowStartupLocation="CenterScreen"
+        Title="Codex Monitor · Workspace" Width="1120" Height="740"
+        MinWidth="960" MinHeight="570" WindowStartupLocation="CenterScreen"
         RequestedThemeVariant="Dark" Background="{DynamicResource WindowBrush}" Foreground="{DynamicResource TextBrush}">
   <Window.Styles>
     <Style Selector="TabControl.workspace-tabs TabItem">
