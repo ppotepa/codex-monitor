@@ -14,6 +14,7 @@ public static class InfrastructureServices
         services.AddSingleton<IWorkspaceInstructionsInspector, FileSystemInstructionsInspector>();
         services.AddSingleton<IGitImpactService, GitImpactService>();
         services.AddSingleton<ILocalSkillsService, LocalSkillsService>();
+        services.AddSingleton<IWorkspaceDoctor, WorkspaceDoctor>();
         services.AddSingleton<InstructionsStudioService>();
         services.AddSingleton<IInstructionsAuditService>(sp => sp.GetRequiredService<InstructionsStudioService>());
         services.AddSingleton<IInstructionsFileEditor>(sp => sp.GetRequiredService<InstructionsStudioService>());
