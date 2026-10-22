@@ -126,7 +126,16 @@ try
 catch (InvalidDataException) { }
 File.Delete(goalsPath);
 
-Console.WriteLine("Parser, provider and workspace goal checks passed.");
+var projectsPath = Path.Combine(Path.GetTempPath(), $"codex-monitor-projects-{Guid.NewGuid():N}.json");
+var projectStore = new JsonWorkspaceProjectRepository(projectsPath);
+projectStore.Add(Path.GetTempPath());
+projectStore.Add(Path.GetTempPath());
+Assert(projectStore.List().Count == 1, "Project paths must be deduplicated");
+projectStore.Remove(Path.GetTempPath());
+Assert(projectStore.List().Count == 0, "Project removal");
+File.Delete(projectsPath);
+
+Console.WriteLine("Parser, provider, workspace goals and projects checks passed.");
 
 static void Assert(bool condition, string message)
 {
