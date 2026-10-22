@@ -7,6 +7,8 @@ public sealed class CodexWorkspaceAiPlanner(IExecutableLocator locator, IProcess
     : IWorkspaceAiPlanner
 {
     public string ProviderId => "codex";
+    public string FeatureId => "advisory.work";
+    public int Priority => 10;
 
     public async Task<WorkspaceAiRecommendation> AnalyzeAsync(WorkspaceAiPlanningContext context,
         CancellationToken cancellationToken)
