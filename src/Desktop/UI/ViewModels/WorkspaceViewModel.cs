@@ -250,7 +250,11 @@ public sealed partial class WorkspaceViewModel : BindableBase, IDisposable
     private void OnUsagePropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (_disposed) return;
-        if (args.PropertyName is nameof(DashboardViewModel.RemainingText) or nameof(DashboardViewModel.ResetText))
+        if (args.PropertyName is nameof(DashboardViewModel.RemainingText)
+            or nameof(DashboardViewModel.ResetText)
+            or nameof(DashboardViewModel.UsedPercent)
+            or nameof(DashboardViewModel.HasSelectedLimit)
+            or nameof(DashboardViewModel.SelectedResetsAt))
         {
             UpdateOverviewAllowance();
             RefreshAdvice();
