@@ -12,7 +12,11 @@ public sealed record GitImpactSnapshot(
     string LatestCommit,
     bool IsWorktree);
 
+public enum GitImpactScope { WorkingTree, LastCommit }
+
 public interface IGitImpactService
 {
     Task<GitImpactSnapshot> InspectAsync(string directory, CancellationToken cancellationToken = default);
+    Task<GitImpactSnapshot> InspectRangeAsync(string directory, GitImpactScope scope,
+        CancellationToken cancellationToken = default);
 }
