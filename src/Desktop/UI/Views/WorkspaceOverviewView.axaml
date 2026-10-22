@@ -82,7 +82,7 @@
         </Grid>
       </Border>
 
-      <Grid ColumnDefinitions="*,274" ColumnSpacing="22">
+      <Grid ColumnDefinitions="*,260" ColumnSpacing="20">
         <StackPanel Grid.Column="0" Spacing="12">
           <Grid ColumnDefinitions="*,Auto">
             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
