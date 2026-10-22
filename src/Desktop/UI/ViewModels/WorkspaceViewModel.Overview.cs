@@ -120,11 +120,39 @@ public sealed partial class WorkspaceViewModel
         OverviewResetDate = reset.Value.ToLocalTime().ToString("dd MMM · HH:mm", CultureInfo.CurrentCulture);
     }
 
+    // A provider change must never leave Codex session evidence displayed under another provider.
+    private void ResetOverviewProviderObservations()
+    {
+        OverviewObservedSessions = "—";
+        OverviewCoverage = "Refreshing provider observations";
+        OverviewActivity.Clear();
+        OnPropertyChanged(nameof(HasOverviewActivity));
+        OnPropertyChanged(nameof(OverviewActivityCount));
+        HasOverviewAttention = false;
+        OverviewAttentionTitle = "No confirmed attention items";
+        OverviewAttentionBody = "Checking observations for the selected provider.";
+        OverviewAttentionEvidence = "No assumptions from the previous provider.";
+        OnPropertyChanged(nameof(NoOverviewAttention));
+        OnPropertyChanged(nameof(OverviewAttentionCount));
+        var rows = OverviewProjects.Select(item => item with
+        {
+            SessionsText = "—",
+            State = "No signal"
+        }).ToArray();
+        OverviewProjects.Clear();
+        foreach (var row in rows) OverviewProjects.Add(row);
+        OverviewActiveProjects = "No confirmed active projects";
+        _activitySnapshot = new WorkspaceActivitySnapshot([], false,
+            "Provider changed; current observations not yet loaded.", null);
+    }
+
     // Explicit refresh only; reading Overview never starts Codex app-server or AI.
     public async Task RefreshOverviewAsync()
     {
         if (IsOverviewBusy) return;
         IsOverviewBusy = true;
+        var requestedProvider = _selectedProviderId;
+        var providerChangedDuringRefresh = false;
         OverviewStatus = "Updating local data…";
         try
         {
@@ -135,15 +163,20 @@ public sealed partial class WorkspaceViewModel
             var activity = _activity is null
                 ? new WorkspaceActivitySnapshot([], false, "Not configured", null)
                 : await Task.Run(() => _activity.ReadRecent(null, 80), _analysisLifetime.Token);
-            _activitySnapshot = activity;
+            if (!string.Equals(_selectedProviderId, requestedProvider, StringComparison.OrdinalIgnoreCase))
+            {
+                providerChangedDuringRefresh = true;
+                return;
+            }
             var events = activity.Events
-                .Where(item => string.Equals(item.ProviderId, _selectedProviderId,
+                .Where(item => string.Equals(item.ProviderId, requestedProvider,
                     StringComparison.OrdinalIgnoreCase))
                 .OrderByDescending(item => item.At)
                 .ToArray();
+            _activitySnapshot = activity with { Events = events };
 
             var sessions = _sessionSnapshot?.Sessions
-                .Where(item => string.Equals(item.ProviderId, _selectedProviderId,
+                .Where(item => string.Equals(item.ProviderId, requestedProvider,
                     StringComparison.OrdinalIgnoreCase))
                 .ToArray() ?? [];
             var recentIds = events.Where(item => item.SessionId is not null)
@@ -239,6 +272,11 @@ public sealed partial class WorkspaceViewModel
                 finally { concurrency.Release(); }
             }));
             _analysisLifetime.Token.ThrowIfCancellationRequested();
+            if (!string.Equals(_selectedProviderId, requestedProvider, StringComparison.OrdinalIgnoreCase))
+            {
+                providerChangedDuringRefresh = true;
+                return;
+            }
             OverviewProjects.Clear();
             foreach (var row in rows) OverviewProjects.Add(row);
             OnPropertyChanged(nameof(HasOverviewProjects));
@@ -262,7 +300,12 @@ public sealed partial class WorkspaceViewModel
         {
             OverviewStatus = "Local overview unavailable: " + ex.Message;
         }
-        finally { IsOverviewBusy = false; }
+        finally
+        {
+            IsOverviewBusy = false;
+            if (providerChangedDuringRefresh && !_analysisLifetime.IsCancellationRequested)
+                _ = RefreshOverviewAsync();
+        }
     }
 
     private static bool IsInsideProject(string? candidate, string root)
