@@ -205,7 +205,7 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
         if (_planner is not null)
         {
             var result = _planner.Evaluate(_usageSnapshot, _activitySnapshot,
-                _currentGoal, DateTimeOffset.UtcNow);
+                _currentGoal, DateTimeOffset.UtcNow, _sessionSnapshot);
             AdvisorText = result.Summary;
             AdvisorEvidence = result.Evidence;
             return;
@@ -219,6 +219,12 @@ public sealed class WorkspaceViewModel : BindableBase, IDisposable
     // Called by the desktop host whenever a new provider snapshot is available.
     public void ApplyUsageSnapshot(CodexMonitor.Core.Usage.UsageSnapshot? limits, string providerId)
     {
+        if (!string.Equals(_selectedProviderId, providerId, StringComparison.OrdinalIgnoreCase))
+        {
+            _sessionSnapshot = null;
+            SessionItems.Clear();
+            SessionsStatus = "Provider changed. Refresh sessions for the selected provider.";
+        }
         _selectedProviderId = providerId;
         _usageSnapshot = limits;
         RefreshAdvice();
